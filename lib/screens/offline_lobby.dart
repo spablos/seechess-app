@@ -63,7 +63,7 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
     if (!mounted) return;
     await Navigator.of(
       context,
-    ).push(MaterialPageRoute(builder: (_) => _JoinScreen(myName: name)));
+    ).push(MaterialPageRoute(builder: (_) => JoinMatchScreen(myName: name)));
   }
 
   Future<void> _customTime() async {
@@ -301,19 +301,47 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
   }
 }
 
-/// Guest side: scan the host's QR (or type the address), then wait for start.
-class _JoinScreen extends StatefulWidget {
-  const _JoinScreen({required this.myName});
-  final String myName;
+/// Guest side: scan the host's QR (or type the address), then wait for
+/// start. Also the landing screen when a QR is scanned with the system
+/// camera — the seechess:// deep link arrives with [address] prefilled.
+class JoinMatchScreen extends StatefulWidget {
+  const JoinMatchScreen({super.key, this.myName, this.address});
+
+  /// Session display name; when null (deep-link entry) the saved one is
+  /// used, defaulting to 'Player'.
+  final String? myName;
+
+  /// "ip:port" to connect to immediately, skipping the scanner.
+  final String? address;
 
   @override
-  State<_JoinScreen> createState() => _JoinScreenState();
+  State<JoinMatchScreen> createState() => _JoinScreenState();
 }
 
-class _JoinScreenState extends State<_JoinScreen> {
+class _JoinScreenState extends State<JoinMatchScreen> {
   final _address = TextEditingController();
   GuestSession? _session;
   bool _entered = false;
+  String _myName = 'Player';
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveNameThenAutoConnect();
+  }
+
+  Future<void> _resolveNameThenAutoConnect() async {
+    var name = widget.myName;
+    if (name == null) {
+      final prefs = await SharedPreferences.getInstance();
+      name = prefs.getString('player_name');
+    }
+    if (name != null && name.trim().isNotEmpty) _myName = name.trim();
+    final address = widget.address;
+    if (address != null && address.contains(':') && mounted) {
+      _connect(address);
+    }
+  }
 
   @override
   void dispose() {
@@ -325,7 +353,7 @@ class _JoinScreenState extends State<_JoinScreen> {
 
   void _connect(String address) {
     if (_session != null) return;
-    final session = GuestSession(name: widget.myName, hostAddress: address);
+    final session = GuestSession(name: _myName, hostAddress: address);
     _session = session;
     session.addListener(_onSession);
     unawaited(session.connect());
@@ -363,7 +391,9 @@ class _JoinScreenState extends State<_JoinScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Join a match')),
       body: SafeArea(
-        child: session != null
+        // deep-link entry connects directly — never build the scanner (and
+        // its camera prompt) for a frame while the session spins up
+        child: session != null || widget.address != null
             ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -371,7 +401,9 @@ class _JoinScreenState extends State<_JoinScreen> {
                     const CircularProgressIndicator(),
                     const SizedBox(height: 16),
                     Text(
-                      session.connected
+                      session == null
+                          ? 'Connecting…'
+                          : session.connected
                           ? (session.oppName == null
                                 ? 'Connected — waiting…'
                                 : 'Waiting for ${session.oppName} to start…')
