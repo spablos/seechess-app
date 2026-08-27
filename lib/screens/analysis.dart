@@ -275,36 +275,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
               onPressed: _toggleEdit,
             ),
-          SharePositionButton(fen: () => _setup?.toFen() ?? game.fen),
-          // secondary actions live in an overflow so the title survives
-          PopupMenuButton<String>(
-            tooltip: 'More',
-            onSelected: (v) {
-              switch (v) {
-                case 'copy':
-                  copyFen(context, _setup?.toFen() ?? game.fen);
-                case 'paste':
-                  _pasteFen();
-                case 'save':
-                  _save();
-                case 'saveAs':
-                  _saveAs();
-              }
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'copy', child: Text('Copy FEN')),
-              const PopupMenuItem(value: 'paste', child: Text('Paste FEN')),
-              if (_setup == null) ...[
-                const PopupMenuDivider(),
-                if (_source != null)
-                  PopupMenuItem(
-                    value: 'save',
-                    child: Text('Save · ${_source!.name}'),
-                  ),
-                const PopupMenuItem(value: 'saveAs', child: Text('Save as…')),
-              ],
-            ],
-          ),
           IconButton(
             icon: const Icon(Icons.swap_vert),
             tooltip: 'Flip board',
@@ -343,6 +313,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         best: best,
                         ready: engine.ready,
                         result: result,
+                        whiteToMove: game.fen.split(' ')[1] == 'w',
                       ),
                       _EvalBar(share: share),
                       _MaterialDiff(fen: game.fen),
@@ -364,6 +335,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         onPlay: _playLine,
                       ),
                       _MoveList(game: game),
+                      _actionStrip(),
                       _Controls(
                         game: game,
                         onBestMove: lines.isEmpty
@@ -374,6 +346,49 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                   );
                 },
               ),
+      ),
+    );
+  }
+
+  /// Every position action, visible — no overflow menu. Save targets the
+  /// entry this board came from and is disabled until one exists.
+  Widget _actionStrip({bool editing = false}) {
+    String fen() => _setup?.toFen() ?? game.fen;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(
+            tooltip: 'Copy FEN',
+            icon: const Icon(Icons.content_copy_outlined),
+            onPressed: () => copyFen(context, fen()),
+          ),
+          IconButton(
+            tooltip: 'Paste FEN',
+            icon: const Icon(Icons.content_paste_go),
+            onPressed: _pasteFen,
+          ),
+          IconButton(
+            tooltip: 'Share position',
+            icon: const Icon(Icons.ios_share),
+            onPressed: () => sharePosition(context, fen()),
+          ),
+          if (!editing) ...[
+            IconButton(
+              tooltip: _source == null
+                  ? 'Save (nothing to overwrite yet — use Save as)'
+                  : 'Save · ${_source!.name}',
+              icon: const Icon(Icons.bookmark),
+              onPressed: _source == null ? null : _save,
+            ),
+            IconButton(
+              tooltip: 'Save as…',
+              icon: const Icon(Icons.bookmark_add_outlined),
+              onPressed: _saveAs,
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -409,6 +424,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               ),
             ),
           ),
+          _actionStrip(editing: true),
           SetupPalette(setup: setup),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -447,15 +463,22 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 }
 
 class _EngineHeader extends StatelessWidget {
-  const _EngineHeader({required this.best, required this.ready, this.result});
+  const _EngineHeader({
+    required this.best,
+    required this.ready,
+    required this.whiteToMove,
+    this.result,
+  });
   final EngineLine? best;
   final bool ready;
+  final bool whiteToMove;
 
-  /// Game-over result ("1–0 checkmate") — replaces the live score.
+  /// Game-over result ("1–0 mate") — replaces the live score.
   final String? result;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
@@ -464,26 +487,54 @@ class _EngineHeader extends StatelessWidget {
             result ?? best?.displayScore ?? (ready ? '…' : 'engine starting…'),
             style:
                 (result != null
-                        ? Theme.of(context).textTheme.titleMedium
-                        : Theme.of(context).textTheme.headlineSmall)
+                        ? theme.textTheme.titleMedium
+                        : theme.textTheme.headlineSmall)
                     ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(width: 12),
           if (result == null && best != null)
-            Text(
-              'depth ${best!.depth}',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            Text('depth ${best!.depth}', style: theme.textTheme.bodySmall),
           const Spacer(),
-          const Text('Stockfish', style: TextStyle(color: Colors.grey)),
+          // whose turn — always on while the game is live
+          if (result == null)
+            Container(
+              padding: const EdgeInsets.fromLTRB(6, 3, 10, 3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: whiteToMove
+                          ? Colors.white
+                          : const Color(0xFF1E1E1E),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    whiteToMove ? 'White to move' : 'Black to move',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-/// Horizontal evaluation bar (chess.com style): white's share grows from
-/// the left, animated so eval swings read as motion.
 class _EvalBar extends StatelessWidget {
   const _EvalBar({required this.share});
   final double share;
