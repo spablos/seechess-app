@@ -69,6 +69,21 @@ class SavedGamesStore {
     await _write(games);
   }
 
+  /// Replace [old] with [updated] in place (edit-and-resave from the
+  /// analysis board); the kept photo, if any, carries over untouched.
+  Future<void> update(SavedGame old, SavedGame updated) async {
+    final games = await list();
+    final i = games.indexWhere(
+      (g) => g.createdAt == old.createdAt && g.name == old.name,
+    );
+    if (i < 0) {
+      games.insert(0, updated);
+    } else {
+      games[i] = updated;
+    }
+    await _write(games);
+  }
+
   Future<void> _write(List<SavedGame> games) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(

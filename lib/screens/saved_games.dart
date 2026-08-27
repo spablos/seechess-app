@@ -85,11 +85,18 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
                       '$dateText · ${game.fen.split(' ')[1] == 'w' ? 'White' : 'Black'} to move',
                     ),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AnalysisScreen(fen: game.fen),
-                      ),
-                    ),
+                    // the board can update or add entries — refresh on return
+                    onTap: () => Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (_) => AnalysisScreen(
+                              fen: game.fen,
+                              editable: true,
+                              source: game,
+                            ),
+                          ),
+                        )
+                        .then((_) => _load()),
                   ),
                 );
               },

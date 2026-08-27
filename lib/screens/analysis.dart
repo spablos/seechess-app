@@ -5,6 +5,7 @@ import '../engine/engine.dart';
 import '../engine/stockfish_engine.dart';
 import '../models/game_state.dart';
 import '../models/setup_state.dart';
+import '../services/saved_games.dart';
 import '../widgets/board.dart';
 import '../widgets/setup_palette.dart';
 
@@ -16,6 +17,7 @@ class AnalysisScreen extends StatefulWidget {
     this.fen,
     this.initialFlipped = false,
     this.editable = false,
+    this.source,
     this.engineFactory,
   });
 
@@ -27,6 +29,10 @@ class AnalysisScreen extends StatefulWidget {
   /// Offer free position editing. On when the board is opened from scratch;
   /// positions arriving from a photo are edited on the confirm screen.
   final bool editable;
+
+  /// The saved game this board was opened from, if any — enables
+  /// "update" alongside "save as new".
+  final SavedGame? source;
 
   /// Injectable for tests; defaults to real Stockfish.
   final AnalysisEngine Function()? engineFactory;
@@ -41,6 +47,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   /// Non-null while the position editor is open.
   SetupState? _setup;
+
+  /// The saved entry this board currently represents (follows an update or
+  /// save-as-new, so repeated saves keep targeting the right record).
+  late SavedGame? _source = widget.source;
 
   /// Only engines this screen created get disposed; the shared Stockfish
   /// outlives every screen (its teardown races crash on quick re-entry).
@@ -138,6 +148,69 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
   }
 
+  /// Save the position on screen: as a new entry, or — when opened from a
+  /// saved game — updating that entry in place.
+  Future<void> _save() async {
+    final source = _source;
+    final nameController = TextEditingController(text: source?.name ?? '');
+    // 'new' | 'update' | null
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(source == null ? 'Save position' : 'Save changes'),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Name',
+            hintText: 'e.g. Rook endgame study',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          if (source != null)
+            TextButton(
+              onPressed: () => Navigator.pop(context, 'new'),
+              child: const Text('Save as new'),
+            ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(context, source == null ? 'new' : 'update'),
+            child: Text(source == null ? 'Save' : 'Update'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return;
+    final name = nameController.text.trim().isEmpty
+        ? 'Position ${DateTime.now().toString().substring(0, 16)}'
+        : nameController.text.trim();
+    final saved = SavedGame(
+      name: name,
+      fen: game.fen,
+      createdAt: DateTime.now(),
+      photoPath: choice == 'update' ? source!.photoPath : null,
+    );
+    if (choice == 'update') {
+      await SavedGamesStore().update(source!, saved);
+    } else {
+      await SavedGamesStore().add(saved);
+    }
+    _source = saved;
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            choice == 'update' ? 'Updated "$name"' : 'Saved "$name"',
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_fenError != null) {
@@ -166,6 +239,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               isSelected: _setup != null,
               tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
               onPressed: _toggleEdit,
+            ),
+          if (_setup == null)
+            IconButton(
+              icon: const Icon(Icons.bookmark_add_outlined),
+              tooltip: 'Save position',
+              onPressed: _save,
             ),
           IconButton(
             icon: const Icon(Icons.swap_vert),
