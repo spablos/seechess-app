@@ -1,8 +1,12 @@
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
+import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
+import 'screens/analysis.dart';
 import 'screens/home.dart';
 import 'screens/offline_lobby.dart';
+import 'screens/photo_flow.dart';
+import 'utils/position_link.dart';
 
 void main() => runApp(const SeechessApp());
 
@@ -25,14 +29,57 @@ class _SeechessAppState extends State<SeechessApp> {
     // seechess://<ip>:<port> — the offline-match QR scanned with the system
     // camera (in-app scanning bypasses this and parses directly)
     _appLinks.uriLinkStream.listen(_onLink);
+    // images shared into the app (screenshot share sheet, WhatsApp "share",
+    // "open with") go straight to recognition
+    ReceiveSharingIntent.instance.getInitialMedia().then((files) {
+      _onSharedMedia(files);
+      ReceiveSharingIntent.instance.reset();
+    });
+    ReceiveSharingIntent.instance.getMediaStream().listen(_onSharedMedia);
   }
 
   void _onLink(Uri uri) {
+    // https://seechess.nopatos.com/p/<fen> — a shared position
+    final fen = fenFromLink(uri);
+    if (fen != null) {
+      _pushWhenReady(
+        () => MaterialPageRoute(
+          builder: (_) => AnalysisScreen(fen: fen, editable: true),
+        ),
+      );
+      return;
+    }
+    // seechess://<ip>:<port> — the offline-match QR
     if (uri.scheme != 'seechess' || uri.host.isEmpty || !uri.hasPort) return;
-    navigatorKey.currentState?.push(
-      MaterialPageRoute(
+    _pushWhenReady(
+      () => MaterialPageRoute(
         builder: (_) => JoinMatchScreen(address: '${uri.host}:${uri.port}'),
       ),
+    );
+  }
+
+  void _onSharedMedia(List<SharedMediaFile> files) {
+    final image = files
+        .where((f) => f.type == SharedMediaType.image)
+        .firstOrNull;
+    if (image == null) return;
+    _pushWhenReady(
+      () => MaterialPageRoute(
+        builder: (_) => PhotoFlowScreen(sharedImagePath: image.path),
+      ),
+    );
+  }
+
+  /// On a cold start the shared file / link can arrive before the
+  /// navigator exists — wait for the first frame, then push.
+  void _pushWhenReady(Route<void> Function() route) {
+    final nav = navigatorKey.currentState;
+    if (nav != null) {
+      nav.push(route());
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => navigatorKey.currentState?.push(route()),
     );
   }
 

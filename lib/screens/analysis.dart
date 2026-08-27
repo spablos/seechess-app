@@ -1,5 +1,6 @@
 import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../engine/engine.dart';
 import '../engine/stockfish_engine.dart';
@@ -7,6 +8,7 @@ import '../models/game_state.dart';
 import '../models/setup_state.dart';
 import '../services/saved_games.dart';
 import '../utils/fen_clipboard.dart';
+import '../utils/position_link.dart';
 import '../widgets/board.dart';
 import '../widgets/setup_palette.dart';
 
@@ -141,6 +143,35 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     _closeEditor();
   }
 
+  /// Load a FEN from the clipboard as the new position (accepts a bare
+  /// placement too — turn defaults to White).
+  Future<void> _pasteFen() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    var text = (data?.text ?? '').trim();
+    if (!mounted) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Clipboard is empty')));
+      return;
+    }
+    if (!text.contains(' ')) text = '$text w - - 0 1';
+    final v = ch.Chess.validate_fen(text);
+    if (!(v['valid'] as bool)) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Not a valid FEN: ${v['error']}')));
+      return;
+    }
+    if (_setup != null) _closeEditor();
+    game.removeListener(_onPosition);
+    game.dispose();
+    game = GameState(fen: text);
+    game.addListener(_onPosition);
+    engine.analyze(game.fen);
+    setState(() {});
+  }
+
   void _closeEditor() {
     final old = _setup!;
     setState(() => _setup = null);
@@ -244,31 +275,36 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
               onPressed: _toggleEdit,
             ),
-          CopyFenButton(fen: () => _setup?.toFen() ?? game.fen),
-          if (_setup == null)
-            // Save overwrites the entry we came from; Save as makes a new
-            // one. Without an entry there is nothing to overwrite yet.
-            _source == null
-                ? IconButton(
-                    icon: const Icon(Icons.bookmark_add_outlined),
-                    tooltip: 'Save position as…',
-                    onPressed: _saveAs,
-                  )
-                : PopupMenuButton<String>(
-                    icon: const Icon(Icons.bookmark_outlined),
-                    tooltip: 'Save',
-                    onSelected: (v) => v == 'save' ? _save() : _saveAs(),
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'save',
-                        child: Text('Save · ${_source!.name}'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'saveAs',
-                        child: Text('Save as…'),
-                      ),
-                    ],
+          SharePositionButton(fen: () => _setup?.toFen() ?? game.fen),
+          // secondary actions live in an overflow so the title survives
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            onSelected: (v) {
+              switch (v) {
+                case 'copy':
+                  copyFen(context, _setup?.toFen() ?? game.fen);
+                case 'paste':
+                  _pasteFen();
+                case 'save':
+                  _save();
+                case 'saveAs':
+                  _saveAs();
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'copy', child: Text('Copy FEN')),
+              const PopupMenuItem(value: 'paste', child: Text('Paste FEN')),
+              if (_setup == null) ...[
+                const PopupMenuDivider(),
+                if (_source != null)
+                  PopupMenuItem(
+                    value: 'save',
+                    child: Text('Save · ${_source!.name}'),
                   ),
+                const PopupMenuItem(value: 'saveAs', child: Text('Save as…')),
+              ],
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.swap_vert),
             tooltip: 'Flip board',

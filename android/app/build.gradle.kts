@@ -16,7 +16,7 @@ val keyProperties = Properties().apply {
 
 android {
     namespace = "com.seechess.seechess"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

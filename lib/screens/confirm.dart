@@ -7,6 +7,7 @@ import '../models/setup_state.dart';
 import '../services/recognizer.dart';
 import '../services/saved_games.dart';
 import '../utils/fen_clipboard.dart';
+import '../utils/position_link.dart';
 import '../widgets/board.dart';
 import '../widgets/setup_palette.dart';
 import 'analysis.dart';
@@ -307,9 +308,9 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Confirm position'),
+        title: const Text('Confirm'),
         actions: [
-          CopyFenButton(fen: () => setup.toFen()),
+          SharePositionButton(fen: () => setup.toFen()),
           IconButton(
             tooltip: 'Flip board (view only)',
             icon: const Icon(Icons.swap_vert),
@@ -326,6 +327,13 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
             icon: const Icon(Icons.image_outlined),
             selectedIcon: const Icon(Icons.image),
             onPressed: () => setState(() => _photoVisible = !_photoVisible),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            onSelected: (_) => copyFen(context, setup.toFen()),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'copy', child: Text('Copy FEN')),
+            ],
           ),
         ],
       ),

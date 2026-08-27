@@ -30,7 +30,7 @@ void main() {
     );
     // the Confirm button pulses forever — pumpAndSettle would never settle
     await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('Confirm'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }

@@ -10,7 +10,11 @@ import 'confirm.dart';
 /// Step 1 of "Analyze a photo": take or choose a picture, send it to the
 /// recognition service, then hand off to the confirm screen.
 class PhotoFlowScreen extends StatefulWidget {
-  const PhotoFlowScreen({super.key});
+  const PhotoFlowScreen({super.key, this.sharedImagePath});
+
+  /// An image handed to the app by the OS share sheet / "open with": run
+  /// recognition on it right away instead of waiting for a pick.
+  final String? sharedImagePath;
 
   @override
   State<PhotoFlowScreen> createState() => _PhotoFlowScreenState();
@@ -27,6 +31,11 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.sharedImagePath != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _ingestShared(widget.sharedImagePath!),
+      );
+    }
     RecognizerClient.savedUrl().then((url) {
       if (mounted) _urlController.text = url;
     });
@@ -62,6 +71,24 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
       final path = await RecentPhotos.add(file.path);
       await _loadRecents();
       await _recognize(path);
+    } catch (e) {
+      setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// A shared-in image: cache it like a picked one, then recognize.
+  Future<void> _ingestShared(String path) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+      _phase = '';
+    });
+    try {
+      final cached = await RecentPhotos.add(path);
+      await _loadRecents();
+      await _recognize(cached);
     } catch (e) {
       setState(() => _error = '$e');
     } finally {
