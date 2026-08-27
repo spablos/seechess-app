@@ -6,6 +6,7 @@ import '../engine/stockfish_engine.dart';
 import '../models/game_state.dart';
 import '../models/setup_state.dart';
 import '../services/saved_games.dart';
+import '../utils/fen_clipboard.dart';
 import '../widgets/board.dart';
 import '../widgets/setup_palette.dart';
 
@@ -148,16 +149,34 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
   }
 
-  /// Save the position on screen: as a new entry, or — when opened from a
-  /// saved game — updating that entry in place.
+  /// Save: overwrite the saved entry this board came from (no questions
+  /// asked — same name, same photo). Only offered once such an entry exists.
   Future<void> _save() async {
-    final source = _source;
-    final nameController = TextEditingController(text: source?.name ?? '');
-    // 'new' | 'update' | null
-    final choice = await showDialog<String>(
+    final source = _source!;
+    final saved = SavedGame(
+      name: source.name,
+      fen: game.fen,
+      createdAt: DateTime.now(),
+      photoPath: source.photoPath,
+    );
+    await SavedGamesStore().update(source, saved);
+    _source = saved;
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Saved "${source.name}"')));
+    }
+  }
+
+  /// Save as: a new entry under a new name, leaving the original untouched.
+  Future<void> _saveAs() async {
+    final nameController = TextEditingController(
+      text: _source == null ? '' : '${_source!.name} (copy)',
+    );
+    final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(source == null ? 'Save position' : 'Save changes'),
+        title: const Text('Save position as'),
         content: TextField(
           controller: nameController,
           autofocus: true,
@@ -168,23 +187,17 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          if (source != null)
-            TextButton(
-              onPressed: () => Navigator.pop(context, 'new'),
-              child: const Text('Save as new'),
-            ),
           FilledButton(
-            onPressed: () =>
-                Navigator.pop(context, source == null ? 'new' : 'update'),
-            child: Text(source == null ? 'Save' : 'Update'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
           ),
         ],
       ),
     );
-    if (choice == null || !mounted) return;
+    if (ok != true || !mounted) return;
     final name = nameController.text.trim().isEmpty
         ? 'Position ${DateTime.now().toString().substring(0, 16)}'
         : nameController.text.trim();
@@ -192,22 +205,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       name: name,
       fen: game.fen,
       createdAt: DateTime.now(),
-      photoPath: choice == 'update' ? source!.photoPath : null,
     );
-    if (choice == 'update') {
-      await SavedGamesStore().update(source!, saved);
-    } else {
-      await SavedGamesStore().add(saved);
-    }
-    _source = saved;
+    await SavedGamesStore().add(saved);
+    _source = saved; // further plain Saves target the new entry
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            choice == 'update' ? 'Updated "$name"' : 'Saved "$name"',
-          ),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Saved "$name"')));
     }
   }
 
@@ -240,12 +244,31 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
               onPressed: _toggleEdit,
             ),
+          CopyFenButton(fen: () => _setup?.toFen() ?? game.fen),
           if (_setup == null)
-            IconButton(
-              icon: const Icon(Icons.bookmark_add_outlined),
-              tooltip: 'Save position',
-              onPressed: _save,
-            ),
+            // Save overwrites the entry we came from; Save as makes a new
+            // one. Without an entry there is nothing to overwrite yet.
+            _source == null
+                ? IconButton(
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    tooltip: 'Save position as…',
+                    onPressed: _saveAs,
+                  )
+                : PopupMenuButton<String>(
+                    icon: const Icon(Icons.bookmark_outlined),
+                    tooltip: 'Save',
+                    onSelected: (v) => v == 'save' ? _save() : _saveAs(),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: 'save',
+                        child: Text('Save · ${_source!.name}'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'saveAs',
+                        child: Text('Save as…'),
+                      ),
+                    ],
+                  ),
           IconButton(
             icon: const Icon(Icons.swap_vert),
             tooltip: 'Flip board',

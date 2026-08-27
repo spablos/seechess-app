@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/offline/match_session.dart';
 import '../services/saved_games.dart';
+import '../utils/fen_clipboard.dart';
 import '../widgets/board.dart';
 
 /// Live offline match (PRD §4): board + chess.com-style clocks. The session
@@ -115,6 +116,7 @@ class _MatchScreenState extends State<MatchScreen> {
             icon: const Icon(Icons.close),
             onPressed: _confirmExit,
           ),
+          actions: [CopyFenButton(fen: () => session.game.fen)],
         ),
         body: SafeArea(
           child: AnimatedBuilder(

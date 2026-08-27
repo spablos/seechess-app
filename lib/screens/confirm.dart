@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/setup_state.dart';
 import '../services/recognizer.dart';
 import '../services/saved_games.dart';
+import '../utils/fen_clipboard.dart';
 import '../widgets/board.dart';
 import '../widgets/setup_palette.dart';
 import 'analysis.dart';
@@ -308,6 +309,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
       appBar: AppBar(
         title: const Text('Confirm position'),
         actions: [
+          CopyFenButton(fen: () => setup.toFen()),
           IconButton(
             tooltip: 'Flip board (view only)',
             icon: const Icon(Icons.swap_vert),
