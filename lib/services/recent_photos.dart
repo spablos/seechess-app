@@ -55,6 +55,12 @@ class RecentPhotos {
     } catch (_) {}
   }
 
+  static Future<void> clear() async {
+    for (final f in await list()) {
+      await remove(f);
+    }
+  }
+
   static bool _sameBytes(List<int> a, List<int> b) {
     for (var i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;

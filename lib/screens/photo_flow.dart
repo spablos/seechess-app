@@ -28,6 +28,9 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
   String _phase = '';
   List<File> _recents = const [];
 
+  /// Edit mode for the recents strip: thumbnails grow an × badge.
+  bool _editingRecents = false;
+
   @override
   void initState() {
     super.initState();
@@ -155,6 +158,78 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
     );
   }
 
+  Future<void> _deleteRecent(File photo) async {
+    await RecentPhotos.remove(photo);
+    await _loadRecents();
+    if (mounted && _recents.isEmpty) setState(() => _editingRecents = false);
+  }
+
+  Future<void> _clearRecents() async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete all ${_recents.length} recent photos?'),
+        content: const Text(
+          'Only this list is cleared — saved games keep their photos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete all'),
+          ),
+        ],
+      ),
+    );
+    if (sure != true) return;
+    await RecentPhotos.clear();
+    await _loadRecents();
+    if (mounted) setState(() => _editingRecents = false);
+  }
+
+  /// Long-press on a thumbnail: quick actions without entering edit mode.
+  Future<void> _recentActions(File photo) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(photo, height: 160, fit: BoxFit.cover),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.replay),
+              title: const Text('Analyze again'),
+              onTap: () {
+                Navigator.pop(context);
+                _rerun(photo);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outline, color: theme(context).error),
+              title: const Text('Delete this photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _deleteRecent(photo);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static ColorScheme theme(BuildContext context) =>
+      Theme.of(context).colorScheme;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -211,16 +286,37 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
                   onPressed: () => _pick(ImageSource.gallery),
                 ),
                 if (_recents.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  Text(
-                    'Recently used',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Text(
+                        'Recently used',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        tooltip: _editingRecents ? 'Done' : 'Edit recents',
+                        visualDensity: VisualDensity.compact,
+                        icon: Icon(
+                          _editingRecents ? Icons.check : Icons.edit_outlined,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => _editingRecents = !_editingRecents),
+                      ),
+                      IconButton(
+                        tooltip: 'Delete all recents',
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.delete_sweep_outlined, size: 20),
+                        onPressed: _clearRecents,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 2),
                   SizedBox(
-                    height: 64,
+                    height: 72,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _recents.length,
@@ -228,19 +324,47 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
                       itemBuilder: (context, i) {
                         final photo = _recents[i];
                         return GestureDetector(
-                          onTap: () => _rerun(photo),
-                          onLongPress: () async {
-                            await RecentPhotos.remove(photo);
-                            _loadRecents();
-                          },
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              photo,
-                              width: 64,
-                              height: 64,
-                              fit: BoxFit.cover,
-                            ),
+                          onTap: _editingRecents
+                              ? () => _deleteRecent(photo)
+                              : () => _rerun(photo),
+                          onLongPress: () => _recentActions(photo),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 6,
+                                  right: 6,
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(
+                                    photo,
+                                    width: 64,
+                                    height: 64,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              if (_editingRecents)
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.error,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: theme.colorScheme.onError,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         );
                       },

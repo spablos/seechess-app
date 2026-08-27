@@ -310,6 +310,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
       appBar: AppBar(
         title: const Text('Confirm'),
         actions: [
+          CopyFenButton(fen: () => setup.toFen()),
           SharePositionButton(fen: () => setup.toFen()),
           IconButton(
             tooltip: 'Flip board (view only)',
@@ -327,13 +328,6 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
             icon: const Icon(Icons.image_outlined),
             selectedIcon: const Icon(Icons.image),
             onPressed: () => setState(() => _photoVisible = !_photoVisible),
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'More',
-            onSelected: (_) => copyFen(context, setup.toFen()),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'copy', child: Text('Copy FEN')),
-            ],
           ),
         ],
       ),
