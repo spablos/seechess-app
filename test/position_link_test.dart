@@ -11,6 +11,13 @@ void main() {
     expect(fenFromLink(Uri.parse(link)), fen);
   });
 
+  test('the custom-scheme form from the web page is accepted too', () {
+    expect(
+      fenFromLink(Uri.parse('seechess://p/${fen.replaceAll(' ', '_')}')),
+      fen,
+    );
+  });
+
   test('foreign links are ignored', () {
     expect(fenFromLink(Uri.parse('https://example.com/p/x')), isNull);
     expect(

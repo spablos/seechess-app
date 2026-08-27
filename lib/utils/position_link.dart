@@ -11,9 +11,18 @@ String positionLink(String fen) =>
 
 /// The FEN carried by a position link, or null if [uri] isn't one.
 String? fenFromLink(Uri uri) {
-  if (uri.host != positionLinkHost || !uri.path.startsWith('/p/')) return null;
-  final fen = Uri.decodeComponent(uri.path.substring(3)).replaceAll('_', ' ');
-  return fen.trim().isEmpty ? null : fen.trim();
+  // https://seechess.nopatos.com/p/<slug> (universal/app link) or
+  // seechess://p/<slug> (the web page's "Open in Seechess" button)
+  final String slug;
+  if (uri.host == positionLinkHost && uri.path.startsWith('/p/')) {
+    slug = uri.path.substring(3);
+  } else if (uri.scheme == 'seechess' && uri.host == 'p') {
+    slug = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+  } else {
+    return null;
+  }
+  final fen = Uri.decodeComponent(slug).replaceAll('_', ' ').trim();
+  return fen.isEmpty ? null : fen;
 }
 
 /// System share sheet with the link (WhatsApp, iMessage, mail…).
