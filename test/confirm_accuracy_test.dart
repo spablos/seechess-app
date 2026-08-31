@@ -31,6 +31,9 @@ void main() {
     // the Confirm button pulses forever — pumpAndSettle would never settle
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
+    // let the async confirm pipeline (library capture, prefs) settle
+    await tester.pump();
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
     // action-free toast: visible briefly, fades away on its own

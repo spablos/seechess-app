@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kDebugMode;
@@ -67,6 +68,9 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
   /// shows flipped so board and photo match at a glance.
   late bool _flipped = widget.recognition.flippedDisplay;
   bool _photoVisible = false;
+
+  /// The library entry this screen created/updated (auto-capture).
+  SavedGame? _libraryEntry;
   Offset? _photoOffset; // null until first shown: placed top-right in build
   String? _lastFeedbackFen;
 
@@ -156,6 +160,8 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
       _confirmed = true;
       _photoVisible = false; // confirming closes the reference photo
     });
+    // fire-and-forget: the library write must never delay the check toast
+    unawaited(_captureToLibrary());
     await _accuracyPopup();
     if (!mounted) return;
     final fen = setup.toFen();
@@ -205,6 +211,37 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
       );
     } catch (_) {
       _lastFeedbackFen = null; // silent: feedback must never block the user
+    }
+  }
+
+  /// Every confirmed position lands in the library automatically —
+  /// confirmation is the quality gate that separates an attempt from a
+  /// position worth keeping. Re-confirming updates the same entry.
+  Future<void> _captureToLibrary() async {
+    try {
+      final now = DateTime.now();
+      final existing = _libraryEntry;
+      if (existing != null) {
+        final updated = existing.copyWith(fen: setup.toFen(), modifiedAt: now);
+        await SavedGamesStore().update(updated);
+        _libraryEntry = updated;
+        return;
+      }
+      final photo = await SavedGamesStore.keepPhoto(widget.photoPath);
+      final entry = SavedGame(
+        name:
+            'Detected ${now.year}-${now.month.toString().padLeft(2, '0')}-'
+            '${now.day.toString().padLeft(2, '0')} '
+            '${now.hour.toString().padLeft(2, '0')}:'
+            '${now.minute.toString().padLeft(2, '0')}',
+        fen: setup.toFen(),
+        createdAt: now,
+        photoPath: photo,
+      );
+      await SavedGamesStore().add(entry);
+      _libraryEntry = entry;
+    } catch (_) {
+      // the library must never block confirming
     }
   }
 

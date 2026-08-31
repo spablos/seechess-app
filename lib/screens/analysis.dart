@@ -18,6 +18,7 @@ class AnalysisScreen extends StatefulWidget {
   const AnalysisScreen({
     super.key,
     this.fen,
+    this.movesUci = const [],
     this.initialFlipped = false,
     this.editable = false,
     this.source,
@@ -25,6 +26,9 @@ class AnalysisScreen extends StatefulWidget {
   });
 
   final String? fen;
+
+  /// Moves to replay onto [fen] (a saved game reopens at its tip).
+  final List<String> movesUci;
 
   /// Board orientation carried over from the confirm screen.
   final bool initialFlipped;
@@ -64,6 +68,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// confirm-time validation). The in-process engine would crash on it.
   String? _fenError;
 
+  /// The position the current game's move list starts from — follows
+  /// Paste FEN and editor applies, so a save replays correctly.
+  late String _startFen =
+      widget.fen ?? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +84,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       }
     }
     game = GameState(fen: widget.fen);
+    for (final uci in widget.movesUci) {
+      if (uci.length < 4) continue;
+      final san = game.tryMove(
+        uci.substring(0, 2),
+        uci.substring(2, 4),
+        promotion: uci.length > 4 ? uci.substring(4, 5) : 'q',
+      );
+      if (san == null) break; // stop at the first non-applying move
+    }
     _ownsEngine = widget.engineFactory != null;
     engine = _ownsEngine ? widget.engineFactory!() : StockfishEngine.shared;
     engine.start();
@@ -138,6 +156,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     game.removeListener(_onPosition);
     game.dispose();
     game = GameState(fen: setup.toFen());
+    _startFen = setup.toFen();
     game.addListener(_onPosition);
     engine.analyze(game.fen);
     _closeEditor();
@@ -167,6 +186,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     game.removeListener(_onPosition);
     game.dispose();
     game = GameState(fen: text);
+    _startFen = text;
     game.addListener(_onPosition);
     engine.analyze(game.fen);
     setState(() {});
@@ -184,13 +204,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// asked — same name, same photo). Only offered once such an entry exists.
   Future<void> _save() async {
     final source = _source!;
-    final saved = SavedGame(
-      name: source.name,
+    final saved = source.copyWith(
       fen: game.fen,
-      createdAt: DateTime.now(),
-      photoPath: source.photoPath,
+      modifiedAt: DateTime.now(),
+      startFen: _startFen,
+      movesUci: [for (final m in game.moves) m.uci],
     );
-    await SavedGamesStore().update(source, saved);
+    await SavedGamesStore().update(saved);
     _source = saved;
     if (mounted) {
       ScaffoldMessenger.of(
@@ -236,6 +256,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       name: name,
       fen: game.fen,
       createdAt: DateTime.now(),
+      startFen: _startFen,
+      movesUci: [for (final m in game.moves) m.uci],
     );
     await SavedGamesStore().add(saved);
     _source = saved; // further plain Saves target the new entry

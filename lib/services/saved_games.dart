@@ -4,37 +4,92 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// One library entry. FEN is the record of truth; [startFen]+[movesUci]
+/// additionally carry a played game so it can be reopened mid-line; the
+/// photo is an optional keepsake copied into the app's documents dir.
 class SavedGame {
   SavedGame({
+    String? id,
     required this.name,
     required this.fen,
     required this.createdAt,
+    DateTime? modifiedAt,
+    this.labels = const [],
     this.photoPath,
-  });
+    this.startFen,
+    this.movesUci = const [],
+  }) : id = id ?? createdAt.microsecondsSinceEpoch.toString(),
+       modifiedAt = modifiedAt ?? createdAt;
 
+  /// Stable identity — survives renames and edits.
+  final String id;
   final String name;
-  final String fen; // full FEN including turn
+
+  /// Current position, full FEN including turn.
+  final String fen;
   final DateTime createdAt;
-  final String? photoPath; // copy inside app documents, if kept
+  final DateTime modifiedAt;
+  final List<String> labels;
+  final String? photoPath;
+
+  /// When a played game was saved: the position it started from and the
+  /// moves from there (UCI). [fen] stays the latest position.
+  final String? startFen;
+  final List<String> movesUci;
+
+  SavedGame copyWith({
+    String? name,
+    String? fen,
+    DateTime? modifiedAt,
+    List<String>? labels,
+    String? photoPath,
+    String? startFen,
+    List<String>? movesUci,
+  }) => SavedGame(
+    id: id,
+    name: name ?? this.name,
+    fen: fen ?? this.fen,
+    createdAt: createdAt,
+    modifiedAt: modifiedAt ?? this.modifiedAt,
+    labels: labels ?? this.labels,
+    photoPath: photoPath ?? this.photoPath,
+    startFen: startFen ?? this.startFen,
+    movesUci: movesUci ?? this.movesUci,
+  );
 
   Map<String, dynamic> toJson() => {
+    'id': id,
     'name': name,
     'fen': fen,
     'createdAt': createdAt.toIso8601String(),
+    'modifiedAt': modifiedAt.toIso8601String(),
+    if (labels.isNotEmpty) 'labels': labels,
     if (photoPath != null) 'photoPath': photoPath,
+    if (startFen != null) 'startFen': startFen,
+    if (movesUci.isNotEmpty) 'movesUci': movesUci,
   };
 
-  static SavedGame fromJson(Map<String, dynamic> json) => SavedGame(
-    name: json['name'] as String,
-    fen: json['fen'] as String,
-    createdAt: DateTime.parse(json['createdAt'] as String),
-    photoPath: json['photoPath'] as String?,
-  );
+  static SavedGame fromJson(Map<String, dynamic> json) {
+    final created = DateTime.parse(json['createdAt'] as String);
+    return SavedGame(
+      // pre-library entries had no id — derive a stable one
+      id: json['id'] as String? ?? created.microsecondsSinceEpoch.toString(),
+      name: json['name'] as String,
+      fen: json['fen'] as String,
+      createdAt: created,
+      modifiedAt: json['modifiedAt'] != null
+          ? DateTime.parse(json['modifiedAt'] as String)
+          : created,
+      labels: (json['labels'] as List?)?.cast<String>() ?? const [],
+      photoPath: json['photoPath'] as String?,
+      startFen: json['startFen'] as String?,
+      movesUci: (json['movesUci'] as List?)?.cast<String>() ?? const [],
+    );
+  }
 }
 
-/// Local-first storage for saved positions/games (PRD §3). FEN is the
-/// record of truth; the photo is an optional keepsake copied into the app's
-/// documents directory so library cleanups can't break it.
+/// Local-first library storage (PRD §3): every confirmed detection lands
+/// here automatically; analysis-board saves are explicit entries.
 class SavedGamesStore {
   static const _key = 'saved_games';
 
@@ -46,7 +101,7 @@ class SavedGamesStore {
       for (final item in jsonDecode(raw) as List)
         SavedGame.fromJson(item as Map<String, dynamic>),
     ];
-    games.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    games.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
     return games;
   }
 
@@ -58,9 +113,7 @@ class SavedGamesStore {
 
   Future<void> remove(SavedGame game) async {
     final games = await list();
-    games.removeWhere(
-      (g) => g.createdAt == game.createdAt && g.name == game.name,
-    );
+    games.removeWhere((g) => g.id == game.id);
     if (game.photoPath != null) {
       try {
         await File(game.photoPath!).delete();
@@ -69,13 +122,10 @@ class SavedGamesStore {
     await _write(games);
   }
 
-  /// Replace [old] with [updated] in place (edit-and-resave from the
-  /// analysis board); the kept photo, if any, carries over untouched.
-  Future<void> update(SavedGame old, SavedGame updated) async {
+  /// Upsert by stable id.
+  Future<void> update(SavedGame updated) async {
     final games = await list();
-    final i = games.indexWhere(
-      (g) => g.createdAt == old.createdAt && g.name == old.name,
-    );
+    final i = games.indexWhere((g) => g.id == updated.id);
     if (i < 0) {
       games.insert(0, updated);
     } else {
