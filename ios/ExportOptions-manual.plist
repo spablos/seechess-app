@@ -13,7 +13,9 @@
     <key>provisioningProfiles</key>
     <dict>
         <key>com.seechess.seechess</key>
-        <string>seechess AppStore CLI v2</string>
+        <string>seechess AppStore CLI v3</string>
+        <key>com.seechess.seechess.share</key>
+        <string>seechess share AppStore CLI</string>
     </dict>
     <key>uploadSymbols</key>
     <true/>
