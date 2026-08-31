@@ -263,9 +263,6 @@
 			dependencies = (
 			);
 			name = ShareExtension;
-			packageProductDependencies = (
-				7E7B86C2A22D195148A52EC1 /* receive-sharing-intent */,
-			);
 			productName = ShareExtension;
 			productReference = 1FBC92820E618018E0F8FFDC /* ShareExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -953,11 +950,6 @@
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlutterGeneratedPluginSwiftPackage;
-		};
-		7E7B86C2A22D195148A52EC1 /* receive-sharing-intent */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FEE18FAAEF23C37D2E74B3F8 /* XCLocalSwiftPackageReference "receive_sharing_intent-1.9.0" */;
-			productName = "receive-sharing-intent";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
