@@ -333,7 +333,8 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Confirm'),
+        // no title: five action icons need the room, and the board plus
+        // the Confirm button already say where you are
         actions: [
           CopyFenButton(fen: () => setup.toFen()),
           SharePositionButton(fen: () => setup.toFen()),

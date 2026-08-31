@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'analysis.dart';
 import 'offline_lobby.dart';
@@ -90,6 +91,23 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+            // which build is running — first thing support asks for
+            FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snap) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  snap.hasData
+                      ? 'Seechess ${snap.data!.version} '
+                            '(${snap.data!.buildNumber})'
+                      : '',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline,
+                  ),
+                ),
               ),
             ),
           ],
