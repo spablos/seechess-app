@@ -20,7 +20,8 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
   List<SavedGame>? games;
   final _search = TextEditingController();
   String? _labelFilter;
-  bool _byModified = true;
+  String _sortField = 'modified'; // 'name' | 'created' | 'modified'
+  bool _sortAsc = false;
 
   @override
   void initState() {
@@ -50,11 +51,14 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
       return g.name.toLowerCase().contains(q) ||
           g.labels.any((l) => l.toLowerCase().contains(q));
     }).toList();
-    out.sort(
-      (a, b) => _byModified
-          ? b.modifiedAt.compareTo(a.modifiedAt)
-          : b.createdAt.compareTo(a.createdAt),
-    );
+    out.sort((a, b) {
+      final c = switch (_sortField) {
+        'name' => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        'created' => a.createdAt.compareTo(b.createdAt),
+        _ => a.modifiedAt.compareTo(b.modifiedAt),
+      };
+      return _sortAsc ? c : -c;
+    });
     return out;
   }
 
@@ -66,12 +70,6 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
     final out = s.toList()..sort();
     return out;
   }
-
-  static String _date(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-'
-      '${d.day.toString().padLeft(2, '0')} '
-      '${d.hour.toString().padLeft(2, '0')}:'
-      '${d.minute.toString().padLeft(2, '0')}';
 
   Future<void> _editEntry(SavedGame game) async {
     final nameController = TextEditingController(text: game.name);
@@ -151,16 +149,7 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Library'),
-        actions: [
-          IconButton(
-            tooltip: _byModified ? 'Sorted by modified' : 'Sorted by created',
-            icon: Icon(_byModified ? Icons.edit_calendar : Icons.today),
-            onPressed: () => setState(() => _byModified = !_byModified),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Library')),
       body: games == null
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -209,6 +198,7 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
                       ],
                     ),
                   ),
+                if (games!.isNotEmpty) _tableHeader(theme),
                 Expanded(
                   child: games!.isEmpty
                       ? Center(
@@ -238,13 +228,78 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
     );
   }
 
+  /// Column headers: tap to sort by that column, tap again to reverse.
+  Widget _tableHeader(ThemeData theme) {
+    Widget cell(String label, String field, {double? width}) {
+      final active = _sortField == field;
+      final child = InkWell(
+        onTap: () => setState(() {
+          if (_sortField == field) {
+            _sortAsc = !_sortAsc;
+          } else {
+            _sortField = field;
+            _sortAsc = field == 'name'; // names A→Z, dates newest first
+          }
+        }),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  color: active
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (active)
+                Icon(
+                  _sortAsc ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+            ],
+          ),
+        ),
+      );
+      return width == null
+          ? Expanded(child: child)
+          : SizedBox(width: width, child: child);
+    }
+
+    return Container(
+      padding: const EdgeInsets.only(left: 64, right: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+      ),
+      child: Row(
+        children: [
+          cell('Name', 'name'),
+          cell('Created', 'created', width: 74),
+          cell('Edited', 'modified', width: 74),
+        ],
+      ),
+    );
+  }
+
+  static String _shortDate(DateTime d) {
+    final now = DateTime.now();
+    if (d.year == now.year && d.month == now.month && d.day == now.day) {
+      return '${d.hour.toString().padLeft(2, '0')}:'
+          '${d.minute.toString().padLeft(2, '0')}';
+    }
+    final md =
+        '${d.day.toString().padLeft(2, '0')}/'
+        '${d.month.toString().padLeft(2, '0')}';
+    return d.year == now.year ? md : '$md/${d.year % 100}';
+  }
+
   Widget _entry(ThemeData theme, SavedGame game) {
-    final turn = game.fen.split(' ').length > 1 && game.fen.split(' ')[1] == 'b'
-        ? 'Black'
-        : 'White';
-    final detail = _byModified
-        ? 'edited ${_date(game.modifiedAt)}'
-        : _date(game.createdAt);
     return Dismissible(
       key: ValueKey(game.id),
       direction: DismissDirection.endToStart,
@@ -258,53 +313,7 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
         await store.remove(game);
         _load();
       },
-      child: ListTile(
-        leading: game.photoPath != null && File(game.photoPath!).existsSync()
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.file(
-                  File(game.photoPath!),
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                ),
-              )
-            : Icon(
-                game.movesUci.isEmpty ? Icons.grid_on : Icons.timeline,
-                size: 36,
-              ),
-        title: Text(game.name),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$detail · $turn to move'
-              '${game.movesUci.isEmpty ? '' : ' · ${game.movesUci.length} moves'}',
-            ),
-            if (game.labels.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Wrap(
-                  spacing: 4,
-                  children: [
-                    for (final label in game.labels)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(label, style: theme.textTheme.labelSmall),
-                      ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
+      child: InkWell(
         onLongPress: () => _editEntry(game),
         // the board can update or add entries — refresh on return
         onTap: () => Navigator.of(context)
@@ -319,6 +328,93 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
               ),
             )
             .then((_) => _load()),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: .4),
+              ),
+            ),
+          ),
+          child: Row(
+            children: [
+              game.photoPath != null && File(game.photoPath!).existsSync()
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.file(
+                        File(game.photoPath!),
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Icon(
+                        game.movesUci.isEmpty ? Icons.grid_on : Icons.timeline,
+                        size: 28,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      game.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    if (game.labels.isNotEmpty)
+                      Wrap(
+                        spacing: 4,
+                        children: [
+                          for (final label in game.labels)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    theme.colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                label,
+                                style: theme.textTheme.labelSmall,
+                              ),
+                            ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 74,
+                child: Text(
+                  _shortDate(game.createdAt),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 74,
+                child: Text(
+                  _shortDate(game.modifiedAt),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

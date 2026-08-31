@@ -91,6 +91,9 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
       // memory) — open already confirmed, and don't re-send that correction
       _confirmed = true;
       _lastFeedbackFen = setup.toFen();
+      // pre-library confirmations reach the library by re-running the
+      // photo: capture the memory-served position too
+      unawaited(_captureToLibrary());
     }
     // any further edit invalidates a given confirmation
     setup.addListener(() {
