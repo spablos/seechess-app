@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +12,7 @@ import '../services/saved_games.dart';
 import '../utils/fen_clipboard.dart';
 import '../utils/position_link.dart';
 import '../widgets/board.dart';
+import '../widgets/photo_panel.dart';
 import '../widgets/setup_palette.dart';
 
 /// chess.com-style analysis board: eval bar + board + engine lines + move
@@ -54,6 +57,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   /// Non-null while the position editor is open.
   SetupState? _setup;
+
+  bool _photoVisible = false;
+
+  /// The original photo of the position, when the entry has one.
+  String? get _photoPath {
+    final path = _source?.photoPath;
+    return path != null && File(path).existsSync() ? path : null;
+  }
 
   /// The saved entry this board currently represents (follows an update or
   /// save-as-new, so repeated saves keep targeting the right record).
@@ -297,6 +308,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
               onPressed: _toggleEdit,
             ),
+          if (_photoPath != null)
+            IconButton(
+              tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
+              isSelected: _photoVisible,
+              icon: const Icon(Icons.image_outlined),
+              selectedIcon: const Icon(Icons.image),
+              onPressed: () => setState(() => _photoVisible = !_photoVisible),
+            ),
           IconButton(
             icon: const Icon(Icons.swap_vert),
             tooltip: 'Flip board',
@@ -305,69 +324,81 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ],
       ),
       body: SafeArea(
-        child: _setup != null
-            ? _editor()
-            : AnimatedBuilder(
-                animation: Listenable.merge([game, engine]),
-                builder: (context, _) {
-                  // defense in depth: a line whose moves don't apply to the shown
-                  // position renders as a bare score — never display those
-                  final lines = engine.lines
-                      .where((l) => l.pvSan.isNotEmpty)
-                      .toList();
-                  final best = lines.isEmpty ? null : lines.first;
-                  final lastMove = game.ply > 0
-                      ? game.moves[game.ply - 1].uci
-                      : null;
-                  // at a finished game the engine has no lines — the result, not
-                  // a 50/50 fallback, is the truth
-                  final result = game.resultText();
-                  final share = result == null
-                      ? (best?.whiteShare ?? 0.5)
-                      : result.startsWith('1')
-                      ? 1.0
-                      : result.startsWith('0')
-                      ? 0.0
-                      : 0.5;
-                  return Column(
-                    children: [
-                      _EngineHeader(
-                        best: best,
-                        ready: engine.ready,
-                        result: result,
-                        whiteToMove: game.fen.split(' ')[1] == 'w',
-                      ),
-                      _EvalBar(share: share),
-                      _MaterialDiff(fen: game.fen),
-                      Expanded(
-                        child: Center(
-                          child: ChessBoard(
-                            pieces: game.pieceMap(),
-                            flipped: flipped,
-                            lastMoveFrom: lastMove?.substring(0, 2),
-                            lastMoveTo: lastMove?.substring(2, 4),
-                            legalTargetsFor: game.legalTargets,
-                            onMove: (from, to) => game.tryMove(from, to),
-                          ),
-                        ),
-                      ),
-                      _EngineLines(
-                        lines: lines,
-                        baseFen: game.fen,
-                        onPlay: _playLine,
-                      ),
-                      _MoveList(game: game),
-                      _actionStrip(),
-                      _Controls(
-                        game: game,
-                        onBestMove: lines.isEmpty
-                            ? null
-                            : () => _playLine(lines.first, 1),
-                      ),
-                    ],
-                  );
-                },
-              ),
+        child: LayoutBuilder(
+          builder: (context, boxBounds) => Stack(
+            children: [
+              _setup != null
+                  ? _editor()
+                  : AnimatedBuilder(
+                      animation: Listenable.merge([game, engine]),
+                      builder: (context, _) {
+                        // defense in depth: a line whose moves don't apply to the shown
+                        // position renders as a bare score — never display those
+                        final lines = engine.lines
+                            .where((l) => l.pvSan.isNotEmpty)
+                            .toList();
+                        final best = lines.isEmpty ? null : lines.first;
+                        final lastMove = game.ply > 0
+                            ? game.moves[game.ply - 1].uci
+                            : null;
+                        // at a finished game the engine has no lines — the result, not
+                        // a 50/50 fallback, is the truth
+                        final result = game.resultText();
+                        final share = result == null
+                            ? (best?.whiteShare ?? 0.5)
+                            : result.startsWith('1')
+                            ? 1.0
+                            : result.startsWith('0')
+                            ? 0.0
+                            : 0.5;
+                        return Column(
+                          children: [
+                            _EngineHeader(
+                              best: best,
+                              ready: engine.ready,
+                              result: result,
+                              whiteToMove: game.fen.split(' ')[1] == 'w',
+                            ),
+                            _EvalBar(share: share),
+                            _MaterialDiff(fen: game.fen),
+                            Expanded(
+                              child: Center(
+                                child: ChessBoard(
+                                  pieces: game.pieceMap(),
+                                  flipped: flipped,
+                                  lastMoveFrom: lastMove?.substring(0, 2),
+                                  lastMoveTo: lastMove?.substring(2, 4),
+                                  legalTargetsFor: game.legalTargets,
+                                  onMove: (from, to) => game.tryMove(from, to),
+                                ),
+                              ),
+                            ),
+                            _EngineLines(
+                              lines: lines,
+                              baseFen: game.fen,
+                              onPlay: _playLine,
+                            ),
+                            _MoveList(game: game),
+                            _actionStrip(),
+                            _Controls(
+                              game: game,
+                              onBestMove: lines.isEmpty
+                                  ? null
+                                  : () => _playLine(lines.first, 1),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+              if (_photoVisible && _photoPath != null)
+                FloatingPhotoPanel(
+                  photoPath: _photoPath!,
+                  bounds: boxBounds.biggest,
+                  onClose: () => setState(() => _photoVisible = false),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

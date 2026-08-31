@@ -160,8 +160,9 @@ class SetupPalette extends StatelessWidget {
           color: theme.colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          runSpacing: 6,
           children: [
             for (final kind in ['K', 'Q', 'R', 'B', 'N', 'P'])
               chip(

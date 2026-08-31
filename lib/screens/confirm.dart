@@ -10,6 +10,7 @@ import '../services/saved_games.dart';
 import '../utils/fen_clipboard.dart';
 import '../utils/position_link.dart';
 import '../widgets/board.dart';
+import '../widgets/photo_panel.dart';
 import '../widgets/setup_palette.dart';
 import 'analysis.dart';
 
@@ -71,7 +72,6 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
 
   /// The library entry this screen created/updated (auto-capture).
   SavedGame? _libraryEntry;
-  Offset? _photoOffset; // null until first shown: placed top-right in build
   String? _lastFeedbackFen;
 
   @override
@@ -365,7 +365,12 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
           builder: (context, bounds) => Stack(
             children: [
               _editor(theme),
-              if (_photoVisible) _photoPanel(theme, bounds.biggest),
+              if (_photoVisible)
+                FloatingPhotoPanel(
+                  photoPath: widget.photoPath,
+                  bounds: bounds.biggest,
+                  onClose: () => setState(() => _photoVisible = false),
+                ),
             ],
           ),
         ),
@@ -477,78 +482,6 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
       ),
     );
   }
-
-  /// Floating photo panel: drag the handle bar to move the whole rectangle
-  /// (to uncover the board behind it); pan/pinch inside to move the photo
-  /// within it. Two independent gestures on purpose.
-  Widget _photoPanel(ThemeData theme, Size bounds) {
-    final width = (bounds.width * 0.72).clamp(220.0, 360.0);
-    final height = width * 1.0;
-    _photoOffset ??= Offset(bounds.width - width - 8, 8);
-    final pos = Offset(
-      _photoOffset!.dx.clamp(40.0 - width, bounds.width - 40.0),
-      _photoOffset!.dy.clamp(0.0, bounds.height - 48.0),
-    );
-    return Positioned(
-      left: pos.dx,
-      top: pos.dy,
-      child: Material(
-        elevation: 10,
-        borderRadius: BorderRadius.circular(12),
-        clipBehavior: Clip.antiAlias,
-        color: theme.colorScheme.surfaceContainerHighest,
-        child: SizedBox(
-          width: width,
-          height: height,
-          child: Column(
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanUpdate: (d) =>
-                    setState(() => _photoOffset = pos + d.delta),
-                child: SizedBox(
-                  height: 36,
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: CustomPaint(
-                          size: const Size(96, 14),
-                          painter: _GripPainter(theme.colorScheme.outline),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
-                        child: InkWell(
-                          onTap: () => setState(() => _photoVisible = false),
-                          child: const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Icon(Icons.close, size: 20),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Expanded(
-                child: InteractiveViewer(
-                  maxScale: 8,
-                  child: SizedBox.expand(
-                    child: Image.file(
-                      File(widget.photoPath),
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Gentle repeating grow-shrink drawing a beginner's eye to the one live
@@ -598,30 +531,6 @@ class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) =>
       ScaleTransition(scale: _scale, child: widget.child);
-}
-
-/// Continuous 2-row dot grid with uniform pitch — one grip texture, not a
-/// row of icon glyphs with gaps between them.
-class _GripPainter extends CustomPainter {
-  const _GripPainter(this.color);
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    const pitch = 7.0;
-    final cols = (size.width / pitch).floor();
-    final x0 = (size.width - (cols - 1) * pitch) / 2;
-    for (var row = 0; row < 2; row++) {
-      final y = size.height / 2 + (row - 0.5) * pitch;
-      for (var col = 0; col < cols; col++) {
-        canvas.drawCircle(Offset(x0 + col * pitch, y), 1.6, paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GripPainter old) => old.color != color;
 }
 
 /// Green check + one line that appears centered and fades away on its own.
