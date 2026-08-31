@@ -51,7 +51,7 @@ void main() {
       fixedSquares('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR', start),
       2,
     );
-    // an entire missing back rank = 8, well past the apology threshold
+    // an entire missing back rank = 8, well past badDetectionThreshold
     expect(
       fixedSquares('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/8', start),
       greaterThanOrEqualTo(badDetectionThreshold),

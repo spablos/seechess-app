@@ -25,6 +25,21 @@ class FloatingPhotoPanel extends StatefulWidget {
 class _FloatingPhotoPanelState extends State<FloatingPhotoPanel> {
   Offset? _offset; // null until first shown: placed top-right in build
 
+  /// An edge strip that moves the whole panel when dragged — the panel is
+  /// grabbable from all four sides; only the photo itself pans/zooms.
+  Widget _dragZone({
+    double? width,
+    double? height,
+    required Offset pos,
+    Widget? child,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanUpdate: (d) => setState(() => _offset = pos + d.delta),
+      child: SizedBox(width: width, height: height, child: child),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -49,43 +64,58 @@ class _FloatingPhotoPanelState extends State<FloatingPhotoPanel> {
           height: height,
           child: Column(
             children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanUpdate: (d) => setState(() => _offset = pos + d.delta),
-                child: SizedBox(
-                  height: 36,
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: CustomPaint(
-                          size: const Size(96, 14),
-                          painter: GripPainter(theme.colorScheme.outline),
+              _dragZone(
+                height: 36,
+                child: Stack(
+                  children: [
+                    Center(
+                      child: CustomPaint(
+                        size: const Size(96, 14),
+                        painter: GripPainter(theme.colorScheme.outline),
+                      ),
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: InkWell(
+                        onTap: widget.onClose,
+                        child: const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(Icons.close, size: 20),
                         ),
                       ),
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
-                        child: InkWell(
-                          onTap: widget.onClose,
-                          child: const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Icon(Icons.close, size: 20),
+                    ),
+                  ],
+                ),
+                pos: pos,
+              ),
+              Expanded(
+                child: Row(
+                  children: [
+                    _dragZone(width: 18, pos: pos),
+                    Expanded(
+                      child: InteractiveViewer(
+                        maxScale: 8,
+                        child: SizedBox.expand(
+                          child: Image.file(
+                            File(widget.photoPath),
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    _dragZone(width: 18, pos: pos),
+                  ],
                 ),
               ),
-              Expanded(
-                child: InteractiveViewer(
-                  maxScale: 8,
-                  child: SizedBox.expand(
-                    child: Image.file(
-                      File(widget.photoPath),
-                      fit: BoxFit.contain,
-                    ),
+              _dragZone(
+                height: 22,
+                pos: pos,
+                child: Center(
+                  child: CustomPaint(
+                    size: const Size(64, 14),
+                    painter: GripPainter(theme.colorScheme.outline),
                   ),
                 ),
               ),

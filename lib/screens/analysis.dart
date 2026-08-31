@@ -25,6 +25,7 @@ class AnalysisScreen extends StatefulWidget {
     this.initialFlipped = false,
     this.editable = false,
     this.source,
+    this.photoPath,
     this.engineFactory,
   });
 
@@ -44,6 +45,10 @@ class AnalysisScreen extends StatefulWidget {
   /// "update" alongside "save as new".
   final SavedGame? source;
 
+  /// The original photo, when arriving straight from a detection (the
+  /// library path supplies it via [source] instead).
+  final String? photoPath;
+
   /// Injectable for tests; defaults to real Stockfish.
   final AnalysisEngine Function()? engineFactory;
 
@@ -60,9 +65,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   bool _photoVisible = false;
 
-  /// The original photo of the position, when the entry has one.
+  /// The original photo of the position, when there is one.
   String? get _photoPath {
-    final path = _source?.photoPath;
+    final path = widget.photoPath ?? _source?.photoPath;
     return path != null && File(path).existsSync() ? path : null;
   }
 

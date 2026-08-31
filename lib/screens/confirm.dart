@@ -14,8 +14,8 @@ import '../widgets/photo_panel.dart';
 import '../widgets/setup_palette.dart';
 import 'analysis.dart';
 
-/// ≥ this many fixed squares counts as "detection was way off" and earns
-/// the sincere apology rather than a casual thanks.
+/// ≥ this many fixed squares counts as "detection was way off" — the toast
+/// still just states the fact and thanks the user (never apologizes).
 const badDetectionThreshold = 6;
 
 /// Squares where the confirmed position differs from the predicted one —
@@ -117,8 +117,11 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     }
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) =>
-            AnalysisScreen(fen: setup.toFen(), initialFlipped: _flipped),
+        builder: (_) => AnalysisScreen(
+          fen: setup.toFen(),
+          initialFlipped: _flipped,
+          photoPath: widget.photoPath,
+        ),
       ),
     );
   }
@@ -259,7 +262,9 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     } else if (fixes < badDetectionThreshold) {
       text = 'Thanks for fixing $fixes square${fixes == 1 ? '' : 's'}';
     } else {
-      text = 'Sorry — that was rough. Thanks for fixing $fixes squares';
+      // just the facts, no apologizing (Pablo) — corrections are a gift
+      text =
+          'You fixed $fixes squares — thanks, this improves future detection';
     }
     final overlay = Overlay.of(context);
     final entry = OverlayEntry(builder: (context) => _FadingCheck(text: text));
