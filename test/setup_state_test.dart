@@ -97,4 +97,29 @@ void main() {
       expect(s.pieces.containsKey('d5'), isFalse);
     });
   });
+
+  group('impliedTurn', () {
+    test('black king in check implies black to move', () {
+      // white queen on e7 gives check to the e8 king
+      final s = SetupState.fromFen('4k3/4Q3/8/8/8/8/8/4K3');
+      expect(s.impliedTurn(), 'b');
+    });
+
+    test('white king in check implies white to move', () {
+      final s = SetupState.fromFen('4k3/8/8/8/8/8/4q3/4K3');
+      expect(s.impliedTurn(), 'w');
+    });
+
+    test('no check implies nothing', () {
+      final s = SetupState.fromFen(
+        'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR',
+      );
+      expect(s.impliedTurn(), isNull);
+    });
+
+    test('missing king implies nothing', () {
+      final s = SetupState.fromFen('8/8/8/8/8/8/4q3/4K3');
+      expect(s.impliedTurn(), isNull);
+    });
+  });
 }

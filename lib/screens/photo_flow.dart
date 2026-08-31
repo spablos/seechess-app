@@ -168,7 +168,11 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
     final sure = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete all ${_recents.length} recent photos?'),
+        title: Text(
+          _recents.length == 1
+              ? 'Delete the only recent photo?'
+              : 'Delete all ${_recents.length} recent photos?',
+        ),
         content: const Text(
           'Only this list is cleared — saved games keep their photos.',
         ),

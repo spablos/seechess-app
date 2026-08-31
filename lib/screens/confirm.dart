@@ -74,7 +74,14 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
   void initState() {
     super.initState();
     setup = SetupState.fromFen(widget.recognition.fen);
-    if (widget.recognition.turn == 'b') setup.setTurn(false);
+    if (widget.recognition.turn != null) {
+      setup.setTurn(widget.recognition.turn == 'w');
+    } else {
+      // a king in check fixes whose move it is — better default than
+      // always-White; the user can still override
+      final implied = setup.impliedTurn();
+      if (implied != null) setup.setTurn(implied == 'w');
+    }
     if (widget.recognition.fromMemory) {
       // this exact photo was confirmed before (server answered from feedback
       // memory) — open already confirmed, and don't re-send that correction
@@ -201,42 +208,23 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     }
   }
 
-  /// Authentic accuracy feedback the moment the user confirms.
+  /// Brief, action-free feedback the moment the user confirms: a green
+  /// check plus one line, fading out on its own. (Was a dialog — Pablo:
+  /// don't make the user tap anything.)
   Future<void> _accuracyPopup() async {
     final fixes = fixedSquares(widget.recognition.fen, setup.toFen());
-    final String title;
-    final String body;
+    final String text;
     if (fixes == 0) {
-      title = 'Detection was accurate';
-      body =
-          'No fixes needed — the board came out exactly right. '
-          'Thanks for confirming it!';
+      text = 'Detection was accurate';
     } else if (fixes < badDetectionThreshold) {
-      title = 'Thanks for the fixes';
-      body =
-          'You corrected $fixes square${fixes == 1 ? '' : 's'}. '
-          'Thank you — exactly these corrections teach the model '
-          'to read boards like yours.';
+      text = 'Thanks for fixing $fixes square${fixes == 1 ? '' : 's'}';
     } else {
-      title = 'Sorry — that one was rough';
-      body =
-          'The detection was way off this time: $fixes squares needed '
-          'fixing. Apologies for the extra work, and thank you for doing '
-          'it — hard cases like this one teach the model the most.';
+      text = 'Sorry — that was rough. Thanks for fixing $fixes squares';
     }
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(body),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(builder: (context) => _FadingCheck(text: text));
+    overlay.insert(entry);
+    Future<void>.delayed(const Duration(milliseconds: 2200), entry.remove);
   }
 
   Future<void> _save() async {
@@ -399,6 +387,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
                   onTap: () => setup.setTurn(false),
                 ),
                 const Spacer(),
+                const SizedBox(width: 12),
                 // guide the eye: the one live next step breathes — Confirm
                 // before confirmation, then Save and Analyze after it
                 _Pulse(
@@ -414,6 +403,9 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
                           onPressed: () => setState(() => _confirmed = false),
                         )
                       : FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                          ),
                           icon: const Icon(Icons.check),
                           label: const Text('Confirm'),
                           onPressed: _confirm,
@@ -589,4 +581,73 @@ class _GripPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GripPainter old) => old.color != color;
+}
+
+/// Green check + one line that appears centered and fades away on its own.
+class _FadingCheck extends StatefulWidget {
+  const _FadingCheck({required this.text});
+  final String text;
+
+  @override
+  State<_FadingCheck> createState() => _FadingCheckState();
+}
+
+class _FadingCheckState extends State<_FadingCheck>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2100),
+  )..forward();
+
+  // pop in quickly, hold, fade out
+  late final Animation<double> _opacity = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 0, end: 1), weight: 12),
+    TweenSequenceItem(tween: ConstantTween(1), weight: 48),
+    TweenSequenceItem(tween: Tween(begin: 1, end: 0), weight: 40),
+  ]).animate(_c);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: FadeTransition(
+          opacity: _opacity,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xE6222420),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF7FC96B),
+                    size: 44,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

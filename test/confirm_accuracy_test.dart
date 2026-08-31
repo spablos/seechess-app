@@ -17,7 +17,7 @@ void main() {
     SharedPreferences.setMockInitialValues({'feedback_consent': false});
   });
 
-  testWidgets('a perfect detection gets the accurate-detection popup', (
+  testWidgets('a perfect detection gets the fading check toast', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -31,16 +31,13 @@ void main() {
     // the Confirm button pulses forever — pumpAndSettle would never settle
     await tester.pump(const Duration(milliseconds: 400));
     await tester.tap(find.widgetWithText(FilledButton, 'Confirm'));
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 300));
-    }
+    await tester.pump(const Duration(milliseconds: 400));
 
+    // action-free toast: visible briefly, fades away on its own
     expect(find.text('Detection was accurate'), findsOneWidget);
-    await tester.tap(find.text('OK'));
-    for (var i = 0; i < 4; i++) {
-      await tester.pump(const Duration(milliseconds: 300));
-    }
-    expect(find.text('Confirmed'), findsOneWidget);
+    expect(find.text('Confirmed'), findsOneWidget); // no tap needed
+    await tester.pump(const Duration(milliseconds: 2400));
+    expect(find.text('Detection was accurate'), findsNothing);
   });
 
   test('fixedSquares counts per-square differences', () {

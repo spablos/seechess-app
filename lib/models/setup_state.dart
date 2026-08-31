@@ -144,6 +144,29 @@ class SetupState extends ChangeNotifier {
     }
   }
 
+  /// The side that must be to move because its king stands in check —
+  /// the other side to move would be an illegal position. Null when
+  /// neither king is attacked (or kings are missing/adjacent).
+  String? impliedTurn() {
+    if (!hasBothKings) return null;
+    final placement = toFen().split(' ').first;
+    bool attacked(String turn, ch.Color color) {
+      try {
+        final g = ch.Chess.fromFEN('$placement $turn - - 0 1');
+        return g.king_attacked(color);
+      } catch (_) {
+        return false;
+      }
+    }
+
+    // with White to move, a Black king already under attack is impossible
+    final whiteInCheck = attacked('w', ch.Color.WHITE);
+    final blackInCheck = attacked('b', ch.Color.BLACK);
+    if (whiteInCheck && !blackInCheck) return 'w';
+    if (blackInCheck && !whiteInCheck) return 'b';
+    return null; // neither, or both (broken position) — no inference
+  }
+
   /// Reachability nudge: material no legal game can produce, or null.
   /// Extra pieces beyond the starting set only come from promotion, and
   /// every promotion consumes a pawn — so surplus can never exceed the
