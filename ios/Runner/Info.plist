@@ -10,6 +10,8 @@
 	<string>Seechess</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>AppGroupId</key>
+	<string>group.com.seechess.seechess</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -18,6 +20,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>seechess</string>
+				<string>ShareMedia-com.seechess.seechess</string>
 			</array>
 		</dict>
 	</array>
