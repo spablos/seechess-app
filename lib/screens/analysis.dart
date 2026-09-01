@@ -8,6 +8,7 @@ import '../engine/engine.dart';
 import '../engine/stockfish_engine.dart';
 import '../models/game_state.dart';
 import '../models/setup_state.dart';
+import '../services/pgn.dart';
 import '../services/saved_games.dart';
 import '../utils/fen_clipboard.dart';
 import '../utils/position_link.dart';
@@ -27,6 +28,10 @@ class AnalysisScreen extends StatefulWidget {
     this.source,
     this.photoPath,
     this.engineFactory,
+    this.initialPly,
+    this.title,
+    this.comments = const {},
+    this.importDraft,
   });
 
   final String? fen;
@@ -52,6 +57,20 @@ class AnalysisScreen extends StatefulWidget {
   /// Injectable for tests; defaults to real Stockfish.
   final AnalysisEngine Function()? engineFactory;
 
+  /// Open at this ply of [movesUci] (imported games start at 0 — reviewing
+  /// begins at the opening; saved games default to the tip).
+  final int? initialPly;
+
+  /// AppBar title override, e.g. "White – Black · 1-0" for imports.
+  final String? title;
+
+  /// PGN comments by 1-based ply, shown under the move list during replay.
+  final Map<int, String> comments;
+
+  /// Prefilled unsaved entry for imports: Save as starts from its name and
+  /// metadata (players, result, source link, labels) instead of blanks.
+  final SavedGame? importDraft;
+
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
 }
@@ -64,6 +83,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   SetupState? _setup;
 
   bool _photoVisible = false;
+
+  /// Comments/title/draft follow the loaded game — Paste PGN replaces them.
+  late Map<int, String> _comments = widget.source?.comments.isNotEmpty == true
+      ? widget.source!.comments
+      : widget.comments;
+  late String? _title = widget.title;
+  late SavedGame? _importDraft = widget.importDraft;
 
   /// The original photo of the position, when there is one.
   String? get _photoPath {
@@ -109,6 +135,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       );
       if (san == null) break; // stop at the first non-applying move
     }
+    if (widget.initialPly != null) game.stepTo(widget.initialPly!);
     _ownsEngine = widget.engineFactory != null;
     engine = _ownsEngine ? widget.engineFactory!() : StockfishEngine.shared;
     engine.start();
@@ -178,8 +205,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     _closeEditor();
   }
 
-  /// Load a FEN from the clipboard as the new position (accepts a bare
-  /// placement too — turn defaults to White).
+  /// Load whatever is on the clipboard: a full PGN game (headers or
+  /// movetext) or a FEN (bare placement accepted — turn defaults to White).
   Future<void> _pasteFen() async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     var text = (data?.text ?? '').trim();
@@ -188,6 +215,17 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Clipboard is empty')));
+      return;
+    }
+    if (looksLikePgn(text)) {
+      try {
+        final replay = replayPgn(parsePgn(splitPgn(text).first));
+        _loadReplay(replay);
+      } on FormatException catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Couldn't read the PGN: ${e.message}")),
+        );
+      }
       return;
     }
     if (!text.contains(' ')) text = '$text w - - 0 1';
@@ -203,6 +241,40 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     game.dispose();
     game = GameState(fen: text);
     _startFen = text;
+    game.addListener(_onPosition);
+    engine.analyze(game.fen);
+    setState(() {});
+  }
+
+  /// Swap the board to an imported game, starting at the opening.
+  void _loadReplay(PgnReplay replay) {
+    if (_setup != null) _closeEditor();
+    game.removeListener(_onPosition);
+    game.dispose();
+    game = GameState(fen: replay.game.startFen);
+    for (final u in replay.uci) {
+      game.tryMove(
+        u.substring(0, 2),
+        u.substring(2, 4),
+        promotion: u.length > 4 ? u.substring(4, 5) : 'q',
+      );
+    }
+    game.stepTo(0);
+    _startFen = game.startFen;
+    _comments = replay.game.comments;
+    final players = replay.game.playersLabel;
+    _title = players == null
+        ? null
+        : '$players${replay.game.result == null ? '' : ' · ${replay.game.result}'}';
+    _importDraft = SavedGame(
+      name: players ?? 'Imported game',
+      fen: replay.finalFen,
+      createdAt: DateTime.now(),
+      white: replay.game.white,
+      black: replay.game.black,
+      result: replay.game.result,
+    );
+    _source = null;
     game.addListener(_onPosition);
     engine.analyze(game.fen);
     setState(() {});
@@ -238,7 +310,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// Save as: a new entry under a new name, leaving the original untouched.
   Future<void> _saveAs() async {
     final nameController = TextEditingController(
-      text: _source == null ? '' : '${_source!.name} (copy)',
+      text:
+          _importDraft?.name ??
+          (_source == null ? '' : '${_source!.name} (copy)'),
     );
     final ok = await showDialog<bool>(
       context: context,
@@ -268,12 +342,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final name = nameController.text.trim().isEmpty
         ? 'Position ${DateTime.now().toString().substring(0, 16)}'
         : nameController.text.trim();
+    final draft = _importDraft;
     final saved = SavedGame(
       name: name,
       fen: game.fen,
       createdAt: DateTime.now(),
       startFen: _startFen,
       movesUci: [for (final m in game.moves) m.uci],
+      labels: draft?.labels ?? const [],
+      white: draft?.white,
+      black: draft?.black,
+      result: draft?.result,
+      sourceUrl: draft?.sourceUrl,
+      comments: _comments,
     );
     await SavedGamesStore().add(saved);
     _source = saved; // further plain Saves target the new entry
@@ -303,7 +384,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(_setup == null ? 'Analysis' : 'Set up position'),
+        title: Text(
+          _setup != null ? 'Set up position' : _title ?? 'Analysis',
+          overflow: TextOverflow.fade,
+        ),
         actions: [
           if (widget.editable)
             IconButton(
@@ -384,6 +468,27 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               onPlay: _playLine,
                             ),
                             _MoveList(game: game),
+                            if (_comments[game.ply] != null)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  0,
+                                  12,
+                                  4,
+                                ),
+                                child: Text(
+                                  _comments[game.ply]!,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        fontStyle: FontStyle.italic,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             _actionStrip(),
                             _Controls(
                               game: game,

@@ -51,6 +51,12 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="https" android:host="seechess.nopatos.com" android:pathPrefix="/p/"/>
             </intent-filter>
+            <!-- share a PGN game as text into import -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
             <!-- share an image (screenshot, WhatsApp photo) into recognition -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND"/>

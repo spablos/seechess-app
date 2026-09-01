@@ -18,6 +18,11 @@ class SavedGame {
     this.photoPath,
     this.startFen,
     this.movesUci = const [],
+    this.white,
+    this.black,
+    this.result,
+    this.sourceUrl,
+    this.comments = const {},
   }) : id = id ?? createdAt.microsecondsSinceEpoch.toString(),
        modifiedAt = modifiedAt ?? createdAt;
 
@@ -37,6 +42,17 @@ class SavedGame {
   final String? startFen;
   final List<String> movesUci;
 
+  /// Imported-game metadata (PGN headers), null for home-grown entries.
+  final String? white;
+  final String? black;
+  final String? result;
+
+  /// Round-trip link to where the game came from (chess.com / lichess).
+  final String? sourceUrl;
+
+  /// PGN comments by 1-based ply, shown during replay.
+  final Map<int, String> comments;
+
   SavedGame copyWith({
     String? name,
     String? fen,
@@ -55,6 +71,11 @@ class SavedGame {
     photoPath: photoPath ?? this.photoPath,
     startFen: startFen ?? this.startFen,
     movesUci: movesUci ?? this.movesUci,
+    white: white,
+    black: black,
+    result: result,
+    sourceUrl: sourceUrl,
+    comments: comments,
   );
 
   Map<String, dynamic> toJson() => {
@@ -67,6 +88,12 @@ class SavedGame {
     if (photoPath != null) 'photoPath': photoPath,
     if (startFen != null) 'startFen': startFen,
     if (movesUci.isNotEmpty) 'movesUci': movesUci,
+    if (white != null) 'white': white,
+    if (black != null) 'black': black,
+    if (result != null) 'result': result,
+    if (sourceUrl != null) 'sourceUrl': sourceUrl,
+    if (comments.isNotEmpty)
+      'comments': {for (final e in comments.entries) '${e.key}': e.value},
   };
 
   static SavedGame fromJson(Map<String, dynamic> json) {
@@ -84,6 +111,14 @@ class SavedGame {
       photoPath: json['photoPath'] as String?,
       startFen: json['startFen'] as String?,
       movesUci: (json['movesUci'] as List?)?.cast<String>() ?? const [],
+      white: json['white'] as String?,
+      black: json['black'] as String?,
+      result: json['result'] as String?,
+      sourceUrl: json['sourceUrl'] as String?,
+      comments: {
+        for (final e in ((json['comments'] as Map?) ?? const {}).entries)
+          int.parse(e.key as String): e.value as String,
+      },
     );
   }
 }

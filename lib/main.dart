@@ -5,6 +5,9 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'screens/analysis.dart';
 import 'screens/home.dart';
 import 'screens/offline_lobby.dart';
+import 'dart:io';
+
+import 'screens/game_import.dart';
 import 'screens/photo_flow.dart';
 import 'utils/position_link.dart';
 
@@ -66,12 +69,35 @@ class _SeechessAppState extends State<SeechessApp> {
     final image = files
         .where((f) => f.type == SharedMediaType.image)
         .firstOrNull;
-    if (image == null) return;
-    _pushWhenReady(
-      () => MaterialPageRoute(
-        builder: (_) => PhotoFlowScreen(sharedImagePath: image.path),
-      ),
-    );
+    if (image != null) {
+      _pushWhenReady(
+        () => MaterialPageRoute(
+          builder: (_) => PhotoFlowScreen(sharedImagePath: image.path),
+        ),
+      );
+      return;
+    }
+    // shared text or a .pgn file: import the game
+    final other = files.firstOrNull;
+    if (other == null) return;
+    _pushWhenReady(() {
+      return MaterialPageRoute(builder: (_) => const HomeScreen());
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      String? text;
+      if (other.type == SharedMediaType.text ||
+          other.type == SharedMediaType.url) {
+        text = other.path; // the plugin carries shared text in `path`
+      } else {
+        try {
+          text = await File(other.path).readAsString();
+        } catch (_) {}
+      }
+      final context = navigatorKey.currentContext;
+      if (text != null && context != null && context.mounted) {
+        importPgnText(context, text);
+      }
+    });
   }
 
   /// On a cold start the shared file / link can arrive before the
