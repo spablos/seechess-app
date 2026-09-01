@@ -131,10 +131,14 @@ class HostSession extends MatchSession {
   /// "ip:port" for the QR / manual entry, once listening.
   String? address;
 
+  /// True when no usable network interface exists — a QR would encode a
+  /// meaningless address. The lobby explains and offers a recheck.
+  bool noNetwork = false;
+
   Future<void> start() async {
     final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     _server = server;
-    address = '${await _localIp()}:${server.port}';
+    await _refreshAddress();
     server.listen((req) async {
       if (!WebSocketTransformer.isUpgradeRequest(req)) {
         req.response
@@ -171,9 +175,22 @@ class HostSession extends MatchSession {
     notifyListeners();
   }
 
-  /// The hotspot/LAN address guests can reach. iOS Personal Hotspot puts
+  Future<void> _refreshAddress() async {
+    final ip = await _localIp();
+    noNetwork = ip == null;
+    address = ip == null ? null : '$ip:${_server!.port}';
+  }
+
+  /// The user joined a network after hosting without one — look again.
+  Future<void> recheckNetwork() async {
+    await _refreshAddress();
+    notifyListeners();
+  }
+
+  /// The hotspot/LAN address guests can reach, or null when the device has
+  /// no network at all (e.g. airplane mode). iOS Personal Hotspot puts
   /// the host on 172.20.10.1; otherwise prefer private-range interfaces.
-  Future<String> _localIp() async {
+  Future<String?> _localIp() async {
     final interfaces = await NetworkInterface.list(
       type: InternetAddressType.IPv4,
       includeLoopback: false,
@@ -184,7 +201,7 @@ class HostSession extends MatchSession {
         if (a.address.startsWith(prefix)) return a.address;
       }
     }
-    return all.isEmpty ? '127.0.0.1' : all.first.address;
+    return all.isEmpty ? null : all.first.address;
   }
 
   /// Host taps Start once the guest is in the lobby.
@@ -396,7 +413,12 @@ class GuestSession extends MatchSession {
   @override
   bool get isHost => false;
 
+  /// Set once connecting has failed for a while: the UI tells the user the
+  /// host is unreachable (retries continue underneath regardless).
+  bool struggling = false;
+
   Future<void> connect() async {
+    final began = DateTime.now();
     while (!_closed) {
       try {
         final sock = await WebSocket.connect(
@@ -408,6 +430,7 @@ class GuestSession extends MatchSession {
         }
         _sock = sock;
         connected = true;
+        struggling = false;
         sock.add(jsonEncode({'t': 'hello', 'name': _myName}));
         notifyListeners();
         await for (final data in sock) {
@@ -419,6 +442,9 @@ class GuestSession extends MatchSession {
       _sock = null;
       if (_closed) return;
       connected = false;
+      if (DateTime.now().difference(began) > const Duration(seconds: 12)) {
+        struggling = true;
+      }
       notifyListeners();
       // Wi-Fi blips happen (PRD): keep retrying until told to stop
       await Future<void>.delayed(const Duration(seconds: 2));

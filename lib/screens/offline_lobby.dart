@@ -249,7 +249,26 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (address == null)
+              if (session.noNetwork) ...[
+                Icon(Icons.wifi_off, size: 48, color: theme.colorScheme.error),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    'No network. Join a Wi-Fi network or turn on a hotspot '
+                    'on either phone — internet is not needed, the two '
+                    'phones just have to be on the same network.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Check again'),
+                  onPressed: session.recheckNetwork,
+                ),
+              ] else if (address == null)
                 const CircularProgressIndicator()
               else ...[
                 Container(
@@ -410,6 +429,23 @@ class _JoinScreenState extends State<JoinMatchScreen> {
                           : 'Connecting to ${session.hostAddress}…',
                       style: theme.textTheme.titleMedium,
                     ),
+                    if (session != null &&
+                        !session.connected &&
+                        session.struggling) ...[
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 40),
+                        child: Text(
+                          'Can\'t reach the host at ${session.hostAddress}. '
+                          'Check that both phones are on the same Wi-Fi or '
+                          'hotspot — still trying…',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               )
