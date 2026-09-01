@@ -356,31 +356,27 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                     ),
                   ),
                 _bleRow(theme, session),
-                const SizedBox(height: 24),
-                if (session.oppName == null) ...[
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Waiting for your opponent to scan…',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ] else ...[
-                  Icon(
-                    Icons.person,
-                    size: 40,
-                    color: theme.colorScheme.primary,
-                  ),
-                  Text(
-                    '${session.oppName} joined',
-                    style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.play_arrow),
-                    label: Text('Start · ${session.timeControl.display}'),
-                    onPressed: session.beginMatch,
-                  ),
-                ],
+              ],
+              const SizedBox(height: 24),
+              if (session.oppName == null) ...[
+                const CircularProgressIndicator(),
+                const SizedBox(height: 12),
+                Text(
+                  'Waiting for your opponent…',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ] else ...[
+                Icon(Icons.person, size: 40, color: theme.colorScheme.primary),
+                Text(
+                  '${session.oppName} joined',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  icon: const Icon(Icons.play_arrow),
+                  label: Text('Start · ${session.timeControl.display}'),
+                  onPressed: session.beginMatch,
+                ),
               ],
             ],
           ),
