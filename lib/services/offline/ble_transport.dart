@@ -385,6 +385,13 @@ class BleScanner {
     }
   }
 
+  /// The system page where the user can grant Bluetooth permission.
+  Future<void> openSettings() async {
+    try {
+      await _cm.showAppSettings();
+    } catch (_) {}
+  }
+
   Future<void> stop() async {
     for (final s in _subs) {
       await s.cancel();

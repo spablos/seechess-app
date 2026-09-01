@@ -600,6 +600,44 @@ class _JoinScreenState extends State<JoinMatchScreen> {
                               trailing: const Icon(Icons.chevron_right),
                               onTap: () => _connectBle(h),
                             ),
+                          if (hosts.isEmpty)
+                            // never leave the Bluetooth path invisible:
+                            // say we're looking, or why we can't
+                            ValueListenableBuilder<String>(
+                              valueListenable: _scanner!.status,
+                              builder: (context, status, _) {
+                                if (status == 'unsupported') {
+                                  return const SizedBox.shrink();
+                                }
+                                final scanning = status == 'scanning';
+                                return ListTile(
+                                  dense: true,
+                                  leading: scanning
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.bluetooth_disabled,
+                                          color: theme.colorScheme.outline,
+                                        ),
+                                  title: Text(
+                                    scanning
+                                        ? 'Looking for nearby hosts '
+                                              'via Bluetooth…'
+                                        : 'Bluetooth is off or not allowed '
+                                              '— tap to fix',
+                                    style: theme.textTheme.bodySmall,
+                                  ),
+                                  onTap: scanning
+                                      ? null
+                                      : _scanner!.openSettings,
+                                );
+                              },
+                            ),
                         ],
                       ),
                     ),
