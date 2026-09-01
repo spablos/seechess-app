@@ -6,6 +6,9 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../../models/game_state.dart';
+import 'ble_transport.dart';
+import 'hotspot.dart';
+import 'transport.dart';
 
 /// Offline two-device match over a tiny LAN (PRD §4, "the plane feature").
 ///
@@ -98,7 +101,17 @@ class HostSession extends MatchSession {
     required TimeControl tc,
     this.hostWhite,
     this.startFen,
-  }) : _myName = name {
+    List<HostTransport>? transports,
+  }) : _myName = name,
+       transports =
+           transports ??
+           [
+             WsHostTransport(),
+             // phones also advertise over Bluetooth — a guest can join with
+             // no shared network at all (tests and desktop stay ws-only)
+             if (Platform.isAndroid || Platform.isIOS)
+               BleHostTransport(advertiseName: name),
+           ] {
     timeControl = tc;
   }
 
@@ -110,8 +123,10 @@ class HostSession extends MatchSession {
   /// Optional non-standard start position (a photographed one, later).
   final String? startFen;
 
-  HttpServer? _server;
-  WebSocket? _sock;
+  /// Every way a guest can reach this host, all live at once; whichever
+  /// one the guest dials delivers, the rest idle.
+  final List<HostTransport> transports;
+
   String? _guestName;
   Timer? _flagTimer;
   int _seq = 0;
@@ -128,40 +143,33 @@ class HostSession extends MatchSession {
   @override
   bool get isHost => true;
 
+  WsHostTransport? get _ws =>
+      transports.whereType<WsHostTransport>().firstOrNull;
+  BleHostTransport? get _ble =>
+      transports.whereType<BleHostTransport>().firstOrNull;
+
   /// "ip:port" for the QR / manual entry, once listening.
-  String? address;
+  String? get address => _ws?.address;
 
   /// True when no usable network interface exists — a QR would encode a
   /// meaningless address. The lobby explains and offers a recheck.
-  bool noNetwork = false;
+  bool get noNetwork => _ws?.noNetwork ?? false;
+
+  /// Bluetooth advertising state for the lobby: 'advertising' | 'off' |
+  /// 'unsupported' | null (no BLE transport).
+  String? get bleStatus => _ble?.status;
 
   Future<void> start() async {
-    final server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-    _server = server;
-    await _refreshAddress();
-    server.listen((req) async {
-      if (!WebSocketTransformer.isUpgradeRequest(req)) {
-        req.response
-          ..statusCode = HttpStatus.badRequest
-          ..close();
-        return;
-      }
-      final sock = await WebSocketTransformer.upgrade(req);
-      await _sock?.close(); // a reconnect replaces the old socket
-      _sock = sock;
-      sock.listen(
-        (data) => _onGuestMessage(data as String),
-        onDone: () {
-          if (_sock != sock) return;
-          _sock = null;
-          connected = false;
-          _pauseClock(); // fairness: a Wi-Fi blip must not flag anyone
-          notifyListeners();
-        },
-        onError: (_) {},
-        cancelOnError: true,
-      );
-    });
+    for (final t in transports) {
+      t.onMessage = _onGuestMessage;
+      t.onChanged = notifyListeners;
+      t.onPeerLost = () {
+        connected = false;
+        _pauseClock(); // fairness: a link blip must not flag anyone
+        notifyListeners();
+      };
+      await t.start();
+    }
     // flag checks are the host's job (authoritative clock)
     _flagTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
       if (!started || result != null || !clockRunning) return;
@@ -175,33 +183,41 @@ class HostSession extends MatchSession {
     notifyListeners();
   }
 
-  Future<void> _refreshAddress() async {
-    final ip = await _localIp();
-    noNetwork = ip == null;
-    address = ip == null ? null : '$ip:${_server!.port}';
-  }
-
   /// The user joined a network after hosting without one — look again.
-  Future<void> recheckNetwork() async {
-    await _refreshAddress();
+  Future<void> recheckNetwork() async => _ws?.recheckNetwork();
+
+  /// Hotspot credentials once [startHotspot] succeeded — carried in the QR
+  /// so a guest's phone joins the network automatically.
+  String? hotspotSsid;
+  String? hotspotPass;
+
+  /// Android can spin up an app-owned hotspot; iOS cannot (no public API).
+  bool get canHotspot => !kIsWeb && Platform.isAndroid;
+
+  Future<bool> startHotspot() async {
+    final cfg = await Hotspot.hostStart();
+    if (cfg == null) return false;
+    hotspotSsid = cfg.ssid;
+    hotspotPass = cfg.pass;
+    // the hotspot interface takes a moment to get its address
+    for (var i = 0; i < 10 && address == null; i++) {
+      await _ws?.recheckNetwork();
+      if (address != null) break;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
     notifyListeners();
+    return true;
   }
 
-  /// The hotspot/LAN address guests can reach, or null when the device has
-  /// no network at all (e.g. airplane mode). iOS Personal Hotspot puts
-  /// the host on 172.20.10.1; otherwise prefer private-range interfaces.
-  Future<String?> _localIp() async {
-    final interfaces = await NetworkInterface.list(
-      type: InternetAddressType.IPv4,
-      includeLoopback: false,
-    );
-    final all = [for (final i in interfaces) ...i.addresses];
-    for (final prefix in ['172.20.10.', '192.168.', '10.', '172.']) {
-      for (final a in all) {
-        if (a.address.startsWith(prefix)) return a.address;
-      }
-    }
-    return all.isEmpty ? null : all.first.address;
+  /// What the QR encodes: the socket address, plus hotspot credentials
+  /// when we opened one (the guest joins the network, then dials).
+  String? get qrPayload {
+    final a = address;
+    if (a == null) return null;
+    if (hotspotSsid == null) return 'seechess://$a';
+    return 'seechess://$a'
+        '?ssid=${Uri.encodeQueryComponent(hotspotSsid!)}'
+        '&pass=${Uri.encodeQueryComponent(hotspotPass!)}';
   }
 
   /// Host taps Start once the guest is in the lobby.
@@ -357,7 +373,9 @@ class HostSession extends MatchSession {
       'hostName': _myName,
       'tc': [timeControl.minutes, timeControl.incrementSec],
     });
-    _sock?.add(state);
+    for (final t in transports) {
+      t.send(state);
+    }
     notifyListeners();
   }
 
@@ -383,8 +401,10 @@ class HostSession extends MatchSession {
   @override
   Future<void> shutdown() async {
     _flagTimer?.cancel();
-    await _sock?.close();
-    await _server?.close(force: true);
+    for (final t in transports) {
+      await t.close();
+    }
+    if (hotspotSsid != null) await Hotspot.hostStop();
     game.dispose();
     dispose();
   }
@@ -393,17 +413,24 @@ class HostSession extends MatchSession {
 // ---------------------------------------------------------------- guest
 
 class GuestSession extends MatchSession {
-  GuestSession({required String name, required this.hostAddress})
-    : _myName = name;
+  /// Dial by ip:port (QR / typed address) or over any [GuestTransport]
+  /// (the Bluetooth nearby list passes one in).
+  GuestSession({
+    required String name,
+    String? hostAddress,
+    GuestTransport? transport,
+  }) : assert(hostAddress != null || transport != null),
+       _myName = name,
+       transport = transport ?? WsGuestTransport(hostAddress!);
 
   final String _myName;
 
-  /// "ip:port" from the QR code or manual entry.
-  final String hostAddress;
+  final GuestTransport transport;
 
-  WebSocket? _sock;
+  /// What the UI shows for "connecting to …" — an address or a host name.
+  String get hostAddress => transport.label;
+
   String? _hostName;
-  bool _closed = false;
   int _lastSeq = 0;
 
   @override
@@ -417,38 +444,18 @@ class GuestSession extends MatchSession {
   /// host is unreachable (retries continue underneath regardless).
   bool struggling = false;
 
-  Future<void> connect() async {
-    final began = DateTime.now();
-    while (!_closed) {
-      try {
-        final sock = await WebSocket.connect(
-          'ws://$hostAddress',
-        ).timeout(const Duration(seconds: 6));
-        if (_closed) {
-          await sock.close();
-          return;
-        }
-        _sock = sock;
-        connected = true;
+  Future<void> connect() {
+    transport.onMessage = _onHostMessage;
+    transport.onStruggling = () => struggling = true;
+    transport.onLink = (up) {
+      connected = up;
+      if (up) {
         struggling = false;
-        sock.add(jsonEncode({'t': 'hello', 'name': _myName}));
-        notifyListeners();
-        await for (final data in sock) {
-          _onHostMessage(data as String);
-        }
-      } catch (_) {
-        // fall through to the retry below
-      }
-      _sock = null;
-      if (_closed) return;
-      connected = false;
-      if (DateTime.now().difference(began) > const Duration(seconds: 12)) {
-        struggling = true;
+        transport.send(jsonEncode({'t': 'hello', 'name': _myName}));
       }
       notifyListeners();
-      // Wi-Fi blips happen (PRD): keep retrying until told to stop
-      await Future<void>.delayed(const Duration(seconds: 2));
-    }
+    };
+    return transport.connect();
   }
 
   void _onHostMessage(String data) {
@@ -493,7 +500,7 @@ class GuestSession extends MatchSession {
     notifyListeners();
   }
 
-  void _send(Map<String, dynamic> msg) => _sock?.add(jsonEncode(msg));
+  void _send(Map<String, dynamic> msg) => transport.send(jsonEncode(msg));
 
   @override
   void sendMove(String from, String to, {String promotion = 'q'}) {
@@ -522,8 +529,8 @@ class GuestSession extends MatchSession {
 
   @override
   Future<void> shutdown() async {
-    _closed = true;
-    await _sock?.close();
+    await transport.close();
+    await Hotspot.guestLeave(); // no-op unless the QR join used one
     game.dispose();
     dispose();
   }

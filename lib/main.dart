@@ -49,11 +49,15 @@ class _SeechessAppState extends State<SeechessApp> {
       );
       return;
     }
-    // seechess://<ip>:<port> — the offline-match QR
+    // seechess://<ip>:<port>[?ssid=&pass=] — the offline-match QR
     if (uri.scheme != 'seechess' || uri.host.isEmpty || !uri.hasPort) return;
     _pushWhenReady(
       () => MaterialPageRoute(
-        builder: (_) => JoinMatchScreen(address: '${uri.host}:${uri.port}'),
+        builder: (_) => JoinMatchScreen(
+          address: '${uri.host}:${uri.port}',
+          hotspotSsid: uri.queryParameters['ssid'],
+          hotspotPass: uri.queryParameters['pass'],
+        ),
       ),
     );
   }

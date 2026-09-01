@@ -10,5 +10,7 @@
 	<array>
 		<string>applinks:seechess.nopatos.com</string>
 	</array>
+	<key>com.apple.developer.networking.HotspotConfiguration</key>
+	<true/>
 </dict>
 </plist>

@@ -47,6 +47,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Connects two phones over Bluetooth for an offline chess match — no network needed.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo of a chessboard to analyze the position.</string>
 	<key>NSLocalNetworkUsageDescription</key>

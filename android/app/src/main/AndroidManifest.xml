@@ -4,6 +4,21 @@
     <!-- QR scanning (offline match join) — camera capture itself goes
          through the system picker, which needs no permission -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- offline match over Bluetooth LE (host advertises, guest scans) -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"/>
+    <!-- pre-Android-12 equivalents (scan needed location back then) -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30"/>
+    <!-- all versions: Android gates the local-only hotspot API on it -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <!-- guest auto-join of the host's hotspot (WifiNetworkSpecifier) -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <application
         android:label="Seechess"
         android:name="${applicationName}"

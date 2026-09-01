@@ -5,6 +5,8 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/offline/ble_transport.dart';
+import '../services/offline/hotspot.dart';
 import '../services/offline/match_session.dart';
 import 'match.dart';
 
@@ -237,6 +239,39 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
     super.dispose();
   }
 
+  /// One quiet line: the host is also reachable over Bluetooth (or why
+  /// not). Works with no network at all — worth saying exactly when the
+  /// QR path is down.
+  Widget _bleRow(ThemeData theme, HostSession session) {
+    final status = session.bleStatus;
+    if (status == null || status == 'unsupported') {
+      return const SizedBox.shrink();
+    }
+    final advertising = status == 'advertising';
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            advertising ? Icons.bluetooth_audio : Icons.bluetooth_disabled,
+            size: 18,
+            color: advertising
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            advertising
+                ? 'Also joinable nearby via Bluetooth'
+                : 'Turn on Bluetooth to be joinable without Wi-Fi',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -263,11 +298,36 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                FilledButton.icon(
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Check again'),
-                  onPressed: session.recheckNetwork,
-                ),
+                if (session.canHotspot)
+                  FilledButton.icon(
+                    icon: const Icon(Icons.wifi_tethering),
+                    label: const Text('Start a hotspot'),
+                    onPressed: () async {
+                      final ok = await session.startHotspot();
+                      if (!ok && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Couldn\'t start a hotspot — check that '
+                              'location is allowed and tethering is off',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  )
+                else
+                  FilledButton.icon(
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Check again'),
+                    onPressed: session.recheckNetwork,
+                  ),
+                if (session.canHotspot)
+                  TextButton(
+                    onPressed: session.recheckNetwork,
+                    child: const Text('I joined a network — check again'),
+                  ),
+                _bleRow(theme, session),
               ] else if (address == null)
                 const CircularProgressIndicator()
               else ...[
@@ -277,7 +337,7 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: QrImageView(data: 'seechess://$address', size: 220),
+                  child: QrImageView(data: session.qrPayload!, size: 220),
                 ),
                 const SizedBox(height: 12),
                 SelectableText(
@@ -286,6 +346,16 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                     fontFeatures: [const FontFeature.tabularFigures()],
                   ),
                 ),
+                if (session.hotspotSsid != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Hotspot "${session.hotspotSsid}" is on — scanning '
+                      'the QR joins it automatically',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                _bleRow(theme, session),
                 const SizedBox(height: 24),
                 if (session.oppName == null) ...[
                   const CircularProgressIndicator(),
@@ -324,7 +394,13 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
 /// start. Also the landing screen when a QR is scanned with the system
 /// camera — the seechess:// deep link arrives with [address] prefilled.
 class JoinMatchScreen extends StatefulWidget {
-  const JoinMatchScreen({super.key, this.myName, this.address});
+  const JoinMatchScreen({
+    super.key,
+    this.myName,
+    this.address,
+    this.hotspotSsid,
+    this.hotspotPass,
+  });
 
   /// Session display name; when null (deep-link entry) the saved one is
   /// used, defaulting to 'Player'.
@@ -332,6 +408,10 @@ class JoinMatchScreen extends StatefulWidget {
 
   /// "ip:port" to connect to immediately, skipping the scanner.
   final String? address;
+
+  /// When the QR carried hotspot credentials, join that network first.
+  final String? hotspotSsid;
+  final String? hotspotPass;
 
   @override
   State<JoinMatchScreen> createState() => _JoinScreenState();
@@ -343,10 +423,18 @@ class _JoinScreenState extends State<JoinMatchScreen> {
   bool _entered = false;
   String _myName = 'Player';
 
+  /// Live list of Seechess hosts advertising over Bluetooth nearby.
+  BleScanner? _scanner;
+
   @override
   void initState() {
     super.initState();
     _resolveNameThenAutoConnect();
+    if (widget.address == null) {
+      final scanner = BleScanner();
+      _scanner = scanner;
+      unawaited(scanner.start());
+    }
   }
 
   Future<void> _resolveNameThenAutoConnect() async {
@@ -358,12 +446,25 @@ class _JoinScreenState extends State<JoinMatchScreen> {
     if (name != null && name.trim().isNotEmpty) _myName = name.trim();
     final address = widget.address;
     if (address != null && address.contains(':') && mounted) {
-      _connect(address);
+      await _joinHotspotIfAny(widget.hotspotSsid, widget.hotspotPass);
+      if (mounted) _connect(address);
     }
+  }
+
+  bool _joiningHotspot = false;
+
+  /// The QR named the host's hotspot: hop onto it before dialing. Failure
+  /// is non-fatal — connect() retries and shows the unreachable hint.
+  Future<void> _joinHotspotIfAny(String? ssid, String? pass) async {
+    if (ssid == null || pass == null) return;
+    setState(() => _joiningHotspot = true);
+    await Hotspot.guestJoin(ssid, pass);
+    if (mounted) setState(() => _joiningHotspot = false);
   }
 
   @override
   void dispose() {
+    unawaited(_scanner?.stop());
     _session?.removeListener(_onSession);
     if (!_entered) _session?.shutdown();
     _address.dispose();
@@ -372,7 +473,24 @@ class _JoinScreenState extends State<JoinMatchScreen> {
 
   void _connect(String address) {
     if (_session != null) return;
-    final session = GuestSession(name: _myName, hostAddress: address);
+    _adopt(GuestSession(name: _myName, hostAddress: address));
+  }
+
+  void _connectBle(NearbyHost host) {
+    if (_session != null) return;
+    unawaited(_scanner?.stop()); // scanning fights the connection
+    _adopt(
+      GuestSession(
+        name: _myName,
+        transport: BleGuestTransport(
+          peripheral: host.peripheral,
+          hostName: host.name,
+        ),
+      ),
+    );
+  }
+
+  void _adopt(GuestSession session) {
     _session = session;
     session.addListener(_onSession);
     unawaited(session.connect());
@@ -393,13 +511,23 @@ class _JoinScreenState extends State<JoinMatchScreen> {
   }
 
   void _onScan(BarcodeCapture capture) {
-    if (_session != null) return;
+    if (_session != null || _joiningHotspot) return;
     for (final code in capture.barcodes) {
       final raw = code.rawValue;
-      if (raw != null && raw.startsWith('seechess://')) {
-        _connect(raw.substring('seechess://'.length));
-        return;
+      if (raw == null || !raw.startsWith('seechess://')) continue;
+      final uri = Uri.tryParse(raw);
+      if (uri == null || uri.host.isEmpty || !uri.hasPort) continue;
+      final ssid = uri.queryParameters['ssid'];
+      final pass = uri.queryParameters['pass'];
+      final address = '${uri.host}:${uri.port}';
+      if (ssid != null && pass != null) {
+        _joinHotspotIfAny(ssid, pass).then((_) {
+          if (mounted) _connect(address);
+        });
+      } else {
+        _connect(address);
       }
+      return;
     }
   }
 
@@ -412,7 +540,7 @@ class _JoinScreenState extends State<JoinMatchScreen> {
       body: SafeArea(
         // deep-link entry connects directly — never build the scanner (and
         // its camera prompt) for a frame while the session spins up
-        child: session != null || widget.address != null
+        child: session != null || widget.address != null || _joiningHotspot
             ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -420,7 +548,9 @@ class _JoinScreenState extends State<JoinMatchScreen> {
                     const CircularProgressIndicator(),
                     const SizedBox(height: 16),
                     Text(
-                      session == null
+                      _joiningHotspot
+                          ? 'Joining the host\'s hotspot…'
+                          : session == null
                           ? 'Connecting…'
                           : session.connected
                           ? (session.oppName == null
@@ -452,6 +582,27 @@ class _JoinScreenState extends State<JoinMatchScreen> {
             : Column(
                 children: [
                   Expanded(child: MobileScanner(onDetect: _onScan)),
+                  if (_scanner != null)
+                    ValueListenableBuilder<List<NearbyHost>>(
+                      valueListenable: _scanner!.hosts,
+                      builder: (context, hosts, _) => Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final h in hosts)
+                            ListTile(
+                              dense: true,
+                              leading: Icon(
+                                Icons.bluetooth_audio,
+                                color: theme.colorScheme.primary,
+                              ),
+                              title: Text(h.name),
+                              subtitle: const Text('Nearby via Bluetooth'),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () => _connectBle(h),
+                            ),
+                        ],
+                      ),
+                    ),
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
