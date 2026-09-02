@@ -750,12 +750,31 @@ class _EngineHeader extends StatelessWidget {
                             : theme.colorScheme.outlineVariant,
                       ),
                       if (!onLine!)
-                        Text(
-                          'off',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: theme.colorScheme.error,
+                        // rubber-stamped over the line, "REJECTED"-style
+                        Transform.rotate(
+                          angle: -0.35,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface.withValues(
+                                alpha: 0.55,
+                              ),
+                              border: Border.all(
+                                color: theme.colorScheme.error,
+                                width: 1.2,
+                              ),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: Text(
+                              'OFF',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontSize: 8,
+                                height: 1.2,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                                color: theme.colorScheme.error,
+                              ),
+                            ),
                           ),
                         ),
                     ],

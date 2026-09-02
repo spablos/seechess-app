@@ -72,7 +72,7 @@ void main() {
     await tester.pumpAndSettle();
     // the line icon shows (we have an original game), without the off mark
     expect(find.byIcon(Icons.timeline), findsOneWidget);
-    expect(find.text('off'), findsNothing);
+    expect(find.text('OFF'), findsNothing);
 
     // step to the tip via the move list; the comment shows after ply 1
     await tester.tap(find.text('1. e4'));
@@ -80,7 +80,7 @@ void main() {
     expect(find.text('king pawn'), findsOneWidget);
     await tester.tap(find.text('2. Nf3'));
     await tester.pumpAndSettle();
-    expect(find.text('off'), findsNothing);
+    expect(find.text('OFF'), findsNothing);
   });
 
   testWidgets('a plain board shows neither line icon nor turn words', (
