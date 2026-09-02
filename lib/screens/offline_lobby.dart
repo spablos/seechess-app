@@ -161,48 +161,10 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
               decoration: const InputDecoration(
                 labelText: 'Your name',
                 border: OutlineInputBorder(),
+                isDense: true,
               ),
             ),
-            const SizedBox(height: 20),
-            Text('Time control', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final (tc, kind) in TimeControl.presets)
-                  ChoiceChip(
-                    label: Text('${tc.display} · $kind'),
-                    selected:
-                        _tc.minutes == tc.minutes &&
-                        _tc.incrementSec == tc.incrementSec,
-                    onSelected: (_) => setState(() => _tc = tc),
-                  ),
-                ChoiceChip(
-                  label: Text(isPreset ? 'Custom…' : 'Custom ${_tc.display}'),
-                  selected: !isPreset,
-                  onSelected: (_) => _customTime(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Your color (when hosting)',
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<int>(
-              segments: const [
-                ButtonSegment(value: 0, label: Text('White')),
-                ButtonSegment(value: 1, label: Text('Random')),
-                ButtonSegment(value: 2, label: Text('Black')),
-              ],
-              selected: {_color},
-              onSelectionChanged: (s) => setState(() => _color = s.first),
-            ),
-            const SizedBox(height: 20),
-            Text('Connection', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
@@ -229,15 +191,14 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
             if (_transport == 0)
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
+                dense: true,
                 title: const Text('Open invite'),
-                subtitle: const Text(
-                  'Broadcast "$inviteName" instead of your name — '
-                  'any nearby Seechess player can join',
-                ),
+                subtitle: const Text('Broadcast "$inviteName"'),
                 value: _openInvite,
                 onChanged: (v) => setState(() => _openInvite = v),
               ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 14),
+            // the two actions stay above the fold, always
             FilledButton.icon(
               icon: Icon(_transport == 0 ? Icons.bluetooth : Icons.wifi),
               label: const Text('Host a match'),
@@ -249,15 +210,57 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
               label: const Text('Join a match'),
               onPressed: _join,
             ),
-            const SizedBox(height: 24),
-            Text(
-              'No internet is ever needed. Bluetooth pairs the phones '
-              'directly; Wi-Fi wants both phones on one network — at home '
-              'the same Wi-Fi, elsewhere the host starts its own hotspot '
-              'and the QR joins the other phone automatically.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.outline,
+            const SizedBox(height: 8),
+            // everything configurable folds into one summary row
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              shape: const Border(),
+              title: Text(
+                'Match settings — ${_tc.display} · '
+                '${_color == 0
+                    ? 'White'
+                    : _color == 2
+                    ? 'Black'
+                    : 'Random color'}',
+                style: theme.textTheme.titleSmall,
               ),
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final (tc, kind) in TimeControl.presets)
+                        ChoiceChip(
+                          label: Text('${tc.display} · $kind'),
+                          selected:
+                              _tc.minutes == tc.minutes &&
+                              _tc.incrementSec == tc.incrementSec,
+                          onSelected: (_) => setState(() => _tc = tc),
+                        ),
+                      ChoiceChip(
+                        label: Text(
+                          isPreset ? 'Custom…' : 'Custom ${_tc.display}',
+                        ),
+                        selected: !isPreset,
+                        onSelected: (_) => _customTime(),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('White')),
+                    ButtonSegment(value: 1, label: Text('Random')),
+                    ButtonSegment(value: 2, label: Text('Black')),
+                  ],
+                  selected: {_color},
+                  onSelectionChanged: (s) => setState(() => _color = s.first),
+                ),
+                const SizedBox(height: 12),
+              ],
             ),
           ],
         ),
