@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import '../services/game_sources.dart';
 import '../services/pgn.dart';
+import '../services/stats.dart';
 import '../services/saved_games.dart';
 import 'analysis.dart';
 
@@ -16,6 +17,7 @@ import 'analysis.dart';
 
 /// Open a parsed game on the analysis board, at move 0, save-ready.
 void openPgnGame(BuildContext context, PgnReplay replay, {String? sourceUrl}) {
+  unawaited(AppStats.count('game_import'));
   final g = replay.game;
   final date = g.date?.replaceAll('.', '-');
   final players = g.playersLabel;

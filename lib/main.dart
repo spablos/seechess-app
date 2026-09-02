@@ -5,10 +5,12 @@ import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'screens/analysis.dart';
 import 'screens/home.dart';
 import 'screens/offline_lobby.dart';
+import 'dart:async';
 import 'dart:io';
 
 import 'screens/game_import.dart';
 import 'screens/photo_flow.dart';
+import 'services/stats.dart';
 import 'utils/position_link.dart';
 
 void main() => runApp(const SeechessApp());
@@ -39,6 +41,7 @@ class _SeechessAppState extends State<SeechessApp> {
       ReceiveSharingIntent.instance.reset();
     });
     ReceiveSharingIntent.instance.getMediaStream().listen(_onSharedMedia);
+    unawaited(AppStats.heartbeat());
   }
 
   void _onLink(Uri uri) {

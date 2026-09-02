@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../services/stats.dart';
 
 /// Shareable position links: `https://seechess.nopatos.com/p/FEN`, with the
 /// FEN's spaces written as '_'. Opens straight in the app when installed
@@ -27,6 +30,7 @@ String? fenFromLink(Uri uri) {
 
 /// System share sheet with the link (WhatsApp, iMessage, mail…).
 Future<void> sharePosition(BuildContext context, String fen) async {
+  unawaited(AppStats.count('share_pos'));
   final link = positionLink(fen);
   await SharePlus.instance.share(
     ShareParams(text: 'Chess position on Seechess: $link'),

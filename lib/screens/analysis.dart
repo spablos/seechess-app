@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:chess/chess.dart' as ch;
@@ -12,6 +13,7 @@ import '../models/setup_state.dart';
 import '../services/lessons.dart';
 import '../services/pgn.dart';
 import '../services/saved_games.dart';
+import '../services/stats.dart';
 import '../utils/fen_clipboard.dart';
 import '../utils/position_link.dart';
 import '../widgets/board.dart';
@@ -289,6 +291,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     if (looksLikePgn(text)) {
       try {
         final replay = replayPgn(parsePgn(splitPgn(text).first));
+        unawaited(AppStats.count('pgn_paste'));
         _loadReplay(replay);
       } on FormatException catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -584,6 +587,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       comments: _comments,
     );
     await SavedGamesStore().add(saved);
+    unawaited(AppStats.count('library_save'));
     _source = saved; // further plain Saves target the new entry
     if (mounted) {
       ScaffoldMessenger.of(
@@ -641,6 +645,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             selectedIcon: const Icon(Icons.school),
             onPressed: () async {
               setState(() => _coach = !_coach);
+              if (_coach) unawaited(AppStats.count('coach_on'));
               final prefs = await SharedPreferences.getInstance();
               await prefs.setBool('coach_mode', _coach);
             },

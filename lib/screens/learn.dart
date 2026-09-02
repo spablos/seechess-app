@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../services/lessons.dart';
+import '../services/stats.dart';
 import '../services/pgn.dart';
 import 'analysis.dart';
 
@@ -46,6 +47,7 @@ class _LearnScreenState extends State<LearnScreen> {
       );
       return;
     }
+    unawaited(AppStats.count('lesson_open'));
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AnalysisScreen(

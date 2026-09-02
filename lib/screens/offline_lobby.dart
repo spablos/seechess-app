@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/offline/ble_transport.dart';
 import '../services/offline/hotspot.dart';
 import '../services/offline/match_session.dart';
+import '../services/stats.dart';
 import 'match.dart';
 
 /// Offline two-device match lobby (PRD §4): host or join over a tiny LAN —
@@ -216,6 +217,7 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
   void initState() {
     super.initState();
     widget.session.start();
+    unawaited(AppStats.count('match_host'));
     widget.session.addListener(_onSession);
   }
 
@@ -487,6 +489,7 @@ class _JoinScreenState extends State<JoinMatchScreen> {
   }
 
   void _adopt(GuestSession session) {
+    unawaited(AppStats.count('match_join'));
     _session = session;
     session.addListener(_onSession);
     unawaited(session.connect());
