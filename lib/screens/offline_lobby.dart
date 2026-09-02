@@ -449,16 +449,23 @@ class _HostWaitScreenState extends State<_HostWaitScreen>
                       onPressed: _startHotspot,
                     ),
                 ] else ...[
+                  // iPhone: Apple offers no link to the Personal Hotspot
+                  // page (only an app's own settings) — so Bluetooth,
+                  // which IS fully automatic here, leads
                   FilledButton.icon(
-                    icon: const Icon(Icons.wifi_tethering),
-                    label: const Text('Turn on a hotspot'),
-                    onPressed: Hotspot.openSystemSettings,
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
                     icon: const Icon(Icons.bluetooth),
-                    label: const Text('Host with Bluetooth instead'),
+                    label: const Text('Host with Bluetooth'),
                     onPressed: _switchToBluetooth,
+                  ),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Text(
+                      'Or: swipe down from the top-right, long-press the '
+                      'network card, tap Personal Hotspot — then come back.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall,
+                    ),
                   ),
                 ],
                 if (session.canHotspot)
