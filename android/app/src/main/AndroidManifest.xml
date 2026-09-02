@@ -22,6 +22,9 @@
     <!-- guest auto-join of the host's hotspot (WifiNetworkSpecifier) -->
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <!-- the hotspot API itself (install-time, auto-granted) — its absence
+         was the SecurityException behind every failed start -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
     <application
         android:label="Seechess"
         android:name="${applicationName}"

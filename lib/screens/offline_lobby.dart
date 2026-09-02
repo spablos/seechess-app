@@ -6,6 +6,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/offline/ble_transport.dart';
+import '../services/offline/transport.dart';
 import '../services/offline/hotspot.dart';
 import '../services/offline/match_session.dart';
 import '../services/stats.dart';
@@ -25,12 +26,22 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
   TimeControl _tc = const TimeControl(5, 0);
   int _color = 1; // 0 white, 1 random, 2 black
 
+  /// How to host: 0 = Bluetooth (no network at all), 1 = Wi-Fi (QR).
+  /// Two explicit alternatives (Pablo) — remembered across sessions.
+  int _transport = 0;
+
   @override
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((prefs) {
       final saved = prefs.getString('player_name');
-      if (saved != null && mounted) setState(() => _name.text = saved);
+      final transport = prefs.getInt('host_transport');
+      if (mounted) {
+        setState(() {
+          if (saved != null) _name.text = saved;
+          if (transport != null) _transport = transport;
+        });
+      }
     });
   }
 
@@ -50,10 +61,18 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
 
   Future<void> _host() async {
     final name = await _confirmedName();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('host_transport', _transport);
     final session = HostSession(
       name: name,
       tc: _tc,
       hostWhite: _color == 1 ? null : _color == 0,
+      transports: [
+        if (_transport == 0)
+          BleHostTransport(advertiseName: name)
+        else
+          WsHostTransport(),
+      ],
     );
     if (!mounted) return;
     await Navigator.of(context).push(
@@ -172,9 +191,35 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
               selected: {_color},
               onSelectionChanged: (s) => setState(() => _color = s.first),
             ),
+            const SizedBox(height: 20),
+            Text('Connection', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _TransportCard(
+                    icon: Icons.bluetooth,
+                    title: 'Bluetooth',
+                    subtitle: 'No network at all.\nBest side by side.',
+                    selected: _transport == 0,
+                    onTap: () => setState(() => _transport = 0),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _TransportCard(
+                    icon: Icons.wifi,
+                    title: 'Wi-Fi',
+                    subtitle: 'Longer range.\nSame network or hotspot.',
+                    selected: _transport == 1,
+                    onTap: () => setState(() => _transport = 1),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             FilledButton.icon(
-              icon: const Icon(Icons.wifi_tethering),
+              icon: Icon(_transport == 0 ? Icons.bluetooth : Icons.wifi),
               label: const Text('Host a match'),
               onPressed: _host,
             ),
@@ -186,10 +231,10 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Both phones must be on the same Wi-Fi. No internet needed — '
-              'on a plane, one phone turns on its Personal Hotspot and the '
-              'other joins it. Some airlines restrict hotspot use; check '
-              'before you play mid-flight.',
+              'No internet is ever needed. Bluetooth pairs the phones '
+              'directly; Wi-Fi wants both phones on one network — at home '
+              'the same Wi-Fi, elsewhere the host starts its own hotspot '
+              'and the QR joins the other phone automatically.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
@@ -267,39 +312,6 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
     super.dispose();
   }
 
-  /// One quiet line: the host is also reachable over Bluetooth (or why
-  /// not). Works with no network at all — worth saying exactly when the
-  /// QR path is down.
-  Widget _bleRow(ThemeData theme, HostSession session) {
-    final status = session.bleStatus;
-    if (status == null || status == 'unsupported') {
-      return const SizedBox.shrink();
-    }
-    final advertising = status == 'advertising';
-    return Padding(
-      padding: const EdgeInsets.only(top: 16),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            advertising ? Icons.bluetooth_audio : Icons.bluetooth_disabled,
-            size: 18,
-            color: advertising
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            advertising
-                ? 'Also joinable nearby via Bluetooth'
-                : 'Turn on Bluetooth to be joinable without Wi-Fi',
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -312,7 +324,34 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (session.noNetwork) ...[
+              if (session.hasBle && !session.hasWifi) ...[
+                // Bluetooth mode: no QR, no addresses — just be findable
+                Icon(
+                  session.bleStatus == 'advertising'
+                      ? Icons.bluetooth_audio
+                      : Icons.bluetooth_disabled,
+                  size: 48,
+                  color: session.bleStatus == 'advertising'
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.error,
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    session.bleStatus == 'advertising'
+                        ? 'Discoverable as "${session.myName}" — on the '
+                              'other phone, open Join a match and tap '
+                              'this name when it appears.'
+                        : session.bleStatus == 'unsupported'
+                        ? 'This device does not support Bluetooth hosting.'
+                        : 'Bluetooth is off or not permitted — turn it on '
+                              'to be discoverable.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ] else if (session.noNetwork) ...[
                 Icon(Icons.wifi_off, size: 48, color: theme.colorScheme.error),
                 const SizedBox(height: 12),
                 Padding(
@@ -403,7 +442,6 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                     onPressed: session.recheckNetwork,
                     child: const Text('I joined a network — check again'),
                   ),
-                _bleRow(theme, session),
               ] else if (address == null)
                 const CircularProgressIndicator()
               else ...[
@@ -431,7 +469,6 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
-                _bleRow(theme, session),
               ],
               const SizedBox(height: 24),
               if (session.oppName == null) ...[
@@ -744,6 +781,71 @@ class _JoinScreenState extends State<JoinMatchScreen> {
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+/// One of the two mutually exclusive hosting paths — the selected card is
+/// lit, the alternative visibly dimmed.
+class _TransportCard extends StatelessWidget {
+  const _TransportCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: selected ? 1 : 0.45,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected
+                ? theme.colorScheme.primaryContainer
+                : theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                icon,
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(subtitle, style: theme.textTheme.bodySmall),
+            ],
+          ),
+        ),
       ),
     );
   }

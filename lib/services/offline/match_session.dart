@@ -145,6 +145,10 @@ class HostSession extends MatchSession {
 
   WsHostTransport? get _ws =>
       transports.whereType<WsHostTransport>().firstOrNull;
+
+  /// Which paths this host offers (the lobby renders only what exists).
+  bool get hasWifi => _ws != null;
+  bool get hasBle => _ble != null;
   BleHostTransport? get _ble =>
       transports.whereType<BleHostTransport>().firstOrNull;
 

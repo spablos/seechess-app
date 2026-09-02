@@ -12,6 +12,7 @@ import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -121,6 +122,8 @@ class MainActivity : FlutterActivity() {
 
     private fun reallyStart(result: MethodChannel.Result) {
         val wifi = applicationContext.getSystemService(WifiManager::class.java)
+        Log.i("SeechessHotspot",
+            "reallyStart sdk=${Build.VERSION.SDK_INT} wifiEnabled=${wifi.isWifiEnabled}")
         // pre-flight: name the ACTUAL blocker so the UI can fix it in one
         // tap. Location services only gate the hotspot below Android 13
         // (13+ uses NEARBY_WIFI_DEVICES with neverForLocation).
@@ -150,11 +153,13 @@ class MainActivity : FlutterActivity() {
                     override fun onStarted(
                         r: WifiManager.LocalOnlyHotspotReservation
                     ) {
+                        Log.i("SeechessHotspot", "onStarted ${currentConfig()}")
                         reservation = r
                         result.success(currentConfig())
                     }
 
                     override fun onFailed(reason: Int) {
+                        Log.w("SeechessHotspot", "onFailed reason=$reason")
                         val code = when (reason) {
                             ERROR_TETHERING_DISALLOWED -> "tethering_disallowed"
                             ERROR_INCOMPATIBLE_MODE -> "tethering_active"
@@ -170,13 +175,16 @@ class MainActivity : FlutterActivity() {
                 null
             )
         } catch (e: IllegalStateException) {
+            Log.w("SeechessHotspot", "IllegalState: ${e.message}")
             result.error("tethering_active", e.message, null)
         } catch (e: SecurityException) {
+            Log.w("SeechessHotspot", "SecurityException: ${e.message}")
             // 13+: a missing NEARBY_WIFI_DEVICES grant, not location
             result.error(
                 if (Build.VERSION.SDK_INT >= 33) "denied" else "location_off",
                 e.message, null)
         } catch (e: Exception) {
+            Log.w("SeechessHotspot", "Exception: ${e.javaClass.simpleName} ${e.message}")
             result.error("failed", e.message, null)
         }
     }
