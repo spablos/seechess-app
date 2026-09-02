@@ -84,14 +84,18 @@ PgnGame parsePgn(String text) {
   final comments = <int, String>{};
   final sanMoves = <String>[];
 
-  // remove variations first (nested) — they can contain comments we skip
+  // remove variations first (nested) — they can contain comments we skip.
+  // Brace-aware: parentheses INSIDE a {comment} are prose, not variations.
   var depth = 0;
+  var inComment = false;
   final noVars = StringBuffer();
   for (var i = 0; i < body.length; i++) {
     final c = body[i];
-    if (c == '(') {
+    if (c == '{' && depth == 0) inComment = true;
+    if (c == '}') inComment = false;
+    if (!inComment && c == '(') {
       depth++;
-    } else if (c == ')') {
+    } else if (!inComment && c == ')') {
       if (depth > 0) depth--;
     } else if (depth == 0) {
       noVars.write(c);
@@ -171,6 +175,44 @@ PgnReplay replayPgn(PgnGame game) {
     uci.add('$from$to$promo');
   }
   return PgnReplay(game: game, uci: uci, finalFen: board.fen);
+}
+
+/// Build a lesson PGN from a played game: movetext with the remarks as
+/// standard PGN comments (the exact shape the server validates and other
+/// clients replay).
+String buildLessonPgn({
+  required String startFen,
+  required List<String> sanMoves,
+  required Map<int, String> comments,
+}) {
+  const std = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  final b = StringBuffer();
+  var moveNo = 1;
+  var whiteToMove = true;
+  if (startFen != std) {
+    b.writeln('[FEN "$startFen"]');
+    b.writeln('[SetUp "1"]');
+    b.writeln();
+    final parts = startFen.split(' ');
+    whiteToMove = parts.length < 2 || parts[1] == 'w';
+    moveNo = parts.length > 5 ? (int.tryParse(parts[5]) ?? 1) : 1;
+  }
+  for (var i = 0; i < sanMoves.length; i++) {
+    if (whiteToMove) {
+      b.write('$moveNo. ');
+    } else if (i == 0) {
+      b.write('$moveNo... ');
+    }
+    b.write(sanMoves[i]);
+    final remark = comments[i + 1];
+    if (remark != null && remark.trim().isNotEmpty) {
+      b.write(' {${remark.replaceAll('{', '(').replaceAll('}', ')')}}');
+    }
+    b.write(' ');
+    if (!whiteToMove) moveNo++;
+    whiteToMove = !whiteToMove;
+  }
+  return b.toString().trim();
 }
 
 /// True when clipboard/shared text looks like PGN rather than a FEN.

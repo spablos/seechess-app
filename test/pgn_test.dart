@@ -97,6 +97,32 @@ void main() {
     );
   });
 
+  test('buildLessonPgn round-trips through the parser', () {
+    const std = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+    final pgn = buildLessonPgn(
+      startFen: std,
+      sanMoves: ['e4', 'e5', 'Nf3', 'Nc6'],
+      comments: {1: 'center', 4: 'defends {legally}'},
+    );
+    final game = parsePgn(pgn);
+    expect(game.sanMoves, ['e4', 'e5', 'Nf3', 'Nc6']);
+    expect(game.comments[1], 'center');
+    expect(game.comments[4], 'defends (legally)'); // braces sanitized
+    expect(replayPgn(game).uci.length, 4);
+  });
+
+  test('buildLessonPgn from a custom position keeps the FEN header', () {
+    const fen = '4k3/8/8/8/6P1/8/8/4K3 w - - 0 1';
+    final pgn = buildLessonPgn(
+      startFen: fen,
+      sanMoves: ['g5', 'Kd7'],
+      comments: {1: 'push'},
+    );
+    final replay = replayPgn(parsePgn(pgn));
+    expect(replay.game.startFen, fen);
+    expect(replay.uci, ['g4g5', 'e8d7']);
+  });
+
   test('variants are refused, garbage is refused', () {
     expect(
       () => replayPgn(parsePgn('[Variant "Chess960"]\n\n1. e4')),

@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'analysis.dart';
 import 'offline_lobby.dart';
 import 'photo_flow.dart';
+import 'learn.dart';
 import 'saved_games.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -57,6 +58,16 @@ class HomeScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => const AnalysisScreen(editable: true),
                       ),
+                    ),
+                  ),
+                  _ActionCard(
+                    icon: Icons.school,
+                    color: const Color(0xFFD9822B),
+                    title: 'Learn',
+                    subtitle:
+                        'Classic openings and traps, explained move by move',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const LearnScreen()),
                     ),
                   ),
                   _ActionCard(

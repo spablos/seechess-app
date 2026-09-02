@@ -1,0 +1,72 @@
+[
+  {
+    "id": "ruy-lopez",
+    "title": "Ruy Lopez — the Spanish torture",
+    "category": "Openings",
+    "side": "w",
+    "pgn": "1. e4 {Grab the center and open lines for the bishop and queen.} e5 2. Nf3 {Attack e5 immediately — Black must react.} Nc6 {Defends e5 the natural way.} 3. Bb5 {The Ruy Lopez. The bishop pressures the knight that guards e5 — an indirect attack on the center.} a6 {The Morphy Defense: ask the bishop a question.} 4. Ba4 {Keep the pin idea alive. 4.Bxc6 is playable but releases the tension.} Nf6 {Black develops and counterattacks e4.} 5. O-O {Ignore the e4 'threat': if 5...Nxe4 6.Re1 the knight is awkward and 6...Nc5 7.Nxe5 wins the pawn back with a better game.} Be7 6. Re1 {Now e4 is truly defended — Black must sort out e5.} b5 {Break the pin before it hurts.} 7. Bb3 d6 {Solid: e5 is cemented.} 8. c3 {Prepare d4 with a full center, and give the bishop the c2 escape square.} O-O 9. h3 {A key finesse: prevent Bg4, which would pin Nf3 just when d4 comes. White's plan: d4, Nbd2-f1-g3 — slow, methodical pressure.}"
+  },
+  {
+    "id": "italian-game",
+    "title": "Italian Game — quiet build, deadly ideas",
+    "category": "Openings",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 {The Italian bishop eyes f7, Black's weakest square (only the king defends it).} Bc5 {Black mirrors, aiming at f2.} 4. c3 {The modern main line: prepare d4 and build a big center. The old 4.b4!? (Evans Gambit) throws a pawn for speed.} Nf6 5. d3 {The Giuoco Pianissimo — 'very quiet'. White keeps the center flexible and maneuvers behind it.} d6 6. O-O a6 {Gives the c5 bishop a retreat on a7 before White plays b4.} 7. a4 {Grab space on the queenside and stop ...b5.} Ba7 8. Re1 O-O 9. h3 {Same idea as the Ruy: no annoying Bg4 pin. The middlegame plan is Nbd2-f1-g3 and a timely d4.}"
+  },
+  {
+    "id": "fried-liver",
+    "title": "Fried Liver Attack — punish 3...Nf6",
+    "category": "Traps & gambits",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 {The Two Knights. Bold — it allows White's next shot.} 4. Ng5 {'A duffer's move' said Tarrasch — and yet it wins games at every level. The threat on f7 is real.} d5 {Forced, blocking the bishop's diagonal.} 5. exd5 Nxd5 {Natural — and the losing mistake at club level! 5...Na5 is the theory move.} 6. Nxf7 {The Fried Liver. The knight is given up to drag the king out.} Kxf7 7. Qf3+ {Double attack: check, plus the pinned d5 knight is hit twice.} Ke6 {The only way to keep the knight — but look at that king.} 8. Nc3 {Pile on the pin. Black's king on e6 faces the whole army; engines say defensible, humans almost never survive it.}"
+  },
+  {
+    "id": "scholars-mate",
+    "title": "Scholar's Mate — and how to refute it",
+    "category": "Traps & gambits",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Qh5 {The four-move-mate try: the queen eyes e5 and f7. It only works if Black panics.} Nc6 {Calm: defend e5, develop, don't chase the queen yet.} 3. Bc4 {Now Qxf7# is genuinely threatened.} g6 {The refutation begins: hit the queen while covering f7.} 4. Qf3 {Insisting on the f7 dream.} Nf6 {Develop with tempo — f7 is covered again, and Black is two developing moves ahead.} 5. g4 {Desperate to reopen the attack.} Nd4 {The punchline: the queen has no good square that keeps f7. After 6.Qd3 d5! Black rips the center open with a winning initiative — the early queen sortie cost White the game's first ten minutes.}"
+  },
+  {
+    "id": "queens-gambit",
+    "title": "Queen's Gambit Declined — the classical stone wall",
+    "category": "Openings",
+    "side": "w",
+    "pgn": "1. d4 d5 2. c4 {The Queen's Gambit — not a real gambit: if 2...dxc4 White regains the pawn at leisure and owns the center.} e6 {Declined: keep d5 solid, accept the hemmed-in light bishop for now.} 3. Nc3 Nf6 4. Bg5 {Pressure the defender of d5 — the fight is all about that square.} Be7 5. e3 O-O 6. Nf3 Nbd7 {Note the c8 bishop: freeing it with ...b6 or ...e5/...c5 breaks is Black's whole middlegame story.} 7. Rc1 {A quietly deep move: the rook stands opposite the c-file about to open.} c6 8. Bd3 dxc4 {The classic timing — only take when the bishop has moved, costing White a tempo.} 9. Bxc4 Nd5 {Capablanca's freeing maneuver: trade pieces to breathe.}"
+  },
+  {
+    "id": "london-system",
+    "title": "London System — one setup against everything",
+    "category": "Openings",
+    "side": "w",
+    "pgn": "1. d4 d5 2. Bf4 {The point of the London: the bishop gets OUT before e3 locks it in — the mistake most d4 players make.} Nf6 3. e3 c5 {Black strikes at the base of the White setup.} 4. c3 {Answer: reinforce d4 into a pyramid. The structure holds against nearly anything.} Nc6 5. Nd2 {Before Nf3! This move order stops ...Qb6 ideas from hitting b2 with tempo in some lines and keeps f3 for the knight.} e6 6. Ngf3 Bd6 {Black challenges the London bishop — the critical test.} 7. Bg3 {Keep it: trading on d6 would hand Black the e5 square.} O-O 8. Bd3 b6 9. Ne5 {The signature idea: the knight lands on e5, supported, and White plays f4, Qf3 and a kingside attack from a setup that took no theory at all.}"
+  },
+  {
+    "id": "najdorf-basics",
+    "title": "Sicilian Najdorf — why 5...a6?",
+    "category": "Openings",
+    "side": "b",
+    "pgn": "1. e4 c5 {The Sicilian: fight for d4 with a wing pawn and keep an unbalanced game — the reason it wins more for Black than 1...e5.} 2. Nf3 d6 3. d4 {White trades a center pawn for open lines — the Open Sicilian.} cxd4 4. Nxd4 Nf6 {Hit e4, force a decision.} 5. Nc3 a6 {The Najdorf move, and a beginner's puzzle: a rook-pawn move this early? It takes b5 away from BOTH white knights and the bishop, prepares ...e5 without Nb5 tricks, and readies ...b5 expansion. Quiet move, iron logic.} 6. Be2 e5 {There it is: kick the d4 knight and claim the center — d6 will look backward but is very hard to attack.} 7. Nb3 Be7 8. O-O O-O 9. Be3 Be6 {A full Najdorf tabiya: Black's plan is ...Nbd7, ...b5 and queenside play while the d5 hole stays defensible.}"
+  },
+  {
+    "id": "legals-mate",
+    "title": "Légal's Mate — the oldest queen sac",
+    "category": "Traps & gambits",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 d6 {The Philidor setup — solid but passive.} 4. Nc3 Bg4 {The pin looks strong. It's about to be famous for the wrong reason.} 5. h3 Bh5 {Keeping the pin is the mistake — the bishop had to take or retreat to e6.} 6. Nxe5 {!! The queen hangs — take it and see. 300 years old and still catching players.} Bxd1 {Greed. 6...Nxe5 7.Qxh5 Nxc4 limits the damage to a pawn.} 7. Bxf7+ {The point: the king is dragged onto the mating net.} Ke7 8. Nd5# {Mate with three minor pieces against a full army. Moral: a pin on your queen is only as strong as your back rank tactics.}"
+  },
+  {
+    "id": "stafford-gambit",
+    "title": "Stafford Gambit — the internet's favorite trap",
+    "category": "Traps & gambits",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nf6 {The Petrov...} 3. Nxe5 Nc6 {...no — the Stafford Gambit. A pawn for rapid development and a minefield of traps.} 4. Nxc6 dxc6 {Black's structure looks broken; in exchange every piece flies out.} 5. d3 {Natural, already inaccurate — the main trap line.} Bc5 {Eyeing f2. The threats write themselves.} 6. Bg5 {?? The losing move, played thousands of times online: the pin looks free.} Nxe4 {! The knight can't be taken: 7.dxe4 Bxf2+ 8.Ke2 Bg4+ skewers the queen through the king.} 7. Bxd8 {Taking the queen anyway...} Bxf2+ 8. Ke2 Bg4# {A pure minor-piece mate while the captured queen watches from d8. The Stafford in one picture: development beats material.}"
+  },
+  {
+    "id": "englund-gambit",
+    "title": "Englund Gambit trap — mate on move 8 vs 1.d4",
+    "category": "Traps & gambits",
+    "side": "b",
+    "pgn": "1. d4 e5 {The Englund: objectively dubious, practically venomous — 1.d4 players never expect an open game.} 2. dxe5 Nc6 3. Nf3 Qe7 {Attack e5 a second time and set the machinery.} 4. Bf4 {Defending the pawn walks into the trap. 4.Nc3 or returning the pawn is safe.} Qb4+ {Fork: check plus the b2 pawn.} 5. Bd2 Qxb2 6. Bc3 {Trapping the queen — apparently.} Bb4 {! The counter-pin: the c3 bishop is frozen.} 7. Qd2 {?? Loses on the spot; 7.Bxb4 Qxa1 was forced, still messy.} Bxc3 8. Qxc3 Qc1# {The queen slides to c1: mate on move eight, delivered by the 'trapped' queen. Know it from both sides.}"
+  }
+]

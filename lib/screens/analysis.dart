@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../engine/engine.dart';
 import '../engine/stockfish_engine.dart';
 import '../models/game_state.dart';
 import '../models/setup_state.dart';
+import '../services/lessons.dart';
 import '../services/pgn.dart';
 import '../services/saved_games.dart';
 import '../utils/fen_clipboard.dart';
@@ -96,6 +98,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   bool _photoVisible = false;
 
+  /// Coach mode: engine arrows on the board (best move, expected reply,
+  /// alternatives). Off by default; remembered across sessions.
+  bool _coach = false;
+
   /// Comments/title/draft follow the loaded game — Paste PGN replaces them.
   late Map<int, String> _comments = widget.source?.comments.isNotEmpty == true
       ? widget.source!.comments
@@ -154,6 +160,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       if (san == null) break; // stop at the first non-applying move
     }
     if (widget.initialPly != null) game.stepTo(widget.initialPly!);
+    SharedPreferences.getInstance().then((prefs) {
+      if (mounted && (prefs.getBool('coach_mode') ?? false)) {
+        setState(() => _coach = true);
+      }
+    });
     _ownsEngine = widget.engineFactory != null;
     engine = _ownsEngine ? widget.engineFactory!() : StockfishEngine.shared;
     engine.start();
@@ -162,6 +173,45 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   }
 
   void _onPosition() => engine.analyze(game.fen);
+
+  /// chess.com-style overlays from the engine's current lines: solid green
+  /// = best move, red = the expected reply (the threat you must answer),
+  /// faint green = alternative moves from lower lines.
+  List<BoardArrow> _coachArrows(List<EngineLine> lines) {
+    final arrows = <BoardArrow>[];
+    // alternatives first so the best line paints on top
+    for (var i = lines.length - 1; i >= 1; i--) {
+      final pv = lines[i].pvUci;
+      if (pv.isEmpty) continue;
+      arrows.add(
+        BoardArrow(
+          pv.first.substring(0, 2),
+          pv.first.substring(2, 4),
+          const Color(0x59769656),
+        ),
+      );
+    }
+    final best = lines.isEmpty ? null : lines.first.pvUci;
+    if (best != null && best.isNotEmpty) {
+      if (best.length > 1) {
+        arrows.add(
+          BoardArrow(
+            best[1].substring(0, 2),
+            best[1].substring(2, 4),
+            const Color(0xB3C84B4B),
+          ),
+        );
+      }
+      arrows.add(
+        BoardArrow(
+          best.first.substring(0, 2),
+          best.first.substring(2, 4),
+          const Color(0xCC5B8F3E),
+        ),
+      );
+    }
+    return arrows;
+  }
 
   /// Play the first [plies] moves of an engine line onto the game — tapping
   /// any move in a line jumps the board to that point (chess.com behavior).
@@ -299,6 +349,137 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     game.addListener(_onPosition);
     engine.analyze(game.fen);
     setState(() {});
+  }
+
+  /// Long-press on a move: write the balloon a coach would say there.
+  Future<void> _editRemark(int ply) async {
+    final controller = TextEditingController(text: _comments[ply] ?? '');
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remark after ${_plyLabel(ply)}'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: 3,
+          maxLength: 280,
+          decoration: const InputDecoration(
+            hintText: 'What should a learner notice here?',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (save != true) return;
+    final text = controller.text.trim();
+    setState(() {
+      _comments = {..._comments};
+      if (text.isEmpty) {
+        _comments.remove(ply);
+      } else {
+        _comments[ply] = text;
+      }
+    });
+  }
+
+  String _plyLabel(int ply) {
+    final i = ply - 1;
+    final move = i < game.moves.length ? game.moves[i].san : '?';
+    return '${i ~/ 2 + 1}${i.isEven ? '.' : '…'} $move';
+  }
+
+  /// Share the current line + remarks as a community lesson (reviewed on
+  /// the server before anyone sees it).
+  Future<void> _submitLesson() async {
+    if (game.moves.length < 4) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('A lesson needs at least 4 moves')),
+      );
+      return;
+    }
+    if (_comments.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Add at least one remark first — long-press a move in the list',
+          ),
+        ),
+      );
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final titleController = TextEditingController(
+      text: _importDraft?.name ?? _source?.name ?? '',
+    );
+    final authorController = TextEditingController(
+      text: prefs.getString('lesson_author') ?? '',
+    );
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Share as lesson'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              autofocus: true,
+              maxLength: 80,
+              decoration: const InputDecoration(labelText: 'Title'),
+            ),
+            TextField(
+              controller: authorController,
+              maxLength: 40,
+              decoration: const InputDecoration(
+                labelText: 'Your name (optional, shown as the author)',
+              ),
+            ),
+            Text(
+              '${game.moves.length} moves, ${_comments.length} remark(s). '
+              'Lessons appear in everyone\'s Learn tab after review.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final author = authorController.text.trim();
+    await prefs.setString('lesson_author', author);
+    final err = await LessonStore().submit(
+      title: titleController.text.trim(),
+      author: author,
+      side: flipped ? 'b' : 'w',
+      pgn: buildLessonPgn(
+        startFen: _startFen,
+        sanMoves: [for (final m in game.moves) m.san],
+        comments: _comments,
+      ),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(err ?? 'Submitted — pending review. Thank you!')),
+    );
   }
 
   /// Rebuild the original line and land where analysis left it.
@@ -452,6 +633,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               onPressed: () => setState(() => _photoVisible = !_photoVisible),
             ),
           IconButton(
+            tooltip: _coach
+                ? 'Hide coach arrows'
+                : 'Coach arrows: best move & expected reply',
+            isSelected: _coach,
+            icon: const Icon(Icons.school_outlined),
+            selectedIcon: const Icon(Icons.school),
+            onPressed: () async {
+              setState(() => _coach = !_coach);
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('coach_mode', _coach);
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.swap_vert),
             tooltip: 'Flip board',
             onPressed: () => setState(() => flipped = !flipped),
@@ -514,6 +708,9 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                   lastMoveTo: lastMove?.substring(2, 4),
                                   legalTargetsFor: game.legalTargets,
                                   onMove: (from, to) => game.tryMove(from, to),
+                                  arrows: _coach && result == null
+                                      ? _coachArrows(lines)
+                                      : const [],
                                 ),
                               ),
                             ),
@@ -522,7 +719,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               baseFen: game.fen,
                               onPlay: _playLine,
                             ),
-                            _MoveList(game: game),
+                            _MoveList(game: game, onAnnotate: _editRemark),
                             if (offLineStatus(
                                       game.moves,
                                       game.ply,
@@ -610,6 +807,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
               tooltip: 'Save as…',
               icon: const Icon(Icons.bookmark_add_outlined),
               onPressed: _saveAs,
+            ),
+            IconButton(
+              tooltip: 'Share as lesson (long-press moves to add remarks)',
+              icon: const Icon(Icons.cast_for_education_outlined),
+              onPressed: _submitLesson,
             ),
           ],
         ],
@@ -956,8 +1158,11 @@ class _EngineLines extends StatelessWidget {
 }
 
 class _MoveList extends StatelessWidget {
-  const _MoveList({required this.game});
+  const _MoveList({required this.game, this.onAnnotate});
   final GameState game;
+
+  /// Long-press a move to add/edit its coaching remark (lesson authoring).
+  final void Function(int ply)? onAnnotate;
 
   @override
   Widget build(BuildContext context) {
@@ -972,6 +1177,7 @@ class _MoveList extends StatelessWidget {
           final active = i == game.ply - 1;
           return InkWell(
             onTap: () => game.stepTo(i + 1),
+            onLongPress: onAnnotate == null ? null : () => onAnnotate!(i + 1),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
               decoration: active

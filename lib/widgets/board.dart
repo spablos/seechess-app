@@ -17,6 +17,66 @@ Widget pieceImage(String piece, double size) => Image.asset(
   filterQuality: FilterQuality.medium,
 );
 
+/// An arrow drawn over the board (coach overlays: best move, threats).
+class BoardArrow {
+  const BoardArrow(this.from, this.to, this.color);
+  final String from;
+  final String to;
+  final Color color;
+}
+
+class _ArrowPainter extends CustomPainter {
+  const _ArrowPainter(this.arrows, this.flipped);
+  final List<BoardArrow> arrows;
+  final bool flipped;
+
+  Offset _center(String square, double s) {
+    var x = square.codeUnitAt(0) - 97; // a..h
+    var y = square.codeUnitAt(1) - 49; // 1..8
+    if (!flipped) y = 7 - y;
+    if (flipped) x = 7 - x;
+    return Offset((x + 0.5) * s, (y + 0.5) * s);
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.width / 8;
+    for (final a in arrows) {
+      final from = _center(a.from, s);
+      final to = _center(a.to, s);
+      final dir = (to - from);
+      final len = dir.distance;
+      if (len == 0) continue;
+      final unit = dir / len;
+      // start off-center so the piece stays visible; stop before the head
+      final start = from + unit * (s * 0.30);
+      final headBase = to - unit * (s * 0.30);
+      final paint = Paint()
+        ..color = a.color
+        ..strokeWidth = s * 0.22
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(start, headBase, paint);
+      final normal = Offset(-unit.dy, unit.dx);
+      final head = Path()
+        ..moveTo(to.dx - unit.dx * s * 0.12, to.dy - unit.dy * s * 0.12)
+        ..lineTo(
+          headBase.dx + normal.dx * s * 0.24,
+          headBase.dy + normal.dy * s * 0.24,
+        )
+        ..lineTo(
+          headBase.dx - normal.dx * s * 0.24,
+          headBase.dy - normal.dy * s * 0.24,
+        )
+        ..close();
+      canvas.drawPath(head, Paint()..color = a.color);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ArrowPainter old) =>
+      old.arrows != arrows || old.flipped != flipped;
+}
+
 /// Interactive 8x8 board. Pure view: position comes in via [pieces],
 /// move attempts go out via [onMove]. Supports tap-tap and drag, legal-move
 /// dots, selection + last-move highlights, and flipping.
@@ -34,6 +94,7 @@ class ChessBoard extends StatefulWidget {
     this.onTap,
     this.onDoubleTap,
     this.onPlace,
+    this.arrows = const [],
   });
 
   final Map<String, String> pieces;
@@ -54,6 +115,9 @@ class ChessBoard extends StatefulWidget {
 
   /// Setup mode: a palette piece (drag data "new:<code>") dropped on a square.
   final void Function(String piece, String square)? onPlace;
+
+  /// Coach overlays painted over the squares (best move, expected reply).
+  final List<BoardArrow> arrows;
 
   @override
   State<ChessBoard> createState() => _ChessBoardState();
@@ -122,7 +186,7 @@ class _ChessBoardState extends State<ChessBoard> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final squareSize = constraints.maxWidth / 8;
-          return GridView.builder(
+          final grid = GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 8,
@@ -232,6 +296,18 @@ class _ChessBoardState extends State<ChessBoard> {
                 ),
               );
             },
+          );
+          return Stack(
+            children: [
+              grid,
+              if (widget.arrows.isNotEmpty)
+                IgnorePointer(
+                  child: CustomPaint(
+                    size: Size.square(constraints.maxWidth),
+                    painter: _ArrowPainter(widget.arrows, widget.flipped),
+                  ),
+                ),
+            ],
           );
         },
       ),
