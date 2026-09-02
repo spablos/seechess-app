@@ -16,6 +16,9 @@
         android:maxSdkVersion="30"/>
     <!-- all versions: Android gates the local-only hotspot API on it -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <!-- Android 13+: the hotspot API wants this instead of location -->
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation"/>
     <!-- guest auto-join of the host's hotspot (WifiNetworkSpecifier) -->
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>

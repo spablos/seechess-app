@@ -79,18 +79,24 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // Android 13+ gates the hotspot on NEARBY_WIFI_DEVICES (no location
+    // involved thanks to neverForLocation); older versions on fine location.
+    private val hotspotPermission: String
+        get() = if (Build.VERSION.SDK_INT >= 33)
+            Manifest.permission.NEARBY_WIFI_DEVICES
+        else Manifest.permission.ACCESS_FINE_LOCATION
+
     private fun hostStart(result: MethodChannel.Result) {
         if (reservation != null) {
             result.success(currentConfig())
             return
         }
-        if (ContextCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
+        if (ContextCompat.checkSelfPermission(this, hotspotPermission)
+            != PackageManager.PERMISSION_GRANTED
         ) {
             pendingStart = result
             ActivityCompat.requestPermissions(
-                this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 7311
+                this, arrayOf(hotspotPermission), 7311
             )
             return
         }
@@ -115,18 +121,24 @@ class MainActivity : FlutterActivity() {
 
     private fun reallyStart(result: MethodChannel.Result) {
         val wifi = applicationContext.getSystemService(WifiManager::class.java)
-        // pre-flight: name the ACTUAL blocker so the UI can fix it in one tap
-        val loc = getSystemService(LocationManager::class.java)
-        val locationOn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
-            loc.isLocationEnabled
-        else try {
-            @Suppress("DEPRECATION")
-            Settings.Secure.getInt(contentResolver,
-                Settings.Secure.LOCATION_MODE) != 0
-        } catch (e: Exception) { true }
-        if (!locationOn) {
-            result.error("location_off", "location services are off", null)
-            return
+        // pre-flight: name the ACTUAL blocker so the UI can fix it in one
+        // tap. Location services only gate the hotspot below Android 13
+        // (13+ uses NEARBY_WIFI_DEVICES with neverForLocation).
+        if (Build.VERSION.SDK_INT < 33) {
+            val loc = getSystemService(LocationManager::class.java)
+            val locationOn =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+                    loc.isLocationEnabled
+                else try {
+                    @Suppress("DEPRECATION")
+                    Settings.Secure.getInt(contentResolver,
+                        Settings.Secure.LOCATION_MODE) != 0
+                } catch (e: Exception) { true }
+            if (!locationOn) {
+                result.error("location_off", "location services are off",
+                    null)
+                return
+            }
         }
         if (!wifi.isWifiEnabled) {
             result.error("wifi_off", "Wi-Fi is off", null)
@@ -160,7 +172,10 @@ class MainActivity : FlutterActivity() {
         } catch (e: IllegalStateException) {
             result.error("tethering_active", e.message, null)
         } catch (e: SecurityException) {
-            result.error("location_off", e.message, null)
+            // 13+: a missing NEARBY_WIFI_DEVICES grant, not location
+            result.error(
+                if (Build.VERSION.SDK_INT >= 33) "denied" else "location_off",
+                e.message, null)
         } catch (e: Exception) {
             result.error("failed", e.message, null)
         }

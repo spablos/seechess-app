@@ -351,8 +351,9 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                                 '— turn it off and Seechess will run its '
                                 'own.',
                           'denied' =>
-                            'Location permission was declined — the '
-                                'hotspot cannot start without it.',
+                            'The Nearby devices / location permission was '
+                                'declined — the hotspot cannot start '
+                                'without it.',
                           _ => "Couldn't start a hotspot.",
                         },
                         textAlign: TextAlign.center,
