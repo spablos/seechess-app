@@ -213,12 +213,32 @@ class _HostWaitScreen extends StatefulWidget {
 class _HostWaitScreenState extends State<_HostWaitScreen> {
   bool _entered = false;
 
+  /// Android: the hotspot starts itself when hosting with no network —
+  /// the user shouldn't have to press anything (Pablo). One attempt;
+  /// on failure the UI names the blocker with a one-tap fix.
+  bool _hotspotTried = false;
+  bool _hotspotStarting = false;
+  String? _hotspotError;
+
   @override
   void initState() {
     super.initState();
     widget.session.start();
     unawaited(AppStats.count('match_host'));
     widget.session.addListener(_onSession);
+  }
+
+  Future<void> _startHotspot() async {
+    setState(() {
+      _hotspotStarting = true;
+      _hotspotError = null;
+    });
+    final err = await widget.session.startHotspot();
+    if (!mounted) return;
+    setState(() {
+      _hotspotStarting = false;
+      _hotspotError = err;
+    });
   }
 
   void _onSession() {
@@ -229,6 +249,12 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
         MaterialPageRoute(builder: (_) => MatchScreen(session: widget.session)),
       );
       return;
+    }
+    if (widget.session.noNetwork &&
+        widget.session.canHotspot &&
+        !_hotspotTried) {
+      _hotspotTried = true;
+      unawaited(_startHotspot());
     }
     setState(() {});
   }
@@ -300,25 +326,72 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                if (session.canHotspot)
-                  FilledButton.icon(
-                    icon: const Icon(Icons.wifi_tethering),
-                    label: const Text('Start a hotspot'),
-                    onPressed: () async {
-                      final ok = await session.startHotspot();
-                      if (!ok && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Couldn\'t start a hotspot — check that '
-                              'location is allowed and tethering is off',
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                  )
-                else
+                if (session.canHotspot) ...[
+                  if (_hotspotStarting) ...[
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Starting a hotspot…',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ] else if (_hotspotError != null) ...[
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 40),
+                      child: Text(
+                        switch (_hotspotError) {
+                          'wifi_off' =>
+                            'The hotspot needs Wi-Fi switched on '
+                                '(no network connection required — just '
+                                'the radio).',
+                          'location_off' =>
+                            'Android requires location services to be on '
+                                'to start a hotspot.',
+                          'tethering_active' =>
+                            "The phone's own hotspot/tethering is active "
+                                '— turn it off and Seechess will run its '
+                                'own.',
+                          'denied' =>
+                            'Location permission was declined — the '
+                                'hotspot cannot start without it.',
+                          _ => "Couldn't start a hotspot.",
+                        },
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    FilledButton.icon(
+                      icon: Icon(switch (_hotspotError) {
+                        'wifi_off' => Icons.wifi,
+                        'location_off' => Icons.location_on,
+                        _ => Icons.wifi_tethering,
+                      }),
+                      label: Text(switch (_hotspotError) {
+                        'wifi_off' => 'Turn on Wi-Fi',
+                        'location_off' => 'Turn on location',
+                        _ => 'Try again',
+                      }),
+                      onPressed: () async {
+                        switch (_hotspotError) {
+                          case 'wifi_off':
+                            await Hotspot.openWifiPanel();
+                          case 'location_off':
+                            await Hotspot.openLocationSettings();
+                        }
+                        // give settings a moment, then retry
+                        await Future<void>.delayed(const Duration(seconds: 2));
+                        await _startHotspot();
+                      },
+                    ),
+                  ] else
+                    FilledButton.icon(
+                      icon: const Icon(Icons.wifi_tethering),
+                      label: const Text('Start a hotspot'),
+                      onPressed: _startHotspot,
+                    ),
+                ] else
                   FilledButton.icon(
                     icon: const Icon(Icons.refresh),
                     label: const Text('Check again'),

@@ -194,9 +194,12 @@ class HostSession extends MatchSession {
   /// Android can spin up an app-owned hotspot; iOS cannot (no public API).
   bool get canHotspot => !kIsWeb && Platform.isAndroid;
 
-  Future<bool> startHotspot() async {
+  /// Returns null on success, else the blocker code (see Hotspot.hostStart).
+  Future<String?> startHotspot() async {
     final cfg = await Hotspot.hostStart();
-    if (cfg == null) return false;
+    if (cfg.error != null || cfg.ssid == null) {
+      return cfg.error ?? 'failed';
+    }
     hotspotSsid = cfg.ssid;
     hotspotPass = cfg.pass;
     // the hotspot interface takes a moment to get its address
@@ -206,7 +209,7 @@ class HostSession extends MatchSession {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     }
     notifyListeners();
-    return true;
+    return null;
   }
 
   /// What the QR encodes: the socket address, plus hotspot credentials

@@ -6,9 +6,12 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.content.Intent
+import android.location.LocationManager
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -50,6 +53,18 @@ class MainActivity : FlutterActivity() {
                     call.argument<String>("pass")!!,
                     result
                 )
+                "openWifiPanel" -> {
+                    startActivity(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                            Intent(Settings.Panel.ACTION_WIFI)
+                        else Intent(Settings.ACTION_WIFI_SETTINGS)
+                    )
+                    result.success(null)
+                }
+                "openLocationSettings" -> {
+                    startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    result.success(null)
+                }
                 "guestLeave" -> {
                     guestCallback?.let {
                         val cm = getSystemService(ConnectivityManager::class.java)
@@ -100,6 +115,23 @@ class MainActivity : FlutterActivity() {
 
     private fun reallyStart(result: MethodChannel.Result) {
         val wifi = applicationContext.getSystemService(WifiManager::class.java)
+        // pre-flight: name the ACTUAL blocker so the UI can fix it in one tap
+        val loc = getSystemService(LocationManager::class.java)
+        val locationOn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+            loc.isLocationEnabled
+        else try {
+            @Suppress("DEPRECATION")
+            Settings.Secure.getInt(contentResolver,
+                Settings.Secure.LOCATION_MODE) != 0
+        } catch (e: Exception) { true }
+        if (!locationOn) {
+            result.error("location_off", "location services are off", null)
+            return
+        }
+        if (!wifi.isWifiEnabled) {
+            result.error("wifi_off", "Wi-Fi is off", null)
+            return
+        }
         try {
             wifi.startLocalOnlyHotspot(
                 object : WifiManager.LocalOnlyHotspotCallback() {
@@ -111,7 +143,12 @@ class MainActivity : FlutterActivity() {
                     }
 
                     override fun onFailed(reason: Int) {
-                        result.error("failed", "hotspot failed: $reason", null)
+                        val code = when (reason) {
+                            ERROR_TETHERING_DISALLOWED -> "tethering_disallowed"
+                            ERROR_INCOMPATIBLE_MODE -> "tethering_active"
+                            else -> "failed"
+                        }
+                        result.error(code, "hotspot failed: $reason", null)
                     }
 
                     override fun onStopped() {
@@ -120,11 +157,19 @@ class MainActivity : FlutterActivity() {
                 },
                 null
             )
+        } catch (e: IllegalStateException) {
+            result.error("tethering_active", e.message, null)
+        } catch (e: SecurityException) {
+            result.error("location_off", e.message, null)
         } catch (e: Exception) {
-            // SecurityException when location services are off, IllegalState
-            // when tethering is active — the Dart side falls back to manual
             result.error("failed", e.message, null)
         }
+    }
+
+    companion object {
+        // WifiManager.LocalOnlyHotspotCallback constants (API 26+)
+        private const val ERROR_INCOMPATIBLE_MODE = 3
+        private const val ERROR_TETHERING_DISALLOWED = 4
     }
 
     @Suppress("DEPRECATION")
