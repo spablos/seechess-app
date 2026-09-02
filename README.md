@@ -1,17 +1,30 @@
-# seechess
+# Seechess (app)
 
-A new Flutter project.
+The Flutter client of [Seechess](https://seechess.nopatos.com): photograph
+any chessboard — a real board at an angle, a screenshot, a diagram — and
+land on a live Stockfish analysis board. Import full games (PGN,
+chess.com, lichess), learn classic openings with move-by-move coaching,
+keep a searchable library, and play a friend offline over Bluetooth or a
+hotspot — no accounts, no ads, no tracking.
 
-## Getting Started
+Free software under GPL-3 (see LICENSE), powered by the Stockfish chess
+engine. iOS: TestFlight (https://testflight.apple.com/join/Y6HeCtNe) ·
+Android: Play testing
+(https://play.google.com/apps/testing/com.seechess.seechess).
 
-This project is a starting point for a Flutter application.
+## Fair play
 
-A few resources to get you started if this is your first Flutter project:
+Seechess is built for learning and analysis — reviewing games, studying
+openings, understanding positions. After the game, not during it.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Using engine assistance while playing rated chess, online or over the
+board, is cheating: it violates the fair-play rules of every major
+platform (chess.com, lichess) and of FIDE, and typically ends in account
+closure or disqualification. Seechess is not designed for, and must not
+be used for, real-time assistance in competitive play. How you use the
+app is your responsibility alone.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Building
+
+Standard Flutter: `flutter pub get && flutter run`. The recognition
+server it talks to lives in the main seechess repository.
