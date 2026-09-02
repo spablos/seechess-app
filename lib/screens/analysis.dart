@@ -513,40 +513,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               baseFen: game.fen,
                               onPlay: _playLine,
                             ),
-                            if (offLineStatus(game.moves, game.ply, _original)
-                                case final off?)
-                              Container(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.tertiaryContainer,
-                                padding: const EdgeInsets.only(left: 12),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.alt_route,
-                                      size: 16,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onTertiaryContainer,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        off == 'sideline'
-                                            ? "Sideline — off the game's line"
-                                            : "Past the game's end",
-                                        style: Theme.of(
-                                          context,
-                                        ).textTheme.bodySmall,
-                                      ),
-                                    ),
-                                    TextButton(
-                                      onPressed: _backToGame,
-                                      child: const Text('Back to game'),
-                                    ),
-                                  ],
-                                ),
-                              ),
                             _MoveList(game: game),
                             if (offLineStatus(
                                       game.moves,
@@ -586,6 +552,68 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         );
                       },
                     ),
+              if (_setup == null && _fenError == null)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: AnimatedBuilder(
+                    animation: game,
+                    builder: (context, _) {
+                      final off = offLineStatus(
+                        game.moves,
+                        game.ply,
+                        _original,
+                      );
+                      if (off == null) return const SizedBox.shrink();
+                      final scheme = Theme.of(context).colorScheme;
+                      // tapping the chip returns to the original game
+                      return Material(
+                        color: scheme.tertiaryContainer.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(14),
+                        elevation: 2,
+                        child: Tooltip(
+                          message: "Off the game's line — tap to return",
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: _backToGame,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.alt_route,
+                                    size: 14,
+                                    color: scheme.onTertiaryContainer,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    off == 'sideline' ? 'Sideline' : 'Past end',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: scheme.onTertiaryContainer,
+                                        ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Icon(
+                                    Icons.u_turn_left,
+                                    size: 13,
+                                    color: scheme.onTertiaryContainer,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               if (_photoVisible && _photoPath != null)
                 FloatingPhotoPanel(
                   photoPath: _photoPath!,
