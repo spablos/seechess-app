@@ -30,16 +30,24 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
   /// Two explicit alternatives (Pablo) — remembered across sessions.
   int _transport = 0;
 
+  /// Open invite: broadcast a come-play message (with the app name, so
+  /// any Seechess holder recognizes it) instead of your own name. Short
+  /// on purpose — BLE advertisements truncate long names.
+  static const inviteName = 'Seechess: chess anyone?';
+  bool _openInvite = false;
+
   @override
   void initState() {
     super.initState();
     SharedPreferences.getInstance().then((prefs) {
       final saved = prefs.getString('player_name');
       final transport = prefs.getInt('host_transport');
+      final invite = prefs.getBool('open_invite');
       if (mounted) {
         setState(() {
           if (saved != null) _name.text = saved;
           if (transport != null) _transport = transport;
+          if (invite != null) _openInvite = invite;
         });
       }
     });
@@ -63,13 +71,14 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
     final name = await _confirmedName();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('host_transport', _transport);
+    await prefs.setBool('open_invite', _openInvite);
     final session = HostSession(
       name: name,
       tc: _tc,
       hostWhite: _color == 1 ? null : _color == 0,
       transports: [
         if (_transport == 0)
-          BleHostTransport(advertiseName: name)
+          BleHostTransport(advertiseName: _openInvite ? inviteName : name)
         else
           WsHostTransport(),
       ],
@@ -217,6 +226,17 @@ class _OfflineLobbyScreenState extends State<OfflineLobbyScreen> {
                 ),
               ],
             ),
+            if (_transport == 0)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Open invite'),
+                subtitle: const Text(
+                  'Broadcast "$inviteName" instead of your name — '
+                  'any nearby Seechess player can join',
+                ),
+                value: _openInvite,
+                onChanged: (v) => setState(() => _openInvite = v),
+              ),
             const SizedBox(height: 24),
             FilledButton.icon(
               icon: Icon(_transport == 0 ? Icons.bluetooth : Icons.wifi),
@@ -298,13 +318,22 @@ class _HostWaitScreenState extends State<_HostWaitScreen>
 
   /// "Alternatively, host with Bluetooth": same match settings, new
   /// session over BLE, swapped in place.
-  void _switchToBluetooth() {
+  Future<void> _switchToBluetooth() async {
+    final prefs = await SharedPreferences.getInstance();
+    final invite = prefs.getBool('open_invite') ?? false;
+    if (!mounted) return;
     final old = widget.session;
     final fresh = HostSession(
       name: old.myName,
       tc: old.timeControl,
       hostWhite: old.hostWhite,
-      transports: [BleHostTransport(advertiseName: old.myName)],
+      transports: [
+        BleHostTransport(
+          advertiseName: invite
+              ? _OfflineLobbyScreenState.inviteName
+              : old.myName,
+        ),
+      ],
     );
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => _HostWaitScreen(session: fresh)),
@@ -366,9 +395,10 @@ class _HostWaitScreenState extends State<_HostWaitScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: Text(
                     session.bleStatus == 'advertising'
-                        ? 'Discoverable as "${session.myName}" — on the '
-                              'other phone, open Join a match and tap '
-                              'this name when it appears.'
+                        ? 'Discoverable as '
+                              '"${session.bleAdvertiseName ?? session.myName}"'
+                              ' — on the other phone, open Join a match '
+                              'and tap it when it appears.'
                         : session.bleStatus == 'unsupported'
                         ? 'This device does not support Bluetooth hosting.'
                         : 'Bluetooth is off or not permitted — turn it on '

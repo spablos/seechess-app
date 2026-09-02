@@ -159,6 +159,9 @@ class HostSession extends MatchSession {
   /// meaningless address. The lobby explains and offers a recheck.
   bool get noNetwork => _ws?.noNetwork ?? false;
 
+  /// What the Bluetooth broadcast actually says (name or open invite).
+  String? get bleAdvertiseName => _ble?.advertiseName;
+
   /// Bluetooth advertising state for the lobby: 'advertising' | 'off' |
   /// 'unsupported' | null (no BLE transport).
   String? get bleStatus => _ble?.status;
