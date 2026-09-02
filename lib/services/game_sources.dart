@@ -26,11 +26,15 @@ class SourceGame {
     required this.timeClass,
     required this.url,
     required this.standardRules,
+    this.whiteRating,
+    this.blackRating,
   });
 
   final String pgn;
   final String white;
   final String black;
+  final int? whiteRating;
+  final int? blackRating;
 
   /// "1-0" / "0-1" / "1/2-1/2" / "*".
   final String result;
@@ -175,6 +179,8 @@ class ChessComClient {
           timeClass: g['time_class'] as String? ?? '',
           url: g['url'] as String? ?? '',
           standardRules: (g['rules'] as String? ?? 'chess') == 'chess',
+          whiteRating: ((g['white'] as Map?)?['rating'] as num?)?.toInt(),
+          blackRating: ((g['black'] as Map?)?['rating'] as num?)?.toInt(),
         ),
       );
     }
@@ -246,6 +252,8 @@ class LichessClient {
           timeClass: g['speed'] as String? ?? '',
           url: 'https://lichess.org/${g['id']}',
           standardRules: (g['variant'] as String? ?? 'standard') == 'standard',
+          whiteRating: ((players['white'] as Map?)?['rating'] as num?)?.toInt(),
+          blackRating: ((players['black'] as Map?)?['rating'] as num?)?.toInt(),
         ),
       );
     }

@@ -186,22 +186,27 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
                 ),
                 if (_allLabels.isNotEmpty)
                   SizedBox(
-                    height: 46,
+                    height: 40,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
-                        vertical: 6,
+                        vertical: 7,
                       ),
                       children: [
                         for (final label in _allLabels)
                           Padding(
                             padding: const EdgeInsets.only(right: 6),
-                            child: FilterChip(
-                              label: Text(label),
+                            // same visual language as the labels on the
+                            // rows below — a filter is just one of those,
+                            // lit up
+                            child: _LabelChip(
+                              label,
                               selected: _labelFilter == label,
-                              onSelected: (on) => setState(
-                                () => _labelFilter = on ? label : null,
+                              onTap: () => setState(
+                                () => _labelFilter = _labelFilter == label
+                                    ? null
+                                    : label,
                               ),
                             ),
                           ),
@@ -288,11 +293,7 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
         ),
       ),
       child: Row(
-        children: [
-          cell('Name', 'name'),
-          cell('Created', 'created', width: 74),
-          cell('Edited', 'modified', width: 74),
-        ],
+        children: [cell('Name', 'name'), cell('Edited', 'modified', width: 74)],
       ),
     );
   }
@@ -384,33 +385,10 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
                         spacing: 4,
                         children: [
                           for (final label in game.labels)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                label,
-                                style: theme.textTheme.labelSmall,
-                              ),
-                            ),
+                            _LabelChip(label, selected: _labelFilter == label),
                         ],
                       ),
                   ],
-                ),
-              ),
-              SizedBox(
-                width: 74,
-                child: Text(
-                  _shortDate(game.createdAt),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
                 ),
               ),
               SizedBox(
@@ -426,6 +404,46 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The one label look, everywhere: on rows as a tag, on the filter bar as
+/// a tappable filter. Selected = the filter currently applied.
+class _LabelChip extends StatelessWidget {
+  const _LabelChip(this.label, {this.selected = false, this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final chip = Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: onTap == null ? 6 : 10,
+        vertical: onTap == null ? 1 : 4,
+      ),
+      decoration: BoxDecoration(
+        color: selected
+            ? theme.colorScheme.primaryContainer
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+        border: selected ? Border.all(color: theme.colorScheme.primary) : null,
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          height: 1.0,
+          color: selected ? theme.colorScheme.onPrimaryContainer : null,
+        ),
+      ),
+    );
+    if (onTap == null) return chip;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: chip,
     );
   }
 }

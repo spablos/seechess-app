@@ -34,6 +34,7 @@ void openPgnGame(BuildContext context, PgnReplay replay, {String? sourceUrl}) {
           name: [players ?? 'Imported game', ?date].join(' '),
           fen: replay.finalFen,
           createdAt: DateTime.now(),
+          // site + both players: filter later by "all games of user X"
           labels: [
             if (g.site?.toLowerCase().contains('chess.com') ?? false)
               'chess.com'
@@ -41,6 +42,8 @@ void openPgnGame(BuildContext context, PgnReplay replay, {String? sourceUrl}) {
               'lichess'
             else
               'imported',
+            for (final player in [g.white, g.black])
+              if (player != null && player.isNotEmpty && player != '?') player,
           ],
           white: g.white,
           black: g.black,
@@ -175,6 +178,12 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
   String? _error;
   String? _activeUser;
 
+  /// 'all' | 'won' | 'lost' | 'draw' — from [_activeUser]'s perspective.
+  String _resultFilter = 'all';
+
+  /// Only games where the opponent was rated at least this. 0 = any.
+  int _minOppRating = 0;
+
   String get _siteLabel => widget.site == 'chesscom' ? 'chess.com' : 'lichess';
 
   @override
@@ -249,6 +258,26 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
   void dispose() {
     _user.dispose();
     super.dispose();
+  }
+
+  bool _mine(SourceGame g) =>
+      g.white.toLowerCase() == _activeUser?.toLowerCase();
+
+  int? _oppRating(SourceGame g) => _mine(g) ? g.blackRating : g.whiteRating;
+
+  bool _passesFilters(SourceGame g) {
+    if (_minOppRating > 0 && (_oppRating(g) ?? 0) < _minOppRating) {
+      return false;
+    }
+    switch (_resultFilter) {
+      case 'won':
+        return _mine(g) ? g.result == '1-0' : g.result == '0-1';
+      case 'lost':
+        return _mine(g) ? g.result == '0-1' : g.result == '1-0';
+      case 'draw':
+        return g.result == '1/2-1/2';
+    }
+    return true;
   }
 
   void _open(SourceGame g) {
@@ -327,6 +356,71 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                   ),
                 ),
               ),
+            if (_games.isNotEmpty ||
+                _resultFilter != 'all' ||
+                _minOppRating > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: Row(
+                  children: [
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'all', label: Text('All')),
+                        ButtonSegment(value: 'won', label: Text('Won')),
+                        ButtonSegment(value: 'lost', label: Text('Lost')),
+                        ButtonSegment(value: 'draw', label: Text('½')),
+                      ],
+                      selected: {_resultFilter},
+                      showSelectedIcon: false,
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      onSelectionChanged: (sel) =>
+                          setState(() => _resultFilter = sel.first),
+                    ),
+                    const Spacer(),
+                    PopupMenuButton<int>(
+                      tooltip: 'Minimum opponent rating',
+                      initialValue: _minOppRating,
+                      onSelected: (v) => setState(() => _minOppRating = v),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 0,
+                          child: Text('Any rating'),
+                        ),
+                        for (final r in [
+                          1000,
+                          1200,
+                          1400,
+                          1600,
+                          1800,
+                          2000,
+                          2200,
+                        ])
+                          PopupMenuItem(value: r, child: Text('Opp ≥ $r')),
+                      ],
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _minOppRating > 0
+                              ? theme.colorScheme.primaryContainer
+                              : theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _minOppRating > 0
+                              ? 'Opp ≥ $_minOppRating'
+                              : 'Any rating',
+                          style: theme.textTheme.labelMedium,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             if (_error != null)
               Padding(
@@ -337,53 +431,59 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                 ),
               ),
             Expanded(
-              child: ListView.builder(
-                itemCount:
-                    _games.length +
-                    (widget.site == 'chesscom' &&
-                            _monthsLoaded < _archives.length
-                        ? 1
-                        : 0),
-                itemBuilder: (context, i) {
-                  if (i == _games.length) {
-                    return TextButton(
-                      onPressed: _loading || _activeUser == null
-                          ? null
-                          : () async {
-                              setState(() => _loading = true);
-                              try {
-                                await _loadMoreMonths(_activeUser!);
-                              } catch (_) {}
-                              if (mounted) {
-                                setState(() => _loading = false);
-                              }
-                            },
-                      child: const Text('Load older games'),
-                    );
-                  }
-                  final g = _games[i];
-                  final mine =
-                      g.white.toLowerCase() == _activeUser?.toLowerCase();
-                  final won = mine ? g.result == '1-0' : g.result == '0-1';
-                  final lost = mine ? g.result == '0-1' : g.result == '1-0';
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(
-                      Icons.circle,
-                      size: 14,
-                      color: won
-                          ? Colors.green
-                          : lost
-                          ? theme.colorScheme.error
-                          : theme.colorScheme.outline,
-                    ),
-                    title: Text('${g.white} – ${g.black}'),
-                    subtitle: Text(
-                      '${g.result} · ${g.timeClass} · '
-                      '${g.end.day}/${g.end.month}/${g.end.year}',
-                    ),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _open(g),
+              child: Builder(
+                builder: (context) {
+                  final shown = _games.where(_passesFilters).toList();
+                  return ListView.builder(
+                    itemCount:
+                        shown.length +
+                        (widget.site == 'chesscom' &&
+                                _monthsLoaded < _archives.length
+                            ? 1
+                            : 0),
+                    itemBuilder: (context, i) {
+                      if (i == shown.length) {
+                        return TextButton(
+                          onPressed: _loading || _activeUser == null
+                              ? null
+                              : () async {
+                                  setState(() => _loading = true);
+                                  try {
+                                    await _loadMoreMonths(_activeUser!);
+                                  } catch (_) {}
+                                  if (mounted) {
+                                    setState(() => _loading = false);
+                                  }
+                                },
+                          child: const Text('Load older games'),
+                        );
+                      }
+                      final g = shown[i];
+                      final mine = _mine(g);
+                      final won = mine ? g.result == '1-0' : g.result == '0-1';
+                      final lost = mine ? g.result == '0-1' : g.result == '1-0';
+                      final opp = _oppRating(g);
+                      return ListTile(
+                        dense: true,
+                        leading: Icon(
+                          Icons.circle,
+                          size: 14,
+                          color: won
+                              ? Colors.green
+                              : lost
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.outline,
+                        ),
+                        title: Text('${g.white} – ${g.black}'),
+                        subtitle: Text(
+                          '${g.result} · ${g.timeClass}'
+                          '${opp != null ? ' · opp $opp' : ''} · '
+                          '${g.end.day}/${g.end.month}/${g.end.year}',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _open(g),
+                      );
+                    },
                   );
                 },
               ),
