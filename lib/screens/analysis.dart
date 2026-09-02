@@ -742,39 +742,23 @@ class _EngineHeader extends StatelessWidget {
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
+                      // the line always looks the same; going off it just
+                      // crosses it with the word — a strikethrough in
+                      // reverse (text over line, not line over text)
                       Icon(
                         Icons.timeline,
                         size: 20,
-                        color: onLine!
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outlineVariant,
+                        color: theme.colorScheme.primary,
                       ),
                       if (!onLine!)
-                        // rubber-stamped over the line, "REJECTED"-style
-                        Transform.rotate(
-                          angle: -0.35,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface.withValues(
-                                alpha: 0.55,
-                              ),
-                              border: Border.all(
-                                color: theme.colorScheme.error,
-                                width: 1.2,
-                              ),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                            child: Text(
-                              'OFF',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                fontSize: 8,
-                                height: 1.2,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                                color: theme.colorScheme.error,
-                              ),
-                            ),
+                        Text(
+                          'OFF',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 9,
+                            height: 1.0,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                            color: theme.colorScheme.error,
                           ),
                         ),
                     ],
