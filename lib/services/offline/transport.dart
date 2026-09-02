@@ -102,6 +102,11 @@ class WsHostTransport extends HostTransport {
     onChanged?.call();
   }
 
+  /// Set when the app started its own hotspot: the QR must carry THAT
+  /// interface's address, not whatever Wi-Fi the phone also joined —
+  /// the credentials in the QR put the guest on the hotspot's subnet.
+  bool preferApInterface = false;
+
   /// The hotspot/LAN address guests can reach, or null when the device has
   /// no network at all (e.g. airplane mode). iOS Personal Hotspot puts
   /// the host on 172.20.10.1; otherwise prefer private-range interfaces.
@@ -110,6 +115,23 @@ class WsHostTransport extends HostTransport {
       type: InternetAddressType.IPv4,
       includeLoopback: false,
     );
+    if (preferApInterface) {
+      // Android AP-mode interfaces: swlan0 / ap0 / softap / wlan1
+      final apName = RegExp(r'swlan|softap|^ap\d|wlan1');
+      for (final i in interfaces) {
+        if (apName.hasMatch(i.name.toLowerCase()) && i.addresses.isNotEmpty) {
+          return i.addresses.first.address;
+        }
+      }
+      // fallback: the AP host address is the gateway-style .1
+      for (final i in interfaces) {
+        for (final a in i.addresses) {
+          if (a.address.startsWith('192.168.') && a.address.endsWith('.1')) {
+            return a.address;
+          }
+        }
+      }
+    }
     final all = [for (final i in interfaces) ...i.addresses];
     for (final prefix in ['172.20.10.', '192.168.', '10.', '172.']) {
       for (final a in all) {

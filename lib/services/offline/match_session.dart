@@ -202,6 +202,7 @@ class HostSession extends MatchSession {
     }
     hotspotSsid = cfg.ssid;
     hotspotPass = cfg.pass;
+    _ws?.preferApInterface = true;
     // the hotspot interface takes a moment to get its address
     for (var i = 0; i < 10 && address == null; i++) {
       await _ws?.recheckNetwork();
