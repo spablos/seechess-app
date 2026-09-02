@@ -70,7 +70,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.alt_route), findsNothing);
+    // the line icon shows (we have an original game), without the off mark
+    expect(find.byIcon(Icons.timeline), findsOneWidget);
+    expect(find.text('off'), findsNothing);
 
     // step to the tip via the move list; the comment shows after ply 1
     await tester.tap(find.text('1. e4'));
@@ -78,7 +80,22 @@ void main() {
     expect(find.text('king pawn'), findsOneWidget);
     await tester.tap(find.text('2. Nf3'));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.alt_route), findsNothing);
-    expect(find.text('Back to game'), findsNothing);
+    expect(find.text('off'), findsNothing);
+  });
+
+  testWidgets('a plain board shows neither line icon nor turn words', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AnalysisScreen(
+          editable: true,
+          engineFactory: () => _StubEngine(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.timeline), findsNothing);
+    expect(find.text('White to move'), findsNothing);
   });
 }

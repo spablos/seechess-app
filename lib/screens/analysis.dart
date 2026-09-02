@@ -493,6 +493,15 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               ready: engine.ready,
                               result: result,
                               whiteToMove: game.fen.split(' ')[1] == 'w',
+                              onLine: _original == null
+                                  ? null
+                                  : offLineStatus(
+                                          game.moves,
+                                          game.ply,
+                                          _original,
+                                        ) ==
+                                        null,
+                              onBackToGame: _backToGame,
                             ),
                             _EvalBar(share: share),
                             _MaterialDiff(fen: game.fen),
@@ -552,68 +561,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                         );
                       },
                     ),
-              if (_setup == null && _fenError == null)
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: AnimatedBuilder(
-                    animation: game,
-                    builder: (context, _) {
-                      final off = offLineStatus(
-                        game.moves,
-                        game.ply,
-                        _original,
-                      );
-                      if (off == null) return const SizedBox.shrink();
-                      final scheme = Theme.of(context).colorScheme;
-                      // tapping the chip returns to the original game
-                      return Material(
-                        color: scheme.tertiaryContainer.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(14),
-                        elevation: 2,
-                        child: Tooltip(
-                          message: "Off the game's line — tap to return",
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: _backToGame,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.alt_route,
-                                    size: 14,
-                                    color: scheme.onTertiaryContainer,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    off == 'sideline' ? 'Sideline' : 'Past end',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .labelSmall
-                                        ?.copyWith(
-                                          color: scheme.onTertiaryContainer,
-                                        ),
-                                  ),
-                                  const SizedBox(width: 3),
-                                  Icon(
-                                    Icons.u_turn_left,
-                                    size: 13,
-                                    color: scheme.onTertiaryContainer,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
               if (_photoVisible && _photoPath != null)
                 FloatingPhotoPanel(
                   photoPath: _photoPath!,
@@ -745,6 +692,8 @@ class _EngineHeader extends StatelessWidget {
     required this.ready,
     required this.whiteToMove,
     this.result,
+    this.onLine,
+    this.onBackToGame,
   });
   final EngineLine? best;
   final bool ready;
@@ -752,6 +701,11 @@ class _EngineHeader extends StatelessWidget {
 
   /// Game-over result ("1–0 mate") — replaces the live score.
   final String? result;
+
+  /// null = no original game to compare against; true = on its line;
+  /// false = wandered off (tapping the icon returns).
+  final bool? onLine;
+  final VoidCallback? onBackToGame;
 
   @override
   Widget build(BuildContext context) {
@@ -772,38 +726,57 @@ class _EngineHeader extends StatelessWidget {
           if (result == null && best != null)
             Text('depth ${best!.depth}', style: theme.textTheme.bodySmall),
           const Spacer(),
-          // whose turn — always on while the game is live
-          if (result == null)
-            Container(
-              padding: const EdgeInsets.fromLTRB(6, 3, 10, 3),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: whiteToMove
-                          ? Colors.white
-                          : const Color(0xFF1E1E1E),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant,
+          // original-line indicator: a line while on it, "off" over the
+          // line when analysis wandered — tap returns to the game
+          if (onLine != null) ...[
+            Tooltip(
+              message: onLine!
+                  ? "On the game's original line"
+                  : "Off the game's line — tap to return",
+              child: InkWell(
+                onTap: onLine! ? null : onBackToGame,
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  width: 28,
+                  height: 24,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(
+                        Icons.timeline,
+                        size: 20,
+                        color: onLine!
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outlineVariant,
                       ),
-                    ),
+                      if (!onLine!)
+                        Text(
+                          'off',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    whiteToMove ? 'White to move' : 'Black to move',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
+          // whose turn — a disc alone says it (no words)
+          if (result == null)
+            Tooltip(
+              message: whiteToMove ? 'White to move' : 'Black to move',
+              child: Container(
+                width: 18,
+                height: 18,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: whiteToMove ? Colors.white : const Color(0xFF1E1E1E),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
+                ),
               ),
             ),
         ],
