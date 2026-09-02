@@ -16,6 +16,18 @@ import '../widgets/board.dart';
 import '../widgets/photo_panel.dart';
 import '../widgets/setup_palette.dart';
 
+/// How the shown position relates to an imported/saved game's original
+/// line: null = no original or still on it; 'sideline' = a shown move
+/// differs from the original; 'beyond' = play continued past its end.
+String? offLineStatus(List<PlayedMove> moves, int ply, List<String>? original) {
+  if (original == null) return null;
+  for (var i = 0; i < ply; i++) {
+    if (i >= original.length) return 'beyond';
+    if (moves[i].uci != original[i]) return 'sideline';
+  }
+  return null;
+}
+
 /// chess.com-style analysis board: eval bar + board + engine lines + move
 /// list + step controls. Reused later (in a different mode) for offline play.
 class AnalysisScreen extends StatefulWidget {
@@ -88,6 +100,12 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   late Map<int, String> _comments = widget.source?.comments.isNotEmpty == true
       ? widget.source!.comments
       : widget.comments;
+
+  /// The game's original move line (import or saved entry) — kept so the
+  /// UI can say when analysis has wandered off it, and lead back.
+  late List<String>? _original = widget.movesUci.isEmpty
+      ? null
+      : List.of(widget.movesUci);
   late String? _title = widget.title;
   late SavedGame? _importDraft = widget.importDraft;
 
@@ -199,6 +217,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     game.removeListener(_onPosition);
     game.dispose();
     game = GameState(fen: setup.toFen());
+    _original = null;
     _startFen = setup.toFen();
     game.addListener(_onPosition);
     engine.analyze(game.fen);
@@ -240,6 +259,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     game.removeListener(_onPosition);
     game.dispose();
     game = GameState(fen: text);
+    _original = null;
     _startFen = text;
     game.addListener(_onPosition);
     engine.analyze(game.fen);
@@ -260,6 +280,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       );
     }
     game.stepTo(0);
+    _original = List.of(replay.uci);
     _startFen = game.startFen;
     _comments = replay.game.comments;
     final players = replay.game.playersLabel;
@@ -275,6 +296,31 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       result: replay.game.result,
     );
     _source = null;
+    game.addListener(_onPosition);
+    engine.analyze(game.fen);
+    setState(() {});
+  }
+
+  /// Rebuild the original line and land where analysis left it.
+  void _backToGame() {
+    final orig = _original!;
+    var keep = 0;
+    while (keep < game.ply &&
+        keep < orig.length &&
+        game.moves[keep].uci == orig[keep]) {
+      keep++;
+    }
+    game.removeListener(_onPosition);
+    game.dispose();
+    game = GameState(fen: _startFen);
+    for (final u in orig) {
+      game.tryMove(
+        u.substring(0, 2),
+        u.substring(2, 4),
+        promotion: u.length > 4 ? u.substring(4, 5) : 'q',
+      );
+    }
+    game.stepTo(keep);
     game.addListener(_onPosition);
     engine.analyze(game.fen);
     setState(() {});
@@ -467,8 +513,48 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               baseFen: game.fen,
                               onPlay: _playLine,
                             ),
+                            if (offLineStatus(game.moves, game.ply, _original)
+                                case final off?)
+                              Container(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.tertiaryContainer,
+                                padding: const EdgeInsets.only(left: 12),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.alt_route,
+                                      size: 16,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onTertiaryContainer,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        off == 'sideline'
+                                            ? "Sideline — off the game's line"
+                                            : "Past the game's end",
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodySmall,
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: _backToGame,
+                                      child: const Text('Back to game'),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             _MoveList(game: game),
-                            if (_comments[game.ply] != null)
+                            if (offLineStatus(
+                                      game.moves,
+                                      game.ply,
+                                      _original,
+                                    ) ==
+                                    null &&
+                                _comments[game.ply] != null)
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(
                                   12,
