@@ -54,6 +54,16 @@ class Hotspot {
     }
   }
 
+  /// iOS: the Settings app (Apple offers no deep link to Personal
+  /// Hotspot; this is the sanctioned entry point).
+  static Future<void> openSystemSettings() async {
+    try {
+      await _ch.invokeMethod<void>('openSettings');
+    } on PlatformException {
+      // not available
+    }
+  }
+
   static Future<void> openLocationSettings() async {
     try {
       await _ch.invokeMethod<void>('openLocationSettings');

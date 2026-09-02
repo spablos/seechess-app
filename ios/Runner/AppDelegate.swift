@@ -42,6 +42,11 @@ import UIKit
             result(true)
           }
         }
+      case "openSettings":
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+          UIApplication.shared.open(url)
+        }
+        result(nil)
       case "guestLeave":
         // join-once configurations need no explicit removal
         result(nil)

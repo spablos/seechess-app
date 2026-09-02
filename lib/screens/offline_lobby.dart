@@ -255,8 +255,17 @@ class _HostWaitScreen extends StatefulWidget {
   State<_HostWaitScreen> createState() => _HostWaitScreenState();
 }
 
-class _HostWaitScreenState extends State<_HostWaitScreen> {
+class _HostWaitScreenState extends State<_HostWaitScreen>
+    with WidgetsBindingObserver {
   bool _entered = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // back from Settings (hotspot/Wi-Fi flipped) — look again by itself
+    if (state == AppLifecycleState.resumed) {
+      widget.session.recheckNetwork();
+    }
+  }
 
   /// Android: the hotspot starts itself when hosting with no network —
   /// the user shouldn't have to press anything (Pablo). One attempt;
@@ -271,6 +280,7 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
     widget.session.start();
     unawaited(AppStats.count('match_host'));
     widget.session.addListener(_onSession);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   Future<void> _startHotspot() async {
@@ -284,6 +294,21 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
       _hotspotStarting = false;
       _hotspotError = err;
     });
+  }
+
+  /// "Alternatively, host with Bluetooth": same match settings, new
+  /// session over BLE, swapped in place.
+  void _switchToBluetooth() {
+    final old = widget.session;
+    final fresh = HostSession(
+      name: old.myName,
+      tc: old.timeControl,
+      hostWhite: old.hostWhite,
+      transports: [BleHostTransport(advertiseName: old.myName)],
+    );
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => _HostWaitScreen(session: fresh)),
+    );
   }
 
   void _onSession() {
@@ -306,6 +331,7 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.session.removeListener(_onSession);
     // entering the match hands the session over; backing out ends it
     if (!_entered) widget.session.shutdown();
@@ -354,16 +380,7 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
               ] else if (session.noNetwork) ...[
                 Icon(Icons.wifi_off, size: 48, color: theme.colorScheme.error),
                 const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Text(
-                    'No network. Join a Wi-Fi network or turn on a hotspot '
-                    'on either phone — internet is not needed, the two '
-                    'phones just have to be on the same network.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ),
+                Text('No network', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 16),
                 if (session.canHotspot) ...[
                   if (_hotspotStarting) ...[
@@ -431,16 +448,23 @@ class _HostWaitScreenState extends State<_HostWaitScreen> {
                       label: const Text('Start a hotspot'),
                       onPressed: _startHotspot,
                     ),
-                ] else
+                ] else ...[
                   FilledButton.icon(
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Check again'),
-                    onPressed: session.recheckNetwork,
+                    icon: const Icon(Icons.wifi_tethering),
+                    label: const Text('Turn on a hotspot'),
+                    onPressed: Hotspot.openSystemSettings,
                   ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.bluetooth),
+                    label: const Text('Host with Bluetooth instead'),
+                    onPressed: _switchToBluetooth,
+                  ),
+                ],
                 if (session.canHotspot)
                   TextButton(
-                    onPressed: session.recheckNetwork,
-                    child: const Text('I joined a network — check again'),
+                    onPressed: _switchToBluetooth,
+                    child: const Text('Host with Bluetooth instead'),
                   ),
               ] else if (address == null)
                 const CircularProgressIndicator()
