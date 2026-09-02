@@ -33,6 +33,19 @@ class AppStats {
     }
   }
 
+  /// The anonymous install id (created on first use) — also attached to
+  /// feedback submissions so a poisoning source can be capped/purged.
+  static Future<String> installId() async {
+    final prefs = await SharedPreferences.getInstance();
+    var id = prefs.getString(_idKey);
+    if (id == null) {
+      final rng = Random.secure();
+      id = List.generate(32, (_) => '0123456789abcdef'[rng.nextInt(16)]).join();
+      await prefs.setString(_idKey, id);
+    }
+    return id;
+  }
+
   /// Send the daily ping if one hasn't gone out in ~20h. Fire-and-forget.
   static Future<void> heartbeat() async {
     try {
@@ -41,15 +54,7 @@ class AppStats {
       final now = DateTime.now().millisecondsSinceEpoch;
       if (now - last < 20 * 3600 * 1000) return;
 
-      var id = prefs.getString(_idKey);
-      if (id == null) {
-        final rng = Random.secure();
-        id = List.generate(
-          32,
-          (_) => '0123456789abcdef'[rng.nextInt(16)],
-        ).join();
-        await prefs.setString(_idKey, id);
-      }
+      final id = await installId();
       final info = await PackageInfo.fromPlatform();
       final counters =
           jsonDecode(prefs.getString(_countersKey) ?? '{}')

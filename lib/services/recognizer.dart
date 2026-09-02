@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+
+import 'stats.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RecognitionResult {
@@ -126,6 +128,8 @@ class RecognizerClient {
           ..fields['predicted_fen'] = predictedFen
           ..fields['corrected_fen'] = correctedFen
           ..fields['flipped_display'] = '$flippedDisplay'
+          // provenance: lets the server cap/purge a poisoning source
+          ..fields['install_id'] = await AppStats.installId()
           ..files.add(
             http.MultipartFile.fromBytes(
               'image',
