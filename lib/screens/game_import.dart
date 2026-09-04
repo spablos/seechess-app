@@ -189,6 +189,14 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
   bool _loading = false;
   String? _error;
 
+  /// Username help while typing (last comma-separated token): lichess has
+  /// a real autocomplete API; chess.com only exact lookups, so there we
+  /// show an exists/not-found verdict instead.
+  Timer? _typeDebounce;
+  List<String> _suggestions = const [];
+  String _checkedToken = '';
+  bool? _tokenExists;
+
   /// 'all' | 'won' | 'lost' | 'draw' — from the first selected user's
   /// perspective (head-to-head keeps that viewpoint too).
   String _resultFilter = 'all';
@@ -310,8 +318,48 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
 
   @override
   void dispose() {
+    _typeDebounce?.cancel();
     _user.dispose();
     super.dispose();
+  }
+
+  String get _lastToken => _user.text.split(',').last.trim();
+
+  void _onTyped(String _) {
+    _typeDebounce?.cancel();
+    _typeDebounce = Timer(const Duration(milliseconds: 400), () async {
+      final token = _lastToken;
+      if (token.length < 3) {
+        if (mounted) {
+          setState(() {
+            _suggestions = const [];
+            _checkedToken = '';
+            _tokenExists = null;
+          });
+        }
+        return;
+      }
+      if (widget.site == 'lichess') {
+        final hits = await lichessAutocomplete(token);
+        if (!mounted || _lastToken != token) return;
+        setState(() => _suggestions = hits.take(8).toList());
+      } else {
+        final exists = await chessComUserExists(token);
+        if (!mounted || _lastToken != token) return;
+        setState(() {
+          _checkedToken = token;
+          _tokenExists = exists;
+        });
+      }
+    });
+  }
+
+  void _pickSuggestion(String name) {
+    final parts = _user.text.split(',');
+    parts[parts.length - 1] = ' $name';
+    _user.text = parts.join(',').replaceFirst(RegExp(r'^ '), '');
+    _user.selection = TextSelection.collapsed(offset: _user.text.length);
+    setState(() => _suggestions = const []);
   }
 
   bool _mine(SourceGame g) {
@@ -378,6 +426,7 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                       controller: _user,
                       autocorrect: false,
                       textInputAction: TextInputAction.search,
+                      onChanged: _onTyped,
                       onSubmitted: (v) => _fetchFromField(),
                       decoration: InputDecoration(
                         labelText:
@@ -395,6 +444,50 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                 ],
               ),
             ),
+            if (_suggestions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final name in _suggestions)
+                        ActionChip(
+                          label: Text(name),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => _pickSuggestion(name),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            if (widget.site == 'chesscom' &&
+                _checkedToken.isNotEmpty &&
+                _checkedToken == _lastToken &&
+                _tokenExists != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                child: Row(
+                  children: [
+                    Icon(
+                      _tokenExists! ? Icons.check_circle : Icons.cancel,
+                      size: 16,
+                      color: _tokenExists!
+                          ? Colors.green
+                          : theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _tokenExists!
+                          ? '"$_checkedToken" exists'
+                          : 'no user "$_checkedToken" on chess.com',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
             if (_saved.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

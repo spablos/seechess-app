@@ -190,6 +190,46 @@ class ChessComClient {
 
 // -------------------------------------------------------------- lichess
 
+/// chess.com has no search API — but exact lookups tell us whether a
+/// typed name exists (the autocomplete consolation prize).
+Future<bool?> chessComUserExists(String user) async {
+  if (user.length < 3) return null;
+  try {
+    final res = await http
+        .get(
+          Uri.parse(
+            'https://api.chess.com/pub/player/${Uri.encodeComponent(user.toLowerCase())}',
+          ),
+          headers: {'User-Agent': _ua},
+        )
+        .timeout(const Duration(seconds: 8));
+    if (res.statusCode == 200) return true;
+    if (res.statusCode == 404) return false;
+    return null;
+  } catch (_) {
+    return null; // offline — no verdict
+  }
+}
+
+/// lichess DOES have one: public username prefix search.
+Future<List<String>> lichessAutocomplete(String term) async {
+  if (term.length < 3) return const [];
+  try {
+    final res = await http
+        .get(
+          Uri.parse(
+            'https://lichess.org/api/player/autocomplete?term=${Uri.encodeComponent(term)}',
+          ),
+          headers: {'User-Agent': _ua},
+        )
+        .timeout(const Duration(seconds: 8));
+    if (res.statusCode != 200) return const [];
+    return (jsonDecode(res.body) as List).cast<String>();
+  } catch (_) {
+    return const [];
+  }
+}
+
 class LichessClient {
   /// Most recent [max] standard-rated-or-casual games, newest first.
   Future<List<SourceGame>> recent(String user, {int max = 60}) async {
