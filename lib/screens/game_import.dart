@@ -174,17 +174,30 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
   final _accounts = ImportAccounts();
   List<String> _saved = [];
   List<SourceGame> _games = [];
-  List<String> _archives = []; // chess.com month URLs, newest first
-  int _monthsLoaded = 0;
+
+  /// Multi-user fetch (Pablo): one or more usernames, each with its own
+  /// chess.com archive paging state. Games merge, deduped by URL.
+  final List<String> _activeUsers = [];
+  final Map<String, List<String>> _archives = {};
+  final Map<String, int> _monthsLoaded = {};
+  final Set<String> _seenUrls = {};
+
+  /// With ≥2 users: false = all their games; true = only games they
+  /// played against each other (head-to-head).
+  bool _headToHead = false;
+
   bool _loading = false;
   String? _error;
-  String? _activeUser;
 
-  /// 'all' | 'won' | 'lost' | 'draw' — from [_activeUser]'s perspective.
+  /// 'all' | 'won' | 'lost' | 'draw' — from the first selected user's
+  /// perspective (head-to-head keeps that viewpoint too).
   String _resultFilter = 'all';
 
   /// Only games where the opponent was rated at least this. 0 = any.
   int _minOppRating = 0;
+
+  /// '' = any; else bullet/blitz/rapid/daily/classical/correspondence.
+  String _timeClass = '';
 
   String get _siteLabel => widget.site == 'chesscom' ? 'chess.com' : 'lichess';
 
@@ -205,33 +218,46 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
       ];
     });
     // one remembered account: go straight to their games
-    if (_saved.isNotEmpty && _activeUser == null) {
+    if (_saved.isNotEmpty && _activeUsers.isEmpty) {
       _user.text = _saved.first;
-      unawaited(_load(_saved.first));
+      unawaited(_load([_saved.first]));
     }
   }
 
-  Future<void> _load(String user) async {
+  void _addGames(Iterable<SourceGame> games) {
+    for (final g in games) {
+      final key = g.url.isNotEmpty ? g.url : '${g.white}|${g.black}|${g.end}';
+      if (_seenUrls.add(key)) _games.add(g);
+    }
+    _games.sort((a, b) => b.end.compareTo(a.end));
+  }
+
+  Future<void> _load(List<String> users) async {
     setState(() {
       _loading = true;
       _error = null;
-      _activeUser = user;
+      _activeUsers
+        ..clear()
+        ..addAll(users);
       _games = [];
-      _archives = [];
-      _monthsLoaded = 0;
+      _seenUrls.clear();
+      _archives.clear();
+      _monthsLoaded.clear();
     });
     try {
-      if (widget.site == 'chesscom') {
-        final archives = (await ChessComClient().archives(
-          user,
-        )).reversed.toList();
-        _archives = archives;
-        await _loadMoreMonths(user, initial: true);
-      } else {
-        final games = await LichessClient().recent(user);
-        _games = games.where((g) => g.standardRules).toList();
+      for (final user in users) {
+        if (widget.site == 'chesscom') {
+          _archives[user] = (await ChessComClient().archives(
+            user,
+          )).reversed.toList();
+          _monthsLoaded[user] = 0;
+          await _loadMoreMonths(user, initial: true);
+        } else {
+          final games = await LichessClient().recent(user);
+          _addGames(games.where((g) => g.standardRules));
+        }
+        await _accounts.touch(widget.site, user);
       }
-      await _accounts.touch(widget.site, user);
       unawaited(_loadAccounts());
     } on SourceException catch (e) {
       _error = e.message;
@@ -241,18 +267,44 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
     if (mounted) setState(() => _loading = false);
   }
 
+  bool get _hasOlder =>
+      widget.site == 'chesscom' &&
+      _activeUsers.any(
+        (u) => (_monthsLoaded[u] ?? 0) < (_archives[u]?.length ?? 0),
+      );
+
   /// chess.com pages by month — pull months until we have a screenful.
   Future<void> _loadMoreMonths(String user, {bool initial = false}) async {
     final client = ChessComClient();
+    final archives = _archives[user] ?? const [];
     var added = 0;
-    while (_monthsLoaded < _archives.length && (added < 30 || initial)) {
-      final games = await client.month(_archives[_monthsLoaded], user);
-      _monthsLoaded++;
+    while ((_monthsLoaded[user] ?? 0) < archives.length &&
+        (added < 30 || initial)) {
+      final games = await client.month(
+        archives[_monthsLoaded[user] ?? 0],
+        user,
+      );
+      _monthsLoaded[user] = (_monthsLoaded[user] ?? 0) + 1;
       final std = games.where((g) => g.standardRules).toList();
-      _games = [..._games, ...std];
+      _addGames(std);
       added += std.length;
       if (initial && added > 0) break; // show something fast
       if (!initial && added >= 30) break;
+    }
+  }
+
+  void _fetchFromField() {
+    final users = _user.text
+        .split(RegExp(r'[,\s]+'))
+        .map((u) => u.trim())
+        .where((u) => u.isNotEmpty)
+        .toList();
+    if (users.isNotEmpty) _load(users);
+  }
+
+  Future<void> _loadOlderAll() async {
+    for (final u in List.of(_activeUsers)) {
+      if (widget.site == 'chesscom') await _loadMoreMonths(u);
     }
   }
 
@@ -262,12 +314,28 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
     super.dispose();
   }
 
-  bool _mine(SourceGame g) =>
-      g.white.toLowerCase() == _activeUser?.toLowerCase();
+  bool _mine(SourceGame g) {
+    // "my" side = the first active user appearing in the game
+    for (final u in _activeUsers) {
+      if (g.white.toLowerCase() == u.toLowerCase()) return true;
+      if (g.black.toLowerCase() == u.toLowerCase()) return false;
+    }
+    return true;
+  }
 
   int? _oppRating(SourceGame g) => _mine(g) ? g.blackRating : g.whiteRating;
 
+  bool _isHeadToHead(SourceGame g) {
+    final names = _activeUsers.map((u) => u.toLowerCase()).toSet();
+    return names.contains(g.white.toLowerCase()) &&
+        names.contains(g.black.toLowerCase());
+  }
+
   bool _passesFilters(SourceGame g) {
+    if (_headToHead && _activeUsers.length >= 2 && !_isHeadToHead(g)) {
+      return false;
+    }
+    if (_timeClass.isNotEmpty && g.timeClass != _timeClass) return false;
     if (_minOppRating > 0 && (_oppRating(g) ?? 0) < _minOppRating) {
       return false;
     }
@@ -310,11 +378,10 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                       controller: _user,
                       autocorrect: false,
                       textInputAction: TextInputAction.search,
-                      onSubmitted: (v) {
-                        if (v.trim().isNotEmpty) _load(v.trim());
-                      },
+                      onSubmitted: (v) => _fetchFromField(),
                       decoration: InputDecoration(
-                        labelText: 'Username on $_siteLabel',
+                        labelText:
+                            'Username(s) on $_siteLabel — comma for several',
                         border: const OutlineInputBorder(),
                         isDense: true,
                       ),
@@ -322,12 +389,7 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
-                    onPressed: _loading
-                        ? null
-                        : () {
-                            final v = _user.text.trim();
-                            if (v.isNotEmpty) _load(v);
-                          },
+                    onPressed: _loading ? null : _fetchFromField,
                     child: const Text('Fetch'),
                   ),
                 ],
@@ -344,11 +406,24 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                       for (final u in _saved)
                         InputChip(
                           label: Text(u),
-                          selected: u == _activeUser,
-                          onPressed: () {
-                            _user.text = u;
-                            _load(u);
-                          },
+                          selected: _activeUsers
+                              .map((x) => x.toLowerCase())
+                              .contains(u.toLowerCase()),
+                          onPressed: _loading
+                              ? null
+                              : () {
+                                  final set = List.of(_activeUsers);
+                                  final hit = set.indexWhere(
+                                    (x) => x.toLowerCase() == u.toLowerCase(),
+                                  );
+                                  if (hit >= 0) {
+                                    set.removeAt(hit);
+                                  } else {
+                                    set.add(u);
+                                  }
+                                  _user.text = set.join(', ');
+                                  if (set.isNotEmpty) _load(set);
+                                },
                           onDeleted: () async {
                             await _accounts.remove('${widget.site}:$u');
                             unawaited(_loadAccounts());
@@ -381,6 +456,49 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                           setState(() => _resultFilter = sel.first),
                     ),
                     const Spacer(),
+                    if (_activeUsers.length >= 2)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: const Text('Head-to-head'),
+                          selected: _headToHead,
+                          onSelected: (v) => setState(() => _headToHead = v),
+                        ),
+                      ),
+                    PopupMenuButton<String>(
+                      tooltip: 'Time control',
+                      initialValue: _timeClass,
+                      onSelected: (v) => setState(() => _timeClass = v),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(value: '', child: Text('Any pace')),
+                        for (final tc in [
+                          'bullet',
+                          'blitz',
+                          'rapid',
+                          'daily',
+                          'classical',
+                          'correspondence',
+                        ])
+                          PopupMenuItem(value: tc, child: Text(tc)),
+                      ],
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _timeClass.isNotEmpty
+                              ? theme.colorScheme.primaryContainer
+                              : theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _timeClass.isEmpty ? 'Any pace' : _timeClass,
+                          style: theme.textTheme.labelMedium,
+                        ),
+                      ),
+                    ),
                     PopupMenuButton<int>(
                       tooltip: 'Minimum opponent rating',
                       initialValue: _minOppRating,
@@ -437,21 +555,16 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                 builder: (context) {
                   final shown = _games.where(_passesFilters).toList();
                   return ListView.builder(
-                    itemCount:
-                        shown.length +
-                        (widget.site == 'chesscom' &&
-                                _monthsLoaded < _archives.length
-                            ? 1
-                            : 0),
+                    itemCount: shown.length + (_hasOlder ? 1 : 0),
                     itemBuilder: (context, i) {
                       if (i == shown.length) {
                         return TextButton(
-                          onPressed: _loading || _activeUser == null
+                          onPressed: _loading
                               ? null
                               : () async {
                                   setState(() => _loading = true);
                                   try {
-                                    await _loadMoreMonths(_activeUser!);
+                                    await _loadOlderAll();
                                   } catch (_) {}
                                   if (mounted) {
                                     setState(() => _loading = false);
