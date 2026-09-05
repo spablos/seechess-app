@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../services/game_sources.dart';
 import '../services/pgn.dart';
@@ -486,6 +487,33 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
+                ),
+              ),
+            if (widget.site == 'chesscom')
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: TextButton.icon(
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.travel_explore, size: 16),
+                    label: const Text('Only remember their real name?'),
+                    onPressed: () {
+                      // chess.com has no name search — a scoped Google
+                      // search of member profiles is the honest bridge
+                      final q = _lastToken.isEmpty
+                          ? 'site:chess.com/member'
+                          : 'site:chess.com/member "$_lastToken"';
+                      launchUrl(
+                        Uri.parse(
+                          'https://www.google.com/search?q=${Uri.encodeComponent(q)}',
+                        ),
+                        mode: LaunchMode.externalApplication,
+                      );
+                    },
+                  ),
                 ),
               ),
             if (_saved.isNotEmpty)
