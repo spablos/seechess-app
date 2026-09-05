@@ -499,20 +499,35 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.travel_explore, size: 16),
-                    // the label says exactly what will be searched
+                    // chess.com's member search cannot be pre-filled or
+                    // queried from outside (verified: the URL keyword is
+                    // ignored and the internal endpoints reject callers).
+                    // Best real flow: copy the name, open their search,
+                    // the user pastes into chess.com's own box.
                     label: Text(
                       _lastToken.isEmpty
-                          ? 'Search members on chess.com'
-                          : 'Search "$_lastToken" on chess.com',
+                          ? 'Find a member on chess.com'
+                          : 'Copy "$_lastToken" & open chess.com search',
                       overflow: TextOverflow.ellipsis,
                     ),
-                    onPressed: () {
-                      // chess.com's own member search matches usernames
-                      // AND profile names — better than a Google gamble
-                      launchUrl(
-                        Uri.parse(
-                          'https://www.chess.com/members/search?keyword=${Uri.encodeComponent(_lastToken)}',
-                        ),
+                    onPressed: () async {
+                      if (_lastToken.isNotEmpty) {
+                        await Clipboard.setData(
+                          ClipboardData(text: _lastToken),
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '"$_lastToken" copied — paste it into '
+                                "chess.com's search box",
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                      await launchUrl(
+                        Uri.parse('https://www.chess.com/members'),
                         mode: LaunchMode.externalApplication,
                       );
                     },
