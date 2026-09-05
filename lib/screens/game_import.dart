@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../services/game_sources.dart';
 import '../services/pgn.dart';
@@ -503,51 +502,6 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                       style: theme.textTheme.bodySmall,
                     ),
                   ],
-                ),
-              ),
-            if (widget.site == 'chesscom')
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: const Icon(Icons.travel_explore, size: 16),
-                    // chess.com's member search cannot be pre-filled or
-                    // queried from outside (verified: the URL keyword is
-                    // ignored and the internal endpoints reject callers).
-                    // Best real flow: copy the name, open their search,
-                    // the user pastes into chess.com's own box.
-                    label: Text(
-                      _lastToken.isEmpty
-                          ? 'Find a member on chess.com'
-                          : 'Copy "$_lastToken" & open chess.com search',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    onPressed: () async {
-                      if (_lastToken.isNotEmpty) {
-                        await Clipboard.setData(
-                          ClipboardData(text: _lastToken),
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                '"$_lastToken" copied — paste it into '
-                                "chess.com's search box",
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                      await launchUrl(
-                        Uri.parse('https://www.chess.com/members'),
-                        mode: LaunchMode.externalApplication,
-                      );
-                    },
-                  ),
                 ),
               ),
             if (_saved.isNotEmpty)
