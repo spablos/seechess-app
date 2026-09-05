@@ -104,6 +104,22 @@ class SetupState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Reverse both axes (a1 <-> h8) leaving every piece on the same visual
+  /// square — for a photo taken from Black's side that the detector read
+  /// as if from White's: the layout is right, only the coordinates flip.
+  void rotate180() {
+    final rotated = <String, String>{};
+    pieces.forEach((square, piece) {
+      final f = files.indexOf(square[0]);
+      final r = int.parse(square[1]) - 1;
+      rotated['${files[7 - f]}${8 - r}'] = piece;
+    });
+    pieces
+      ..clear()
+      ..addAll(rotated);
+    notifyListeners();
+  }
+
   void setTurn(bool white) {
     whiteToMove = white;
     notifyListeners();

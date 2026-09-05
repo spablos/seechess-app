@@ -89,6 +89,18 @@ void main() {
       expect(s.toFen().split(' ').first, placement);
     });
 
+    test('rotate180 reverses both axes; twice restores', () {
+      const placement = 'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R';
+      final s = SetupState.fromFen(placement);
+      s.rotate180();
+      expect(s.pieces['h8'], 'wR'); // a1 -> h8
+      expect(s.pieces['a1'], 'bR'); // h8 -> a1
+      expect(s.pieces['f5'], 'wB'); // c4 -> f5
+      expect(s.pieces['d5'], 'wP'); // e4 -> d5
+      s.rotate180();
+      expect(s.toFen().split(' ').first, placement);
+    });
+
     test('double-tap flips a board piece color', () {
       final s = SetupState.fromFen('4k3/8/8/8/8/8/8/4K3');
       s.flipPiece('e1');

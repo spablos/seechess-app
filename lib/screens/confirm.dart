@@ -357,6 +357,19 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
             onPressed: setup.rotate90,
           ),
           IconButton(
+            tooltip:
+                'Reverse coordinates — board was photographed '
+                'upside down (pieces stay put, a1 ↔ h8)',
+            icon: const Icon(Icons.screen_rotation_alt),
+            onPressed: () {
+              // reversing the axes AND flipping the view cancel out
+              // visually: the pieces don't move on screen, only the
+              // rank numbers and file letters swap ends
+              setup.rotate180();
+              setState(() => _flipped = !_flipped);
+            },
+          ),
+          IconButton(
             tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
             isSelected: _photoVisible,
             icon: const Icon(Icons.image_outlined),
