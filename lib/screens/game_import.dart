@@ -499,16 +499,19 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
                       visualDensity: VisualDensity.compact,
                     ),
                     icon: const Icon(Icons.travel_explore, size: 16),
-                    label: const Text('Only remember their real name?'),
+                    // the label says exactly what will be searched
+                    label: Text(
+                      _lastToken.isEmpty
+                          ? 'Search members on chess.com'
+                          : 'Search "$_lastToken" on chess.com',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     onPressed: () {
-                      // chess.com has no name search — a scoped Google
-                      // search of member profiles is the honest bridge
-                      final q = _lastToken.isEmpty
-                          ? 'site:chess.com/member'
-                          : 'site:chess.com/member "$_lastToken"';
+                      // chess.com's own member search matches usernames
+                      // AND profile names — better than a Google gamble
                       launchUrl(
                         Uri.parse(
-                          'https://www.google.com/search?q=${Uri.encodeComponent(q)}',
+                          'https://www.chess.com/members/search?keyword=${Uri.encodeComponent(_lastToken)}',
                         ),
                         mode: LaunchMode.externalApplication,
                       );
