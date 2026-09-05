@@ -423,17 +423,33 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _user,
-                      autocorrect: false,
-                      textInputAction: TextInputAction.search,
-                      onChanged: _onTyped,
-                      onSubmitted: (v) => _fetchFromField(),
-                      decoration: InputDecoration(
-                        labelText:
-                            'Username(s) on $_siteLabel — comma for several',
-                        border: const OutlineInputBorder(),
-                        isDense: true,
+                    // the controller doubles as a ValueListenable, so the
+                    // clear button appears/disappears with the text without
+                    // waiting for the debounced _onTyped setState
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: _user,
+                      builder: (context, value, _) => TextField(
+                        controller: _user,
+                        autocorrect: false,
+                        textInputAction: TextInputAction.search,
+                        onChanged: _onTyped,
+                        onSubmitted: (v) => _fetchFromField(),
+                        decoration: InputDecoration(
+                          labelText:
+                              'Username(s) on $_siteLabel — comma for several',
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          suffixIcon: value.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  icon: const Icon(Icons.clear, size: 18),
+                                  tooltip: 'Clear',
+                                  onPressed: () {
+                                    _user.clear();
+                                    _onTyped('');
+                                  },
+                                ),
+                        ),
                       ),
                     ),
                   ),
