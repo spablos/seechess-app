@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -148,7 +149,21 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
     setState(() => _phase = 'Uploading & recognizing…');
     final sw = Stopwatch()..start();
     final bytes = await File(path).readAsBytes();
-    final result = await client.recognize(bytes);
+    final RecognitionResult result;
+    try {
+      result = await client.recognize(bytes);
+    } on RecognizerException catch (e) {
+      // the photo the model can't read is the training data we most lack —
+      // rescue it (consent-gated inside) before surfacing the error
+      if (e.statusCode == 422) {
+        unawaited(
+          client
+              .sendRescue(imageBytes: bytes, error: e.message)
+              .catchError((_) {}),
+        );
+      }
+      rethrow;
+    }
     debugPrint('recognize round-trip: ${sw.elapsedMilliseconds}ms');
     if (!mounted) return;
     await Navigator.of(context).push(

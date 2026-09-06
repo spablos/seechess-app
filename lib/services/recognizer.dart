@@ -140,6 +140,28 @@ class RecognizerClient {
     await request.send().timeout(const Duration(seconds: 15));
   }
 
+  /// Fire-and-forget failed-recognition rescue: with the same consent as
+  /// feedback, the photo the server couldn't read goes to its rescue inbox
+  /// so unreadable board styles get labeled and trained on, not lost.
+  Future<void> sendRescue({
+    required List<int> imageBytes,
+    required String error,
+  }) async {
+    if (await feedbackConsent() != true) return;
+    final request =
+        http.MultipartRequest('POST', Uri.parse('$baseUrl/v1/rescue'))
+          ..fields['error'] = error
+          ..fields['install_id'] = await AppStats.installId()
+          ..files.add(
+            http.MultipartFile.fromBytes(
+              'image',
+              imageBytes,
+              filename: 'photo.jpg',
+            ),
+          );
+    await request.send().timeout(const Duration(seconds: 15));
+  }
+
   static const _consentKey = 'feedback_consent';
 
   /// null = never asked; true/false = user's stored choice.
