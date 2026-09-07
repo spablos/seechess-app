@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:universal_io/io.dart';
 
 import 'package:path_provider/path_provider.dart';
 
@@ -18,6 +19,7 @@ class RecentPhotos {
   }
 
   static Future<List<File>> list() async {
+    if (kIsWeb) return const [];
     final files = (await _dir()).listSync().whereType<File>().toList()
       ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     return files;

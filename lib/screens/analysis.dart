@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
@@ -7,7 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../engine/engine.dart';
-import '../engine/stockfish_engine.dart';
+import '../engine/shared_engine.dart';
 import '../models/game_state.dart';
 import '../models/setup_state.dart';
 import '../services/lesson_tree.dart';
@@ -178,7 +178,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       }
     });
     _ownsEngine = widget.engineFactory != null;
-    engine = _ownsEngine ? widget.engineFactory!() : StockfishEngine.shared;
+    engine = _ownsEngine ? widget.engineFactory!() : sharedAnalysisEngine();
     engine.start();
     engine.analyze(game.fen);
     game.addListener(_onPosition);

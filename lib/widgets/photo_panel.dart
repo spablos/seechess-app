@@ -1,6 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+
+import '../services/photo_bytes.dart';
 
 /// Floating photo panel: drag the handle bar to move the whole rectangle
 /// (to uncover the board behind it); pan/pinch inside to move the photo
@@ -98,8 +98,8 @@ class _FloatingPhotoPanelState extends State<FloatingPhotoPanel> {
                       child: InteractiveViewer(
                         maxScale: 8,
                         child: SizedBox.expand(
-                          child: Image.file(
-                            File(widget.photoPath),
+                          child: photoImage(
+                            widget.photoPath,
                             fit: BoxFit.contain,
                           ),
                         ),

@@ -1,4 +1,5 @@
 import 'package:app_links/app_links.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
@@ -6,7 +7,7 @@ import 'screens/analysis.dart';
 import 'screens/home.dart';
 import 'screens/offline_lobby.dart';
 import 'dart:async';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'screens/game_import.dart';
 import 'screens/photo_flow.dart';
@@ -31,6 +32,20 @@ class _SeechessAppState extends State<SeechessApp> {
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) {
+      // /app/?p=<slug> — a shared position opened in the web app
+      final slug = Uri.base.queryParameters['p'];
+      if (slug != null && slug.isNotEmpty) {
+        final fen = slug.replaceAll('_', ' ').trim();
+        _pushWhenReady(
+          () => MaterialPageRoute(
+            builder: (_) => AnalysisScreen(fen: fen, editable: true),
+          ),
+        );
+      }
+      unawaited(AppStats.heartbeat());
+      return; // app_links/share intents are phone plumbing
+    }
     // seechess://<ip>:<port> — the offline-match QR scanned with the system
     // camera (in-app scanning bypasses this and parses directly)
     _appLinks.uriLinkStream.listen(_onLink);

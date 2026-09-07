@@ -1,0 +1,35 @@
+{
+  "name": "Seechess",
+  "short_name": "Seechess",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#191a17",
+  "theme_color": "#5B8F3E",
+  "description": "Point a camera at any chessboard and analyze it \u2014 plus lessons, game import, and more.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/Icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

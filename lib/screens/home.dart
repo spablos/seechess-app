@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -84,23 +85,27 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                   // Play offline is a different kind of thing (a match, not
-                  // recognition/analysis) — set apart below a divider
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6),
-                    child: Divider(),
-                  ),
-                  _ActionCard(
-                    icon: Icons.wifi_tethering,
-                    color: const Color(0xFFC98F3B),
-                    title: 'Play offline',
-                    subtitle:
-                        'Two phones, no internet — a real match with clocks',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const OfflineLobbyScreen(),
+                  // recognition/analysis) — set apart below a divider.
+                  // Not on web: Bluetooth/hotspot are phone hardware.
+                  if (!kIsWeb) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Divider(),
+                    ),
+                    _ActionCard(
+                      icon: Icons.wifi_tethering,
+                      color: const Color(0xFFC98F3B),
+                      title: 'Play offline',
+                      subtitle:
+                          'Two phones, no internet — a real match with '
+                          'clocks',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const OfflineLobbyScreen(),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),

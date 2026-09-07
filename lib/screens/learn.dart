@@ -21,6 +21,7 @@ class LearnScreen extends StatefulWidget {
 
 class _LearnScreenState extends State<LearnScreen> {
   List<Lesson>? _lessons;
+  List<Lesson> _pending = const [];
   bool _treeView = false;
 
   @override
@@ -37,6 +38,30 @@ class _LearnScreenState extends State<LearnScreen> {
     if (mounted && community.isNotEmpty) {
       setState(() => _lessons = [...bundled, ...community]);
     }
+    final token = adminToken();
+    if (token != null) {
+      try {
+        final pending = await fetchPendingLessons(token);
+        if (mounted) setState(() => _pending = pending);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _moderate(Lesson lesson, bool approve) async {
+    final token = adminToken();
+    if (token == null) return;
+    final ok = await moderateLesson(token, lesson.id, approve);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? '"${lesson.title}" ${approve ? 'approved' : 'rejected'}'
+              : 'Moderation failed — check the token',
+        ),
+      ),
+    );
+    if (ok) unawaited(_load());
   }
 
   void _open(Lesson lesson, {int initialPly = 0}) {
@@ -150,6 +175,46 @@ class _LearnScreenState extends State<LearnScreen> {
               onRefresh: _load,
               child: ListView(
                 children: [
+                  if (_pending.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                      child: Text(
+                        'Pending review (admin)',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                    ),
+                    for (final l in _pending)
+                      ListTile(
+                        leading: const Icon(Icons.pending_actions),
+                        title: Text(l.title),
+                        subtitle: Text('by ${l.author ?? 'anonymous'}'),
+                        onTap: () => _open(l),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Approve',
+                              icon: const Icon(
+                                Icons.check_circle,
+                                color: Color(0xFF2E7D32),
+                              ),
+                              onPressed: () => _moderate(l, true),
+                            ),
+                            IconButton(
+                              tooltip: 'Reject',
+                              icon: const Icon(
+                                Icons.cancel,
+                                color: Color(0xFFC62828),
+                              ),
+                              onPressed: () => _moderate(l, false),
+                            ),
+                          ],
+                        ),
+                      ),
+                    const Divider(),
+                  ],
                   for (final cat in categories) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),

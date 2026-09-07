@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
 import '../models/setup_state.dart';
+import '../services/photo_bytes.dart';
 import '../services/recognizer.dart';
 import '../services/saved_games.dart';
 import '../utils/fen_clipboard.dart';
@@ -208,7 +208,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     try {
       final url = await RecognizerClient.savedUrl();
       await RecognizerClient(url).sendFeedback(
-        imageBytes: await File(widget.photoPath).readAsBytes(),
+        imageBytes: await readPhotoBytes(widget.photoPath),
         predictedFen: widget.recognition.fen,
         correctedFen: fen,
         // how the user was viewing the board when confirming = how this
@@ -233,7 +233,9 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
         _libraryEntry = updated;
         return;
       }
-      final photo = await SavedGamesStore.keepPhoto(widget.photoPath);
+      final photo = isWebPhoto(widget.photoPath)
+          ? null
+          : await SavedGamesStore.keepPhoto(widget.photoPath);
       final entry = SavedGame(
         name:
             'Detected ${now.year}-${now.month.toString().padLeft(2, '0')}-'
@@ -318,7 +320,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
         ? 'Position ${DateTime.now().toString().substring(0, 16)}'
         : nameController.text.trim();
     String? photoPath;
-    if (keepPhoto) {
+    if (keepPhoto && !isWebPhoto(widget.photoPath)) {
       photoPath = await SavedGamesStore.keepPhoto(widget.photoPath);
     }
     await SavedGamesStore().add(

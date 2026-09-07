@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 /// One end of the offline-match wire. Messages are JSON strings; a transport
 /// only moves them and reports link health — the sessions stay

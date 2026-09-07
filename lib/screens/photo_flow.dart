@@ -1,12 +1,14 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../services/photo_bytes.dart';
 import '../services/recent_photos.dart';
 import '../services/recognizer.dart';
 import 'confirm.dart';
@@ -74,8 +76,14 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
       );
       if (file == null) return;
       // cache first: the copy is durable and lands in the recents strip
-      // even if recognition fails (picker files live in purgeable tmp)
-      final path = await RecentPhotos.add(file.path);
+      // even if recognition fails (picker files live in purgeable tmp).
+      // Web: no filesystem — bytes go to the in-memory registry.
+      final String path;
+      if (kIsWeb) {
+        path = storeWebPhotoBytes(await file.readAsBytes());
+      } else {
+        path = await RecentPhotos.add(file.path);
+      }
       await _loadRecents();
       if (!mounted) return;
       final edited = await editPhoto(context, path);
@@ -161,7 +169,7 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
     // 2. upload + recognize (server inference itself is ~0.1-1s)
     setState(() => _phase = 'Uploading & recognizing…');
     final sw = Stopwatch()..start();
-    final bytes = await File(path).readAsBytes();
+    final bytes = await readPhotoBytes(path);
     final RecognitionResult result;
     try {
       result = await client.recognize(bytes);
@@ -471,13 +479,14 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
 /// cancel. Cropping tight around the board is also the best manual assist
 /// the corner model can get.
 Future<String?> editPhoto(BuildContext context, String path) async {
-  final bytes = await File(path).readAsBytes();
+  final bytes = await readPhotoBytes(path);
   if (!context.mounted) return null;
   final cropped = await Navigator.of(context).push<Uint8List?>(
     MaterialPageRoute(builder: (_) => _PhotoEditorScreen(bytes: bytes)),
   );
   if (cropped == null) return null; // cancelled
   if (cropped.isEmpty) return path; // "use as is"
+  if (kIsWeb) return storeWebPhotoBytes(cropped);
   final dir = await getTemporaryDirectory();
   final f = File(
     '${dir.path}/crop_${DateTime.now().millisecondsSinceEpoch}.jpg',

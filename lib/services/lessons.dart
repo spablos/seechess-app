@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:universal_io/io.dart';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
@@ -128,4 +129,37 @@ class LessonStore {
       return 'Could not reach the server';
     }
   }
+}
+
+/// Web-app admin mode: present when the page URL carries ?token= — the
+/// reviewer's Learn tab then also shows pending lessons with approve/
+/// reject, replacing the back-office HTML walker.
+String? adminToken() {
+  if (!kIsWeb) return null;
+  final t = Uri.base.queryParameters['token'];
+  return (t == null || t.isEmpty) ? null : t;
+}
+
+Future<List<Lesson>> fetchPendingLessons(String token) async {
+  final base = await RecognizerClient.savedUrl();
+  final res = await http
+      .get(Uri.parse('$base/v1/lessons/pending?token=$token'))
+      .timeout(const Duration(seconds: 10));
+  if (res.statusCode != 200) return const [];
+  return [
+    for (final j in jsonDecode(res.body) as List)
+      Lesson.fromJson(j as Map<String, dynamic>, community: true),
+  ];
+}
+
+Future<bool> moderateLesson(String token, String id, bool approve) async {
+  final base = await RecognizerClient.savedUrl();
+  final res = await http
+      .post(
+        Uri.parse('$base/v1/lessons/moderate?token=$token'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'id': id, 'approve': approve}),
+      )
+      .timeout(const Duration(seconds: 10));
+  return res.statusCode == 200;
 }

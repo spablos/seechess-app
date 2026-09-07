@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:universal_io/io.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -14,6 +15,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// network but fall back to cache offline.
 
 const _ua = 'Seechess (github.com/spablos/seechess-app)';
+
+Map<String, String> get _headers => kIsWeb ? const {} : {'User-Agent': _ua};
+
+/// chess.com pub API base: direct on mobile; on web via our server's
+/// caching proxy (their CORS policy doesn't admit browsers).
+String chessComBase() =>
+    kIsWeb ? '/v1/proxy/chesscom' : 'https://api.chess.com/pub';
 
 /// One importable game, normalized across sources.
 class SourceGame {
@@ -72,15 +80,16 @@ class ImportAccounts {
   }
 }
 
-Future<Directory> _cacheDir(String site, String user) async {
+Future<Directory?> _cacheDir(String site, String user) async {
+  if (kIsWeb) return null;
   final base = await getApplicationSupportDirectory();
   final dir = Directory('${base.path}/imports/$site/${user.toLowerCase()}');
   await dir.create(recursive: true);
   return dir;
 }
 
-Future<String?> _getCached(File f, {Duration? maxAge}) async {
-  if (!await f.exists()) return null;
+Future<String?> _getCached(File? f, {Duration? maxAge}) async {
+  if (f == null || !await f.exists()) return null;
   if (maxAge != null &&
       DateTime.now().difference(await f.lastModified()) > maxAge) {
     return null;
@@ -90,7 +99,7 @@ Future<String?> _getCached(File f, {Duration? maxAge}) async {
 
 Future<String> _fetch(Uri url) async {
   final res = await http
-      .get(url, headers: {'User-Agent': _ua})
+      .get(url, headers: _headers)
       .timeout(const Duration(seconds: 20));
   if (res.statusCode == 404) {
     throw const SourceException('No such user');
@@ -114,15 +123,15 @@ class ChessComClient {
   /// Month URLs, oldest→newest (published-data API).
   Future<List<String>> archives(String user) async {
     final dir = await _cacheDir('chesscom', user);
-    final f = File('${dir.path}/archives.json');
+    final f = dir == null ? null : File('${dir.path}/archives.json');
     String body;
     try {
       body = await _fetch(
         Uri.parse(
-          'https://api.chess.com/pub/player/${Uri.encodeComponent(user.toLowerCase())}/games/archives',
+          '${chessComBase()}/player/${Uri.encodeComponent(user.toLowerCase())}/games/archives',
         ),
       );
-      await f.writeAsString(body);
+      await f?.writeAsString(body);
     } on SourceException {
       rethrow;
     } catch (_) {
@@ -135,7 +144,7 @@ class ChessComClient {
   Future<List<SourceGame>> month(String archiveUrl, String user) async {
     final dir = await _cacheDir('chesscom', user);
     final key = archiveUrl.split('/games/').last.replaceAll('/', '-');
-    final f = File('${dir.path}/$key.json');
+    final f = dir == null ? null : File('${dir.path}/$key.json');
     final now = DateTime.now();
     final isCurrentMonth =
         key == '${now.year}-${now.month.toString().padLeft(2, '0')}';
@@ -148,8 +157,14 @@ class ChessComClient {
       body = cached;
     } else {
       try {
-        body = await _fetch(Uri.parse(archiveUrl));
-        await f.writeAsString(body);
+        final fetchUrl = kIsWeb
+            ? archiveUrl.replaceFirst(
+                'https://api.chess.com/pub',
+                chessComBase(),
+              )
+            : archiveUrl;
+        body = await _fetch(Uri.parse(fetchUrl));
+        await f?.writeAsString(body);
       } catch (_) {
         body = await _getCached(f) ?? (throw const SourceException('Offline'));
       }
@@ -198,9 +213,9 @@ Future<bool?> chessComUserExists(String user) async {
     final res = await http
         .get(
           Uri.parse(
-            'https://api.chess.com/pub/player/${Uri.encodeComponent(user.toLowerCase())}',
+            '${chessComBase()}/player/${Uri.encodeComponent(user.toLowerCase())}',
           ),
-          headers: {'User-Agent': _ua},
+          headers: _headers,
         )
         .timeout(const Duration(seconds: 8));
     if (res.statusCode == 200) return true;
@@ -220,7 +235,7 @@ Future<List<String>> lichessAutocomplete(String term) async {
           Uri.parse(
             'https://lichess.org/api/player/autocomplete?term=${Uri.encodeComponent(term)}',
           ),
-          headers: {'User-Agent': _ua},
+          headers: _headers,
         )
         .timeout(const Duration(seconds: 8));
     if (res.statusCode != 200) return const [];
@@ -234,7 +249,7 @@ class LichessClient {
   /// Most recent [max] standard-rated-or-casual games, newest first.
   Future<List<SourceGame>> recent(String user, {int max = 60}) async {
     final dir = await _cacheDir('lichess', user);
-    final f = File('${dir.path}/recent.ndjson');
+    final f = dir == null ? null : File('${dir.path}/recent.ndjson');
     String body;
     final cached = await _getCached(f, maxAge: const Duration(minutes: 10));
     if (cached != null) {
@@ -247,7 +262,7 @@ class LichessClient {
                 'https://lichess.org/api/games/user/${Uri.encodeComponent(user)}'
                 '?max=$max&pgnInJson=true&perfType=ultraBullet,bullet,blitz,rapid,classical,correspondence',
               ),
-              headers: {'User-Agent': _ua, 'Accept': 'application/x-ndjson'},
+              headers: {..._headers, 'Accept': 'application/x-ndjson'},
             )
             .timeout(const Duration(seconds: 30));
         if (res.statusCode == 404) throw const SourceException('No such user');
@@ -255,7 +270,7 @@ class LichessClient {
           throw SourceException('Server answered ${res.statusCode}');
         }
         body = utf8.decode(res.bodyBytes);
-        await f.writeAsString(body);
+        await f?.writeAsString(body);
       } on SourceException {
         rethrow;
       } catch (_) {
