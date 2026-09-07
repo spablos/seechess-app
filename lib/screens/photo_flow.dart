@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:crop_your_image/crop_your_image.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../services/recent_photos.dart';
 import '../services/recognizer.dart';
@@ -74,7 +77,11 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
       // even if recognition fails (picker files live in purgeable tmp)
       final path = await RecentPhotos.add(file.path);
       await _loadRecents();
-      await _recognize(path);
+      if (!mounted) return;
+      final edited = await editPhoto(context, path);
+      if (edited == null) return;
+      await _loadRecents();
+      await _recognize(edited);
     } catch (e) {
       setState(() => _error = '$e');
     } finally {
@@ -92,7 +99,11 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
     try {
       final cached = await RecentPhotos.add(path);
       await _loadRecents();
-      await _recognize(cached);
+      if (!mounted) return;
+      final edited = await editPhoto(context, cached);
+      if (edited == null) return;
+      await _loadRecents();
+      await _recognize(edited);
     } catch (e) {
       setState(() => _error = '$e');
     } finally {
@@ -108,7 +119,9 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
     });
     try {
       photo.setLastModifiedSync(DateTime.now()); // bump to front
-      await _recognize(photo.path);
+      final edited = await editPhoto(context, photo.path);
+      if (edited == null) return;
+      await _recognize(edited);
       await _loadRecents();
     } catch (e) {
       setState(() => _error = '$e');
@@ -446,6 +459,123 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Crop/zoom the photo before detection (Pablo: "allow to crop, zoom and
+/// edit after it's been taken, before it's sent"). Returns the path to
+/// recognize — a new cached crop, the untouched original, or null on
+/// cancel. Cropping tight around the board is also the best manual assist
+/// the corner model can get.
+Future<String?> editPhoto(BuildContext context, String path) async {
+  final bytes = await File(path).readAsBytes();
+  if (!context.mounted) return null;
+  final cropped = await Navigator.of(context).push<Uint8List?>(
+    MaterialPageRoute(builder: (_) => _PhotoEditorScreen(bytes: bytes)),
+  );
+  if (cropped == null) return null; // cancelled
+  if (cropped.isEmpty) return path; // "use as is"
+  final dir = await getTemporaryDirectory();
+  final f = File(
+    '${dir.path}/crop_${DateTime.now().millisecondsSinceEpoch}.jpg',
+  );
+  await f.writeAsBytes(cropped);
+  return RecentPhotos.add(f.path);
+}
+
+class _PhotoEditorScreen extends StatefulWidget {
+  const _PhotoEditorScreen({required this.bytes});
+  final Uint8List bytes;
+
+  @override
+  State<_PhotoEditorScreen> createState() => _PhotoEditorScreenState();
+}
+
+class _PhotoEditorScreenState extends State<_PhotoEditorScreen> {
+  final _controller = CropController();
+  bool _cropping = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Frame the board'),
+        actions: [
+          TextButton(
+            onPressed: _cropping
+                ? null
+                : () => Navigator.pop(context, Uint8List(0)),
+            child: const Text('Use as is'),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: Crop(
+                image: widget.bytes,
+                controller: _controller,
+                interactive: true,
+                baseColor: Colors.black,
+                maskColor: Colors.black54,
+                onCropped: (result) {
+                  if (!mounted) return;
+                  switch (result) {
+                    case CropSuccess(:final croppedImage):
+                      Navigator.pop(context, croppedImage);
+                    case CropFailure():
+                      setState(() => _cropping = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Could not crop — using the '
+                            'full photo',
+                          ),
+                        ),
+                      );
+                      Navigator.pop(context, Uint8List(0));
+                  }
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Drag the corners tight around the board — '
+                      'pinch to zoom',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    icon: _cropping
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check),
+                    label: const Text('Detect'),
+                    onPressed: _cropping
+                        ? null
+                        : () {
+                            setState(() => _cropping = true);
+                            _controller.crop();
+                          },
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
