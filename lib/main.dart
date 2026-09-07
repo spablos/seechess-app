@@ -137,6 +137,20 @@ class _SeechessAppState extends State<SeechessApp> {
       title: 'Seechess',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
+      // web on a wide monitor: the phone-first layout would stretch the
+      // hero across the whole screen ("a huge logo and nothing else") —
+      // frame every screen at phone width instead
+      builder: kIsWeb
+          ? (context, child) => ColoredBox(
+              color: const Color(0xFF101210),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
+            )
+          : null,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF739552), // chess.com green

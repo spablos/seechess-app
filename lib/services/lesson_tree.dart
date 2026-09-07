@@ -37,6 +37,15 @@ class LessonTreeNode {
 
   bool get isLeaf => children.isEmpty;
 
+  /// Total plies from the root through the END of this segment.
+  int get endPly => startPly + sans.length;
+
+  /// Longest lesson line under (and including) this node, in plies —
+  /// "steps left" below a node is deepestPly - endPly.
+  int get deepestPly => children.isEmpty
+      ? endPly
+      : children.map((c) => c.deepestPly).reduce((a, b) => a > b ? a : b);
+
   /// "1.e4 e5 2.Nf3"-style label for the segment.
   String get label {
     final b = StringBuffer();
@@ -162,4 +171,74 @@ List<LessonTreeNode> _collapse(_Trie node, int ply) {
   // busiest branches first — the mainstream trunk tops the list
   out.sort((a, b) => b.lessonCount.compareTo(a.lessonCount));
   return out;
+}
+
+/// Compact opening book: SAN prefix -> conventional name. Longest match
+/// wins; a node shows the name only when the name is *reached* inside its
+/// own segment (an ancestor's name repeating down the tree is noise).
+const Map<String, String> _openingNames = {
+  'e4': "King's Pawn",
+  'e4 e5': 'Open Game',
+  'e4 e5 Nf3 Nc6 Bb5': 'Ruy Lopez',
+  'e4 e5 Nf3 Nc6 Bb5 a6': 'Ruy Lopez, Morphy Defense',
+  'e4 e5 Nf3 Nc6 Bc4': 'Italian Game',
+  'e4 e5 Nf3 Nc6 Bc4 Bc5': 'Giuoco Piano',
+  'e4 e5 Nf3 Nc6 Bc4 Nf6': 'Two Knights Defense',
+  'e4 e5 Nf3 Nc6 Bc4 Nf6 Ng5': 'Fried Liver territory',
+  'e4 e5 Nf3 Nc6 d4': 'Scotch Game',
+  'e4 e5 Nf3 Nf6': "Petrov's Defense",
+  'e4 e5 Nf3 Nf6 Nxe5 Nc6': 'Stafford Gambit',
+  'e4 e5 Nf3 d6': 'Philidor Defense',
+  'e4 e5 f4': "King's Gambit",
+  'e4 e5 Nc3': 'Vienna Game',
+  'e4 e5 Bc4': "Bishop's Opening",
+  'e4 e5 Qh5': 'Wayward Queen (Scholar\'s mate try)',
+  'e4 c5': 'Sicilian Defense',
+  'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6': 'Sicilian Najdorf',
+  'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6': 'Sicilian Dragon',
+  'e4 e6': 'French Defense',
+  'e4 c6': 'Caro-Kann Defense',
+  'e4 d6': 'Pirc Defense',
+  'e4 d5': 'Scandinavian Defense',
+  'e4 Nf6': "Alekhine's Defense",
+  'd4': "Queen's Pawn",
+  'd4 d5 c4': "Queen's Gambit",
+  'd4 d5 c4 e6': "Queen's Gambit Declined",
+  'd4 d5 c4 dxc4': "Queen's Gambit Accepted",
+  'd4 d5 c4 c6': 'Slav Defense',
+  'd4 d5 Bf4': 'London System',
+  'd4 d5 Nf3 Nf6 Bf4': 'London System',
+  'd4 d5 e4': 'Blackmar-Diemer Gambit',
+  'd4 Nf6 c4 g6': "King's Indian / Grünfeld complex",
+  'd4 Nf6 c4 e6 Nc3 Bb4': 'Nimzo-Indian Defense',
+  'd4 e5': 'Englund Gambit',
+  'c4': 'English Opening',
+  'Nf3': 'Réti Opening',
+  'Nc3': 'Van Geet Opening',
+  'f4': "Bird's Opening",
+  'b4': 'Polish (Orangutan)',
+};
+
+/// Name for the line ending at [endPly] along [fullPath], but only when
+/// the naming move falls after [afterPly] (inside the current segment).
+String? openingNameFor(List<String> fullPath, {int afterPly = -1}) {
+  String? best;
+  var bestLen = -1;
+  for (final e in _openingNames.entries) {
+    final seq = e.key.split(' ');
+    if (seq.length <= afterPly || seq.length > fullPath.length) continue;
+    if (seq.length <= bestLen) continue;
+    var match = true;
+    for (var i = 0; i < seq.length; i++) {
+      if (fullPath[i] != seq[i]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      best = e.value;
+      bestLen = seq.length;
+    }
+  }
+  return best;
 }

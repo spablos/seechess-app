@@ -282,36 +282,29 @@ class _TreeView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final forest = buildLessonForest(lessons);
-    Widget header(String text) => Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 4),
-      child: Text(
-        text,
-        style: theme.textTheme.titleSmall?.copyWith(
-          color: theme.colorScheme.primary,
-        ),
-      ),
-    );
     return ListView(
       children: [
-        header('Playing as White'),
-        for (final node in forest['w']!.roots)
-          _TreeNodeTile(
-            node: node,
-            side: 'w',
-            depth: 0,
-            path: const [],
-            onOpenLesson: onOpenLesson,
-            onOpenTrunk: onOpenTrunk,
-          ),
-        header('Playing as Black'),
-        for (final node in forest['b']!.roots)
-          _TreeNodeTile(
-            node: node,
-            side: 'b',
-            depth: 0,
-            path: const [],
-            onOpenLesson: onOpenLesson,
-            onOpenTrunk: onOpenTrunk,
+        for (final side in const ['w', 'b'])
+          ExpansionTile(
+            initiallyExpanded: true,
+            shape: const Border(),
+            title: Text(
+              side == 'w' ? 'Playing as White' : 'Playing as Black',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            children: [
+              for (final node in forest[side]!.roots)
+                _TreeNodeTile(
+                  node: node,
+                  side: side,
+                  depth: 0,
+                  path: const [],
+                  onOpenLesson: onOpenLesson,
+                  onOpenTrunk: onOpenTrunk,
+                ),
+            ],
           ),
         const SizedBox(height: 24),
       ],
@@ -352,6 +345,20 @@ class _TreeNodeTileState extends State<_TreeNodeTile> {
     final fullPath = [...widget.path, ...node.sans];
     final shared = node.lessonCount > 1;
     final indent = 16.0 + widget.depth * 18.0;
+    final name = openingNameFor(fullPath, afterPly: node.startPly);
+    final left = node.deepestPly - node.endPly;
+    // terse, affordance-first: 🎓 lessons · ⛓ common steps · ⋯ steps left
+    Widget count(IconData icon, int n, String tip) => Tooltip(
+      message: tip,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: theme.colorScheme.outline),
+          const SizedBox(width: 2),
+          Text('$n', style: theme.textTheme.labelSmall),
+        ],
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -365,13 +372,41 @@ class _TreeNodeTileState extends State<_TreeNodeTile> {
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline,
           ),
-          title: Text(
-            node.label,
-            style: const TextStyle(fontFamily: 'monospace', fontSize: 13.5),
+          title: name != null
+              ? Text(name)
+              : Text(
+                  node.label,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13.5,
+                  ),
+                ),
+          subtitle: Row(
+            children: [
+              if (shared) ...[
+                count(Icons.school, node.lessonCount, 'lessons'),
+                const SizedBox(width: 10),
+              ],
+              count(Icons.link, node.endPly, 'common steps'),
+              if (left > 0) ...[
+                const SizedBox(width: 10),
+                count(Icons.more_horiz, left, 'steps below'),
+              ],
+              if (name != null) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    node.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      fontFamily: 'monospace',
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-          subtitle: shared
-              ? Text('${node.lessonCount} lessons share these moves')
-              : null,
           trailing: node.isLeaf && node.lessonsEndingHere.length <= 1
               ? null
               : IconButton(
