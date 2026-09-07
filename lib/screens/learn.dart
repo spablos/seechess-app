@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/lesson_tree.dart';
 import '../services/lessons.dart';
 import '../services/stats.dart';
 import '../services/pgn.dart';
@@ -20,6 +21,7 @@ class LearnScreen extends StatefulWidget {
 
 class _LearnScreenState extends State<LearnScreen> {
   List<Lesson>? _lessons;
+  bool _treeView = false;
 
   @override
   void initState() {
@@ -37,7 +39,7 @@ class _LearnScreenState extends State<LearnScreen> {
     }
   }
 
-  void _open(Lesson lesson) {
+  void _open(Lesson lesson, {int initialPly = 0}) {
     final PgnReplay replay;
     try {
       replay = lesson.replay();
@@ -54,10 +56,61 @@ class _LearnScreenState extends State<LearnScreen> {
           fen: replay.game.startFen,
           movesUci: replay.uci,
           editable: true,
-          initialPly: 0,
+          initialPly: initialPly,
           initialFlipped: lesson.side == 'b',
           title: lesson.title,
           comments: replay.game.comments,
+          lessonId: lesson.id,
+          treeLessons: _lessons,
+        ),
+      ),
+    );
+  }
+
+  /// Open a shared-trunk segment: the moves every lesson below the node
+  /// has in common, annotated with the remarks of one lesson that passes
+  /// through (the busiest one available).
+  void _openTrunk(List<String> pathSans, String side) {
+    final all = _lessons ?? const <Lesson>[];
+    Lesson? host;
+    Map<int, String> comments = const {};
+    for (final l in all.where((l) => l.side == side)) {
+      try {
+        final game = parsePgn(l.pgn);
+        if (game.sanMoves.length >= pathSans.length &&
+            List.generate(pathSans.length, (i) => game.sanMoves[i]).join(' ') ==
+                pathSans.join(' ')) {
+          host = l;
+          comments = {
+            for (final e in game.comments.entries)
+              if (e.key <= pathSans.length) e.key: e.value,
+          };
+          break;
+        }
+      } on FormatException {
+        continue;
+      }
+    }
+    final PgnReplay replay;
+    try {
+      replay = replayPgn(
+        PgnGame(headers: const {}, sanMoves: pathSans, comments: comments),
+      );
+    } catch (_) {
+      return;
+    }
+    unawaited(AppStats.count('lesson_open'));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AnalysisScreen(
+          movesUci: replay.uci,
+          editable: true,
+          initialPly: 0,
+          initialFlipped: side == 'b',
+          title: 'Shared line — ${host?.title ?? 'openings'}',
+          comments: comments,
+          lessonId: host?.id,
+          treeLessons: all,
         ),
       ),
     );
@@ -73,9 +126,26 @@ class _LearnScreenState extends State<LearnScreen> {
       if (!categories.contains(l.category)) categories.add(l.category);
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Learn')),
+      appBar: AppBar(
+        title: const Text('Learn'),
+        actions: [
+          IconButton(
+            tooltip: _treeView ? 'List view' : 'Tree view',
+            isSelected: _treeView,
+            icon: const Icon(Icons.account_tree_outlined),
+            selectedIcon: const Icon(Icons.account_tree),
+            onPressed: () => setState(() => _treeView = !_treeView),
+          ),
+        ],
+      ),
       body: lessons == null
           ? const Center(child: CircularProgressIndicator())
+          : _treeView
+          ? _TreeView(
+              lessons: lessons,
+              onOpenLesson: _open,
+              onOpenTrunk: _openTrunk,
+            )
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
@@ -125,6 +195,153 @@ class _LearnScreenState extends State<LearnScreen> {
                 ],
               ),
             ),
+    );
+  }
+}
+
+/// The library as two tries — the ecosystem view. Shared move runs are one
+/// row; forks indent below it. Tapping a shared segment replays exactly the
+/// common moves; tapping a lesson leaf opens the full lesson.
+class _TreeView extends StatelessWidget {
+  const _TreeView({
+    required this.lessons,
+    required this.onOpenLesson,
+    required this.onOpenTrunk,
+  });
+
+  final List<Lesson> lessons;
+  final void Function(Lesson, {int initialPly}) onOpenLesson;
+  final void Function(List<String> pathSans, String side) onOpenTrunk;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final forest = buildLessonForest(lessons);
+    Widget header(String text) => Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 4),
+      child: Text(
+        text,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
+        ),
+      ),
+    );
+    return ListView(
+      children: [
+        header('Playing as White'),
+        for (final node in forest['w']!.roots)
+          _TreeNodeTile(
+            node: node,
+            side: 'w',
+            depth: 0,
+            path: const [],
+            onOpenLesson: onOpenLesson,
+            onOpenTrunk: onOpenTrunk,
+          ),
+        header('Playing as Black'),
+        for (final node in forest['b']!.roots)
+          _TreeNodeTile(
+            node: node,
+            side: 'b',
+            depth: 0,
+            path: const [],
+            onOpenLesson: onOpenLesson,
+            onOpenTrunk: onOpenTrunk,
+          ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+class _TreeNodeTile extends StatefulWidget {
+  const _TreeNodeTile({
+    required this.node,
+    required this.side,
+    required this.depth,
+    required this.path,
+    required this.onOpenLesson,
+    required this.onOpenTrunk,
+  });
+
+  final LessonTreeNode node;
+  final String side;
+  final int depth;
+
+  /// SAN moves leading up to (excluding) this node.
+  final List<String> path;
+  final void Function(Lesson, {int initialPly}) onOpenLesson;
+  final void Function(List<String> pathSans, String side) onOpenTrunk;
+
+  @override
+  State<_TreeNodeTile> createState() => _TreeNodeTileState();
+}
+
+class _TreeNodeTileState extends State<_TreeNodeTile> {
+  late bool _expanded = widget.depth < 2; // trunk open, deep forks folded
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final node = widget.node;
+    final fullPath = [...widget.path, ...node.sans];
+    final shared = node.lessonCount > 1;
+    final indent = 16.0 + widget.depth * 18.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.only(left: indent, right: 8),
+          dense: true,
+          leading: Icon(
+            shared ? Icons.alt_route : Icons.trending_flat,
+            size: 18,
+            color: shared
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
+          ),
+          title: Text(
+            node.label,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13.5),
+          ),
+          subtitle: shared
+              ? Text('${node.lessonCount} lessons share these moves')
+              : null,
+          trailing: node.isLeaf && node.lessonsEndingHere.length <= 1
+              ? null
+              : IconButton(
+                  icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+                  onPressed: () => setState(() => _expanded = !_expanded),
+                ),
+          onTap: () => widget.onOpenTrunk(fullPath, widget.side),
+        ),
+        if (_expanded) ...[
+          for (final lesson in node.lessonsEndingHere)
+            ListTile(
+              contentPadding: EdgeInsets.only(left: indent + 18, right: 8),
+              dense: true,
+              leading: Icon(
+                Icons.school,
+                size: 18,
+                color: theme.colorScheme.secondary,
+              ),
+              title: Text(lesson.title),
+              subtitle: lesson.author != null
+                  ? Text('by ${lesson.author}')
+                  : null,
+              onTap: () => widget.onOpenLesson(lesson),
+            ),
+          for (final child in node.children)
+            _TreeNodeTile(
+              node: child,
+              side: widget.side,
+              depth: widget.depth + 1,
+              path: fullPath,
+              onOpenLesson: widget.onOpenLesson,
+              onOpenTrunk: widget.onOpenTrunk,
+            ),
+        ],
+      ],
     );
   }
 }

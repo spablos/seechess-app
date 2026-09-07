@@ -10,6 +10,7 @@ import '../engine/engine.dart';
 import '../engine/stockfish_engine.dart';
 import '../models/game_state.dart';
 import '../models/setup_state.dart';
+import '../services/lesson_tree.dart';
 import '../services/lessons.dart';
 import '../services/pgn.dart';
 import '../services/saved_games.dart';
@@ -48,6 +49,8 @@ class AnalysisScreen extends StatefulWidget {
     this.title,
     this.comments = const {},
     this.importDraft,
+    this.lessonId,
+    this.treeLessons,
   });
 
   final String? fen;
@@ -86,6 +89,13 @@ class AnalysisScreen extends StatefulWidget {
   /// Prefilled unsaved entry for imports: Save as starts from its name and
   /// metadata (players, result, source link, labels) instead of blanks.
   final SavedGame? importDraft;
+
+  /// Lesson-tree context: when set, forks are computed from [treeLessons]
+  /// — at a ply where sibling lessons share every move so far and continue
+  /// differently, the board offers them as one-tap switches ("decide which
+  /// path to take from within the board").
+  final String? lessonId;
+  final List<Lesson>? treeLessons;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
@@ -596,6 +606,50 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
   }
 
+  /// ply -> sibling lessons forking away there (empty when no tree context).
+  late final Map<int, List<Lesson>> _forks = _computeForks();
+
+  Map<int, List<Lesson>> _computeForks() {
+    final id = widget.lessonId;
+    final all = widget.treeLessons;
+    if (id == null || all == null) return const {};
+    final forest = buildLessonForest(all);
+    final side = all.firstWhere((l) => l.id == id).side;
+    final tree = forest[side]!;
+    final line = tree.byId[id];
+    if (line == null) return const {};
+    final out = <int, List<Lesson>>{};
+    for (var ply = 0; ply <= line.length; ply++) {
+      final alts = tree.branchesAt(id, ply, all);
+      if (alts.isNotEmpty) out[ply] = alts;
+    }
+    return out;
+  }
+
+  void _openBranch(Lesson lesson, int ply) {
+    final PgnReplay replay;
+    try {
+      replay = lesson.replay();
+    } catch (_) {
+      return;
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => AnalysisScreen(
+          fen: replay.game.startFen,
+          movesUci: replay.uci,
+          editable: true,
+          initialPly: ply,
+          initialFlipped: lesson.side == 'b',
+          title: lesson.title,
+          comments: replay.game.comments,
+          lessonId: lesson.id,
+          treeLessons: widget.treeLessons,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_fenError != null) {
@@ -725,6 +779,39 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               onPlay: _playLine,
                             ),
                             _MoveList(game: game, onAnnotate: _editRemark),
+                            if (offLineStatus(
+                                      game.moves,
+                                      game.ply,
+                                      _original,
+                                    ) ==
+                                    null &&
+                                (_forks[game.ply] ?? const []).isNotEmpty)
+                              SizedBox(
+                                height: 40,
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  children: [
+                                    for (final alt in _forks[game.ply]!)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 6,
+                                        ),
+                                        child: ActionChip(
+                                          avatar: const Icon(
+                                            Icons.alt_route,
+                                            size: 16,
+                                          ),
+                                          label: Text(alt.title),
+                                          onPressed: () =>
+                                              _openBranch(alt, game.ply),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
                             if (offLineStatus(
                                       game.moves,
                                       game.ply,
