@@ -387,7 +387,6 @@ class _TreeNodeTileState extends State<_TreeNodeTile> {
     final shared = node.lessonCount > 1;
     final indent = 16.0 + widget.depth * 18.0;
     final name = openingNameFor(fullPath, afterPly: node.startPly);
-    final left = node.deepestPly - node.endPly;
     // terse, affordance-first: 🎓 lessons · ⛓ common steps · ⋯ steps left
     Widget count(IconData icon, int n, String tip) => Tooltip(
       message: tip,
@@ -432,10 +431,6 @@ class _TreeNodeTileState extends State<_TreeNodeTile> {
                   node.endPly,
                   'steps these ${node.lessonCount} lessons share',
                 ),
-                if (left > 0) ...[
-                  const SizedBox(width: 10),
-                  count(Icons.more_horiz, left, 'further steps below'),
-                ],
               ] else
                 count(Icons.straighten, node.endPly, 'moves in this line'),
               if (name != null) ...[
