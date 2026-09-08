@@ -137,15 +137,16 @@ class _SeechessAppState extends State<SeechessApp> {
       title: 'Seechess',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
-      // web on a wide monitor: the phone-first layout would stretch the
-      // hero across the whole screen ("a huge logo and nothing else") —
-      // frame every screen at phone width instead
+      // web: bound the canvas so the hero doesn't stretch across a whole
+      // monitor, but generously — desktop workflows (dragging the photo
+      // panel beside the board to compare) need real estate, not a phone
+      // frame (Pablo). Screens center their content within it.
       builder: kIsWeb
           ? (context, child) => ColoredBox(
               color: const Color(0xFF101210),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
+                  constraints: const BoxConstraints(maxWidth: 1280),
                   child: child ?? const SizedBox.shrink(),
                 ),
               ),

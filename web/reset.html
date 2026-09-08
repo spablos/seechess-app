@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seechess reset</title>
+<style>body{font-family:system-ui;background:#191a17;color:#e8e7e0;
+display:flex;flex-direction:column;align-items:center;justify-content:center;
+height:100vh;margin:0;gap:12px}</style></head><body>
+<h2>Resetting Seechess…</h2><p id="s">unregistering service workers</p>
+<script>
+(async () => {
+  const s = document.getElementById('s');
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const r of regs) await r.unregister();
+    s.textContent = 'clearing caches';
+    const keys = await caches.keys();
+    for (const k of keys) await caches.delete(k);
+    s.textContent = 'done — loading a fresh copy';
+  } catch (e) { s.textContent = 'reset hit a snag: ' + e; }
+  setTimeout(() => location.replace('/'), 800);
+})();
+</script></body></html>
