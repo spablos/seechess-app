@@ -127,6 +127,16 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   late String? _title = widget.title;
   late SavedGame? _importDraft = widget.importDraft;
 
+  /// Wide-window web: content stays readable while the surrounding Stack
+  /// spans the window (so the photo panel can float over the flanks).
+  Widget _capped(Widget child) => Align(
+    alignment: Alignment.topCenter,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 860),
+      child: child,
+    ),
+  );
+
   /// The original photo of the position, when there is one.
   String? get _photoPath {
     final path = widget.photoPath ?? _source?.photoPath;
@@ -716,7 +726,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           builder: (context, boxBounds) => Stack(
             children: [
               _setup != null
-                  ? _editor()
+                  ? _capped(_editor())
                   : AnimatedBuilder(
                       animation: Listenable.merge([game, engine]),
                       builder: (context, _) {
@@ -739,114 +749,117 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             : result.startsWith('0')
                             ? 0.0
                             : 0.5;
-                        return Column(
-                          children: [
-                            _EngineHeader(
-                              best: best,
-                              ready: engine.ready,
-                              result: result,
-                              whiteToMove: game.fen.split(' ')[1] == 'w',
-                              onLine: _original == null
-                                  ? null
-                                  : offLineStatus(
-                                          game.moves,
-                                          game.ply,
-                                          _original,
-                                        ) ==
-                                        null,
-                              onBackToGame: _backToGame,
-                            ),
-                            _EvalBar(share: share),
-                            _MaterialDiff(fen: game.fen),
-                            Expanded(
-                              child: Center(
-                                child: ChessBoard(
-                                  pieces: game.pieceMap(),
-                                  flipped: flipped,
-                                  lastMoveFrom: lastMove?.substring(0, 2),
-                                  lastMoveTo: lastMove?.substring(2, 4),
-                                  legalTargetsFor: game.legalTargets,
-                                  onMove: (from, to) => game.tryMove(from, to),
-                                  arrows: _coach && result == null
-                                      ? _coachArrows(lines)
-                                      : const [],
-                                ),
+                        return _capped(
+                          Column(
+                            children: [
+                              _EngineHeader(
+                                best: best,
+                                ready: engine.ready,
+                                result: result,
+                                whiteToMove: game.fen.split(' ')[1] == 'w',
+                                onLine: _original == null
+                                    ? null
+                                    : offLineStatus(
+                                            game.moves,
+                                            game.ply,
+                                            _original,
+                                          ) ==
+                                          null,
+                                onBackToGame: _backToGame,
                               ),
-                            ),
-                            _EngineLines(
-                              lines: lines,
-                              baseFen: game.fen,
-                              onPlay: _playLine,
-                            ),
-                            _MoveList(game: game, onAnnotate: _editRemark),
-                            if (offLineStatus(
-                                      game.moves,
-                                      game.ply,
-                                      _original,
-                                    ) ==
-                                    null &&
-                                (_forks[game.ply] ?? const []).isNotEmpty)
-                              SizedBox(
-                                height: 40,
-                                child: ListView(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
+                              _EvalBar(share: share),
+                              _MaterialDiff(fen: game.fen),
+                              Expanded(
+                                child: Center(
+                                  child: ChessBoard(
+                                    pieces: game.pieceMap(),
+                                    flipped: flipped,
+                                    lastMoveFrom: lastMove?.substring(0, 2),
+                                    lastMoveTo: lastMove?.substring(2, 4),
+                                    legalTargetsFor: game.legalTargets,
+                                    onMove: (from, to) =>
+                                        game.tryMove(from, to),
+                                    arrows: _coach && result == null
+                                        ? _coachArrows(lines)
+                                        : const [],
                                   ),
-                                  children: [
-                                    for (final alt in _forks[game.ply]!)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          right: 6,
-                                        ),
-                                        child: ActionChip(
-                                          avatar: const Icon(
-                                            Icons.alt_route,
-                                            size: 16,
+                                ),
+                              ),
+                              _EngineLines(
+                                lines: lines,
+                                baseFen: game.fen,
+                                onPlay: _playLine,
+                              ),
+                              _MoveList(game: game, onAnnotate: _editRemark),
+                              if (offLineStatus(
+                                        game.moves,
+                                        game.ply,
+                                        _original,
+                                      ) ==
+                                      null &&
+                                  (_forks[game.ply] ?? const []).isNotEmpty)
+                                SizedBox(
+                                  height: 40,
+                                  child: ListView(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    children: [
+                                      for (final alt in _forks[game.ply]!)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            right: 6,
                                           ),
-                                          label: Text(alt.title),
-                                          onPressed: () =>
-                                              _openBranch(alt, game.ply),
+                                          child: ActionChip(
+                                            avatar: const Icon(
+                                              Icons.alt_route,
+                                              size: 16,
+                                            ),
+                                            label: Text(alt.title),
+                                            onPressed: () =>
+                                                _openBranch(alt, game.ply),
+                                          ),
                                         ),
-                                      ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
+                              if (offLineStatus(
+                                        game.moves,
+                                        game.ply,
+                                        _original,
+                                      ) ==
+                                      null &&
+                                  _comments[game.ply] != null)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    0,
+                                    12,
+                                    4,
+                                  ),
+                                  child: Text(
+                                    _comments[game.ply]!,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(
+                                          fontStyle: FontStyle.italic,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                    maxLines: 3,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              _actionStrip(),
+                              _Controls(
+                                game: game,
+                                onBestMove: lines.isEmpty
+                                    ? null
+                                    : () => _playLine(lines.first, 1),
                               ),
-                            if (offLineStatus(
-                                      game.moves,
-                                      game.ply,
-                                      _original,
-                                    ) ==
-                                    null &&
-                                _comments[game.ply] != null)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  0,
-                                  12,
-                                  4,
-                                ),
-                                child: Text(
-                                  _comments[game.ply]!,
-                                  style: Theme.of(context).textTheme.bodySmall
-                                      ?.copyWith(
-                                        fontStyle: FontStyle.italic,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                      ),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            _actionStrip(),
-                            _Controls(
-                              game: game,
-                              onBestMove: lines.isEmpty
-                                  ? null
-                                  : () => _playLine(lines.first, 1),
-                            ),
-                          ],
+                            ],
+                          ),
                         );
                       },
                     ),

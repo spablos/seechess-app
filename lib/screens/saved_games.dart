@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../services/photo_bytes.dart';
@@ -160,86 +159,89 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
           ),
         ],
       ),
-      body: games == null
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: TextField(
-                    controller: _search,
-                    decoration: InputDecoration(
-                      hintText: 'Search names and labels',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _search.text.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: _search.clear,
-                            ),
-                      isDense: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+      body: _webCap(
+        games == null
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: TextField(
+                      controller: _search,
+                      decoration: InputDecoration(
+                        hintText: 'Search names and labels',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _search.text.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: _search.clear,
+                              ),
+                        isDense: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (_allLabels.isNotEmpty)
-                  SizedBox(
-                    height: 40,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 7,
-                      ),
-                      children: [
-                        for (final label in _allLabels)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            // same visual language as the labels on the
-                            // rows below — a filter is just one of those,
-                            // lit up
-                            child: _LabelChip(
-                              label,
-                              selected: _labelFilter == label,
-                              onTap: () => setState(
-                                () => _labelFilter = _labelFilter == label
-                                    ? null
-                                    : label,
+                  if (_allLabels.isNotEmpty)
+                    SizedBox(
+                      height: 40,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 7,
+                        ),
+                        children: [
+                          for (final label in _allLabels)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              // same visual language as the labels on the
+                              // rows below — a filter is just one of those,
+                              // lit up
+                              child: _LabelChip(
+                                label,
+                                selected: _labelFilter == label,
+                                onTap: () => setState(
+                                  () => _labelFilter = _labelFilter == label
+                                      ? null
+                                      : label,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
+                  if (games!.isNotEmpty) _tableHeader(theme),
+                  Expanded(
+                    child: games!.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Your library is empty.\nConfirm a detected '
+                              'board or save a position — everything you '
+                              'confirm lands here automatically.',
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          )
+                        : _visible.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No matches.',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _visible.length,
+                            itemBuilder: (context, i) =>
+                                _entry(theme, _visible[i]),
+                          ),
                   ),
-                if (games!.isNotEmpty) _tableHeader(theme),
-                Expanded(
-                  child: games!.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Your library is empty.\nConfirm a detected '
-                            'board or save a position — everything you '
-                            'confirm lands here automatically.',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        )
-                      : _visible.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No matches.',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: _visible.length,
-                          itemBuilder: (context, i) =>
-                              _entry(theme, _visible[i]),
-                        ),
-                ),
-              ],
-            ),
+                ],
+              ),
+        width: 960,
+      ),
     );
   }
 
@@ -446,3 +448,12 @@ class _LabelChip extends StatelessWidget {
     );
   }
 }
+
+/// Keep list content readable inside the full-window web canvas.
+Widget _webCap(Widget child, {double width = 760}) => Align(
+  alignment: Alignment.topCenter,
+  child: ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: width),
+    child: child,
+  ),
+);

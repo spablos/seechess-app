@@ -353,7 +353,13 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
         child: LayoutBuilder(
           builder: (context, bounds) => Stack(
             children: [
-              _editor(theme),
+              Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 860),
+                  child: _editor(theme),
+                ),
+              ),
               if (_photoVisible)
                 FloatingPhotoPanel(
                   photoPath: widget.photoPath,

@@ -414,307 +414,326 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: Text('Games on $_siteLabel')),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    // the controller doubles as a ValueListenable, so the
-                    // clear button appears/disappears with the text without
-                    // waiting for the debounced _onTyped setState
-                    child: ValueListenableBuilder<TextEditingValue>(
-                      valueListenable: _user,
-                      builder: (context, value, _) => TextField(
-                        controller: _user,
-                        autocorrect: false,
-                        textInputAction: TextInputAction.search,
-                        onChanged: _onTyped,
-                        onSubmitted: (v) => _fetchFromField(),
-                        decoration: InputDecoration(
-                          labelText:
-                              'Username(s) on $_siteLabel — comma for several',
-                          border: const OutlineInputBorder(),
-                          isDense: true,
-                          suffixIcon: value.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  icon: const Icon(Icons.clear, size: 18),
-                                  tooltip: 'Clear',
-                                  onPressed: () {
-                                    _user.clear();
-                                    _onTyped('');
+      body: _webCap(
+        SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      // the controller doubles as a ValueListenable, so the
+                      // clear button appears/disappears with the text without
+                      // waiting for the debounced _onTyped setState
+                      child: ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _user,
+                        builder: (context, value, _) => TextField(
+                          controller: _user,
+                          autocorrect: false,
+                          textInputAction: TextInputAction.search,
+                          onChanged: _onTyped,
+                          onSubmitted: (v) => _fetchFromField(),
+                          decoration: InputDecoration(
+                            labelText:
+                                'Username(s) on $_siteLabel — comma for several',
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            suffixIcon: value.text.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    tooltip: 'Clear',
+                                    onPressed: () {
+                                      _user.clear();
+                                      _onTyped('');
+                                    },
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      onPressed: _loading ? null : _fetchFromField,
+                      child: const Text('Fetch'),
+                    ),
+                  ],
+                ),
+              ),
+              if (_suggestions.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final name in _suggestions)
+                          ActionChip(
+                            label: Text(name),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => _pickSuggestion(name),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (widget.site == 'chesscom' &&
+                  _checkedToken.isNotEmpty &&
+                  _checkedToken == _lastToken &&
+                  _tokenExists != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _tokenExists! ? Icons.check_circle : Icons.cancel,
+                        size: 16,
+                        color: _tokenExists!
+                            ? Colors.green
+                            : theme.colorScheme.error,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _tokenExists!
+                            ? '"$_checkedToken" exists'
+                            : 'no user "$_checkedToken" on chess.com',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              if (_saved.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final u in _saved)
+                          InputChip(
+                            label: Text(u),
+                            selected: _activeUsers
+                                .map((x) => x.toLowerCase())
+                                .contains(u.toLowerCase()),
+                            onPressed: _loading
+                                ? null
+                                : () {
+                                    final set = List.of(_activeUsers);
+                                    final hit = set.indexWhere(
+                                      (x) => x.toLowerCase() == u.toLowerCase(),
+                                    );
+                                    if (hit >= 0) {
+                                      set.removeAt(hit);
+                                    } else {
+                                      set.add(u);
+                                    }
+                                    _user.text = set.join(', ');
+                                    if (set.isNotEmpty) _load(set);
                                   },
-                                ),
-                        ),
-                      ),
+                            onDeleted: () async {
+                              await _accounts.remove('${widget.site}:$u');
+                              unawaited(_loadAccounts());
+                            },
+                          ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: _loading ? null : _fetchFromField,
-                    child: const Text('Fetch'),
-                  ),
-                ],
-              ),
-            ),
-            if (_suggestions.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                ),
+              if (_games.isNotEmpty ||
+                  _resultFilter != 'all' ||
+                  _minOppRating > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Row(
                     children: [
-                      for (final name in _suggestions)
-                        ActionChip(
-                          label: Text(name),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'all', label: Text('All')),
+                          ButtonSegment(value: 'won', label: Text('Won')),
+                          ButtonSegment(value: 'lost', label: Text('Lost')),
+                          ButtonSegment(value: 'draw', label: Text('½')),
+                        ],
+                        selected: {_resultFilter},
+                        showSelectedIcon: false,
+                        style: const ButtonStyle(
                           visualDensity: VisualDensity.compact,
-                          onPressed: () => _pickSuggestion(name),
                         ),
+                        onSelectionChanged: (sel) =>
+                            setState(() => _resultFilter = sel.first),
+                      ),
+                      const Spacer(),
+                      if (_activeUsers.length >= 2)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: const Text('Head-to-head'),
+                            selected: _headToHead,
+                            onSelected: (v) => setState(() => _headToHead = v),
+                          ),
+                        ),
+                      PopupMenuButton<String>(
+                        tooltip: 'Time control',
+                        initialValue: _timeClass,
+                        onSelected: (v) => setState(() => _timeClass = v),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: '',
+                            child: Text('Any pace'),
+                          ),
+                          for (final tc in [
+                            'bullet',
+                            'blitz',
+                            'rapid',
+                            'daily',
+                            'classical',
+                            'correspondence',
+                          ])
+                            PopupMenuItem(value: tc, child: Text(tc)),
+                        ],
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _timeClass.isNotEmpty
+                                ? theme.colorScheme.primaryContainer
+                                : theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _timeClass.isEmpty ? 'Any pace' : _timeClass,
+                            style: theme.textTheme.labelMedium,
+                          ),
+                        ),
+                      ),
+                      PopupMenuButton<int>(
+                        tooltip: 'Minimum opponent rating',
+                        initialValue: _minOppRating,
+                        onSelected: (v) => setState(() => _minOppRating = v),
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 0,
+                            child: Text('Any rating'),
+                          ),
+                          for (final r in [
+                            1000,
+                            1200,
+                            1400,
+                            1600,
+                            1800,
+                            2000,
+                            2200,
+                          ])
+                            PopupMenuItem(value: r, child: Text('Opp ≥ $r')),
+                        ],
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _minOppRating > 0
+                                ? theme.colorScheme.primaryContainer
+                                : theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _minOppRating > 0
+                                ? 'Opp ≥ $_minOppRating'
+                                : 'Any rating',
+                            style: theme.textTheme.labelMedium,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
-            if (widget.site == 'chesscom' &&
-                _checkedToken.isNotEmpty &&
-                _checkedToken == _lastToken &&
-                _tokenExists != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-                child: Row(
-                  children: [
-                    Icon(
-                      _tokenExists! ? Icons.check_circle : Icons.cancel,
-                      size: 16,
-                      color: _tokenExists!
-                          ? Colors.green
-                          : theme.colorScheme.error,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _tokenExists!
-                          ? '"$_checkedToken" exists'
-                          : 'no user "$_checkedToken" on chess.com',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-            if (_saved.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 6,
-                    children: [
-                      for (final u in _saved)
-                        InputChip(
-                          label: Text(u),
-                          selected: _activeUsers
-                              .map((x) => x.toLowerCase())
-                              .contains(u.toLowerCase()),
-                          onPressed: _loading
-                              ? null
-                              : () {
-                                  final set = List.of(_activeUsers);
-                                  final hit = set.indexWhere(
-                                    (x) => x.toLowerCase() == u.toLowerCase(),
-                                  );
-                                  if (hit >= 0) {
-                                    set.removeAt(hit);
-                                  } else {
-                                    set.add(u);
-                                  }
-                                  _user.text = set.join(', ');
-                                  if (set.isNotEmpty) _load(set);
-                                },
-                          onDeleted: () async {
-                            await _accounts.remove('${widget.site}:$u');
-                            unawaited(_loadAccounts());
-                          },
-                        ),
-                    ],
+              if (_loading) const LinearProgressIndicator(minHeight: 2),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    _error!,
+                    style: TextStyle(color: theme.colorScheme.error),
                   ),
                 ),
-              ),
-            if (_games.isNotEmpty ||
-                _resultFilter != 'all' ||
-                _minOppRating > 0)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Row(
-                  children: [
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'all', label: Text('All')),
-                        ButtonSegment(value: 'won', label: Text('Won')),
-                        ButtonSegment(value: 'lost', label: Text('Lost')),
-                        ButtonSegment(value: 'draw', label: Text('½')),
-                      ],
-                      selected: {_resultFilter},
-                      showSelectedIcon: false,
-                      style: const ButtonStyle(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      onSelectionChanged: (sel) =>
-                          setState(() => _resultFilter = sel.first),
-                    ),
-                    const Spacer(),
-                    if (_activeUsers.length >= 2)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: const Text('Head-to-head'),
-                          selected: _headToHead,
-                          onSelected: (v) => setState(() => _headToHead = v),
-                        ),
-                      ),
-                    PopupMenuButton<String>(
-                      tooltip: 'Time control',
-                      initialValue: _timeClass,
-                      onSelected: (v) => setState(() => _timeClass = v),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(value: '', child: Text('Any pace')),
-                        for (final tc in [
-                          'bullet',
-                          'blitz',
-                          'rapid',
-                          'daily',
-                          'classical',
-                          'correspondence',
-                        ])
-                          PopupMenuItem(value: tc, child: Text(tc)),
-                      ],
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _timeClass.isNotEmpty
-                              ? theme.colorScheme.primaryContainer
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _timeClass.isEmpty ? 'Any pace' : _timeClass,
-                          style: theme.textTheme.labelMedium,
-                        ),
-                      ),
-                    ),
-                    PopupMenuButton<int>(
-                      tooltip: 'Minimum opponent rating',
-                      initialValue: _minOppRating,
-                      onSelected: (v) => setState(() => _minOppRating = v),
-                      itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 0,
-                          child: Text('Any rating'),
-                        ),
-                        for (final r in [
-                          1000,
-                          1200,
-                          1400,
-                          1600,
-                          1800,
-                          2000,
-                          2200,
-                        ])
-                          PopupMenuItem(value: r, child: Text('Opp ≥ $r')),
-                      ],
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _minOppRating > 0
-                              ? theme.colorScheme.primaryContainer
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _minOppRating > 0
-                              ? 'Opp ≥ $_minOppRating'
-                              : 'Any rating',
-                          style: theme.textTheme.labelMedium,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            if (_loading) const LinearProgressIndicator(minHeight: 2),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
-              ),
-            Expanded(
-              child: Builder(
-                builder: (context) {
-                  final shown = _games.where(_passesFilters).toList();
-                  return ListView.builder(
-                    itemCount: shown.length + (_hasOlder ? 1 : 0),
-                    itemBuilder: (context, i) {
-                      if (i == shown.length) {
-                        return TextButton(
-                          onPressed: _loading
-                              ? null
-                              : () async {
-                                  setState(() => _loading = true);
-                                  try {
-                                    await _loadOlderAll();
-                                  } catch (_) {}
-                                  if (mounted) {
-                                    setState(() => _loading = false);
-                                  }
-                                },
-                          child: const Text('Load older games'),
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    final shown = _games.where(_passesFilters).toList();
+                    return ListView.builder(
+                      itemCount: shown.length + (_hasOlder ? 1 : 0),
+                      itemBuilder: (context, i) {
+                        if (i == shown.length) {
+                          return TextButton(
+                            onPressed: _loading
+                                ? null
+                                : () async {
+                                    setState(() => _loading = true);
+                                    try {
+                                      await _loadOlderAll();
+                                    } catch (_) {}
+                                    if (mounted) {
+                                      setState(() => _loading = false);
+                                    }
+                                  },
+                            child: const Text('Load older games'),
+                          );
+                        }
+                        final g = shown[i];
+                        final mine = _mine(g);
+                        final won = mine
+                            ? g.result == '1-0'
+                            : g.result == '0-1';
+                        final lost = mine
+                            ? g.result == '0-1'
+                            : g.result == '1-0';
+                        final opp = _oppRating(g);
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            Icons.circle,
+                            size: 14,
+                            color: won
+                                ? Colors.green
+                                : lost
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.outline,
+                          ),
+                          title: Text('${g.white} – ${g.black}'),
+                          subtitle: Text(
+                            '${g.result} · ${g.timeClass}'
+                            '${opp != null ? ' · opp $opp' : ''} · '
+                            '${g.end.day}/${g.end.month}/${g.end.year}',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _open(g),
                         );
-                      }
-                      final g = shown[i];
-                      final mine = _mine(g);
-                      final won = mine ? g.result == '1-0' : g.result == '0-1';
-                      final lost = mine ? g.result == '0-1' : g.result == '1-0';
-                      final opp = _oppRating(g);
-                      return ListTile(
-                        dense: true,
-                        leading: Icon(
-                          Icons.circle,
-                          size: 14,
-                          color: won
-                              ? Colors.green
-                              : lost
-                              ? theme.colorScheme.error
-                              : theme.colorScheme.outline,
-                        ),
-                        title: Text('${g.white} – ${g.black}'),
-                        subtitle: Text(
-                          '${g.result} · ${g.timeClass}'
-                          '${opp != null ? ' · opp $opp' : ''} · '
-                          '${g.end.day}/${g.end.month}/${g.end.year}',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _open(g),
-                      );
-                    },
-                  );
-                },
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        width: 960,
       ),
     );
   }
 }
+
+/// Keep list content readable inside the full-window web canvas.
+Widget _webCap(Widget child, {double width = 760}) => Align(
+  alignment: Alignment.topCenter,
+  child: ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: width),
+    child: child,
+  ),
+);

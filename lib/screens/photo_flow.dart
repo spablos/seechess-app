@@ -318,166 +318,178 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Analyze a photo')),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Spacer(),
-              Icon(
-                Icons.photo_camera_outlined,
-                size: 96,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Photograph a chessboard\nand get instant analysis',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleLarge,
-              ),
-              const SizedBox(height: 32),
-              if (_busy)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 12),
-                        Text(_phase),
-                      ],
-                    ),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Spacer(),
+                  Icon(
+                    Icons.photo_camera_outlined,
+                    size: 96,
+                    color: theme.colorScheme.primary,
                   ),
-                )
-              else ...[
-                FilledButton.icon(
-                  icon: const Icon(Icons.photo_camera),
-                  label: const Text('Take a photo'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  onPressed: () => _pick(ImageSource.camera),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('Choose from library'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  onPressed: () => _pick(ImageSource.gallery),
-                ),
-                if (kIsWeb) ...[
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.content_paste),
-                    label: const Text('Paste image  (or Ctrl/Cmd+V)'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    onPressed: _busy ? null : _pasteImage,
-                  ),
-                ],
-                if (_recents.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Text(
-                        'Recently used',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                  Text(
+                    'Photograph a chessboard\nand get instant analysis',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 32),
+                  if (_busy)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          children: [
+                            const CircularProgressIndicator(),
+                            const SizedBox(height: 12),
+                            Text(_phase),
+                          ],
                         ),
                       ),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: _editingRecents ? 'Done' : 'Edit recents',
-                        visualDensity: VisualDensity.compact,
-                        icon: Icon(
-                          _editingRecents ? Icons.check : Icons.edit_outlined,
-                          size: 20,
-                        ),
-                        onPressed: () =>
-                            setState(() => _editingRecents = !_editingRecents),
+                    )
+                  else ...[
+                    FilledButton.icon(
+                      icon: const Icon(Icons.photo_camera),
+                      label: const Text('Take a photo'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                      IconButton(
-                        tooltip: 'Delete all recents',
-                        visualDensity: VisualDensity.compact,
-                        icon: const Icon(Icons.delete_sweep_outlined, size: 20),
-                        onPressed: _clearRecents,
+                      onPressed: () => _pick(ImageSource.camera),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Choose from library'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      onPressed: () => _pick(ImageSource.gallery),
+                    ),
+                    if (kIsWeb) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.content_paste),
+                        label: const Text('Paste image  (or Ctrl/Cmd+V)'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: _busy ? null : _pasteImage,
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 2),
-                  SizedBox(
-                    height: 72,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _recents.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 8),
-                      itemBuilder: (context, i) {
-                        final photo = _recents[i];
-                        return GestureDetector(
-                          onTap: _editingRecents
-                              ? () => _deleteRecent(photo)
-                              : () => _rerun(photo),
-                          onLongPress: () => _recentActions(photo),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 6,
-                                  right: 6,
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: SizedBox(
-                                    width: 64,
-                                    height: 64,
-                                    child: photoImage(
-                                      photo.path,
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              if (_editingRecents)
-                                Positioned(
-                                  top: 0,
-                                  right: 0,
-                                  child: Container(
-                                    width: 22,
-                                    height: 22,
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.error,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.close,
-                                      size: 16,
-                                      color: theme.colorScheme.onError,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                    if (_recents.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text(
+                            'Recently used',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        );
-                      },
+                          const Spacer(),
+                          IconButton(
+                            tooltip: _editingRecents ? 'Done' : 'Edit recents',
+                            visualDensity: VisualDensity.compact,
+                            icon: Icon(
+                              _editingRecents
+                                  ? Icons.check
+                                  : Icons.edit_outlined,
+                              size: 20,
+                            ),
+                            onPressed: () => setState(
+                              () => _editingRecents = !_editingRecents,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Delete all recents',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(
+                              Icons.delete_sweep_outlined,
+                              size: 20,
+                            ),
+                            onPressed: _clearRecents,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      SizedBox(
+                        height: 72,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _recents.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
+                          itemBuilder: (context, i) {
+                            final photo = _recents[i];
+                            return GestureDetector(
+                              onTap: _editingRecents
+                                  ? () => _deleteRecent(photo)
+                                  : () => _rerun(photo),
+                              onLongPress: () => _recentActions(photo),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: 6,
+                                      right: 6,
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: SizedBox(
+                                        width: 64,
+                                        height: 64,
+                                        child: photoImage(
+                                          photo.path,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_editingRecents)
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: Container(
+                                        width: 22,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.error,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: theme.colorScheme.onError,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
                     ),
-                  ),
+                  const Spacer(),
                 ],
-              ],
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(
-                    _error!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: theme.colorScheme.error),
-                  ),
-                ),
-              const Spacer(),
-            ],
+              ),
+            ),
           ),
         ),
       ),

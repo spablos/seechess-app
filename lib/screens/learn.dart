@@ -163,103 +163,106 @@ class _LearnScreenState extends State<LearnScreen> {
           ),
         ],
       ),
-      body: lessons == null
-          ? const Center(child: CircularProgressIndicator())
-          : _treeView
-          ? _TreeView(
-              lessons: lessons,
-              onOpenLesson: _open,
-              onOpenTrunk: _openTrunk,
-            )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                children: [
-                  if (_pending.isNotEmpty) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                      child: Text(
-                        'Pending review (admin)',
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: theme.colorScheme.error,
-                        ),
-                      ),
-                    ),
-                    for (final l in _pending)
-                      ListTile(
-                        leading: const Icon(Icons.pending_actions),
-                        title: Text(l.title),
-                        subtitle: Text('by ${l.author ?? 'anonymous'}'),
-                        onTap: () => _open(l),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: 'Approve',
-                              icon: const Icon(
-                                Icons.check_circle,
-                                color: Color(0xFF2E7D32),
-                              ),
-                              onPressed: () => _moderate(l, true),
-                            ),
-                            IconButton(
-                              tooltip: 'Reject',
-                              icon: const Icon(
-                                Icons.cancel,
-                                color: Color(0xFFC62828),
-                              ),
-                              onPressed: () => _moderate(l, false),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const Divider(),
-                  ],
-                  for (final cat in categories) ...[
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                      child: Text(
-                        cat,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    for (final l in lessons.where((l) => l.category == cat))
-                      ListTile(
-                        leading: Container(
-                          width: 34,
-                          height: 34,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: l.side == 'w'
-                                ? Colors.white
-                                : const Color(0xFF1E1E1E),
-                            border: Border.all(
-                              color: theme.colorScheme.outlineVariant,
-                            ),
-                          ),
-                          child: Icon(
-                            Icons.school,
-                            size: 18,
-                            color: l.side == 'w'
-                                ? Colors.black54
-                                : Colors.white70,
+      body: _webCap(
+        lessons == null
+            ? const Center(child: CircularProgressIndicator())
+            : _treeView
+            ? _TreeView(
+                lessons: lessons,
+                onOpenLesson: _open,
+                onOpenTrunk: _openTrunk,
+              )
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  children: [
+                    if (_pending.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                        child: Text(
+                          'Pending review (admin)',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: theme.colorScheme.error,
                           ),
                         ),
-                        title: Text(l.title),
-                        subtitle: l.author != null
-                            ? Text('by ${l.author}')
-                            : null,
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _open(l),
                       ),
+                      for (final l in _pending)
+                        ListTile(
+                          leading: const Icon(Icons.pending_actions),
+                          title: Text(l.title),
+                          subtitle: Text('by ${l.author ?? 'anonymous'}'),
+                          onTap: () => _open(l),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'Approve',
+                                icon: const Icon(
+                                  Icons.check_circle,
+                                  color: Color(0xFF2E7D32),
+                                ),
+                                onPressed: () => _moderate(l, true),
+                              ),
+                              IconButton(
+                                tooltip: 'Reject',
+                                icon: const Icon(
+                                  Icons.cancel,
+                                  color: Color(0xFFC62828),
+                                ),
+                                onPressed: () => _moderate(l, false),
+                              ),
+                            ],
+                          ),
+                        ),
+                      const Divider(),
+                    ],
+                    for (final cat in categories) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                        child: Text(
+                          cat,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      for (final l in lessons.where((l) => l.category == cat))
+                        ListTile(
+                          leading: Container(
+                            width: 34,
+                            height: 34,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: l.side == 'w'
+                                  ? Colors.white
+                                  : const Color(0xFF1E1E1E),
+                              border: Border.all(
+                                color: theme.colorScheme.outlineVariant,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.school,
+                              size: 18,
+                              color: l.side == 'w'
+                                  ? Colors.black54
+                                  : Colors.white70,
+                            ),
+                          ),
+                          title: Text(l.title),
+                          subtitle: l.author != null
+                              ? Text('by ${l.author}')
+                              : null,
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _open(l),
+                        ),
+                    ],
+                    const SizedBox(height: 24),
                   ],
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
-            ),
+        width: 760,
+      ),
     );
   }
 }
@@ -445,3 +448,12 @@ class _TreeNodeTileState extends State<_TreeNodeTile> {
     );
   }
 }
+
+/// Keep list content readable inside the full-window web canvas.
+Widget _webCap(Widget child, {double width = 760}) => Align(
+  alignment: Alignment.topCenter,
+  child: ConstrainedBox(
+    constraints: BoxConstraints(maxWidth: width),
+    child: child,
+  ),
+);
