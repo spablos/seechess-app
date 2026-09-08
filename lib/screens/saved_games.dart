@@ -1,7 +1,7 @@
-import 'package:universal_io/io.dart';
 
 import 'package:flutter/material.dart';
 
+import '../services/photo_bytes.dart';
 import '../services/saved_games.dart';
 import 'analysis.dart';
 import 'game_import.dart';
@@ -350,14 +350,13 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
           ),
           child: Row(
             children: [
-              game.photoPath != null && File(game.photoPath!).existsSync()
+              game.photoPath != null && photoExists(game.photoPath!)
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: Image.file(
-                        File(game.photoPath!),
+                      child: SizedBox(
                         width: 44,
                         height: 44,
-                        fit: BoxFit.cover,
+                        child: photoImage(game.photoPath!, fit: BoxFit.cover),
                       ),
                     )
                   : SizedBox(

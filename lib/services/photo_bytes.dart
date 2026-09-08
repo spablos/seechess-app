@@ -62,3 +62,15 @@ Widget photoImage(String path, {BoxFit? fit}) {
   }
   return Image.file(File(path), fit: fit);
 }
+
+/// Web-safe "does this photo still exist" — File.existsSync throws
+/// "_Namespace" on web (the gray-screen crash, Sep 2026).
+bool photoExists(String path) {
+  if (isWebPhoto(path)) return _webPhotos.containsKey(path);
+  if (kIsWeb) return false;
+  try {
+    return File(path).existsSync();
+  } catch (_) {
+    return false;
+  }
+}

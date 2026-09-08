@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:universal_io/io.dart';
 
 import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
@@ -12,6 +11,7 @@ import '../models/game_state.dart';
 import '../models/setup_state.dart';
 import '../services/lesson_tree.dart';
 import '../services/lessons.dart';
+import '../services/photo_bytes.dart';
 import '../services/pgn.dart';
 import '../services/saved_games.dart';
 import '../services/stats.dart';
@@ -130,7 +130,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// The original photo of the position, when there is one.
   String? get _photoPath {
     final path = widget.photoPath ?? _source?.photoPath;
-    return path != null && File(path).existsSync() ? path : null;
+    return path != null && photoExists(path) ? path : null;
   }
 
   /// The saved entry this board currently represents (follows an update or
