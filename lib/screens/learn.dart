@@ -33,6 +33,24 @@ class _LearnScreenState extends State<LearnScreen> {
   bool _sectionsExpanded = true;
   int _treeEpoch = 0;
 
+  /// Live search over everything a lesson is made of: title, author,
+  /// category, remarks and moves (a query like "e4" matches the PGN).
+  final _search = TextEditingController();
+  bool _searching = false;
+
+  List<Lesson> _filter(List<Lesson> all) {
+    final q = _search.text.trim().toLowerCase();
+    if (q.isEmpty) return all;
+    return [
+      for (final l in all)
+        if (l.title.toLowerCase().contains(q) ||
+            (l.author ?? '').toLowerCase().contains(q) ||
+            l.category.toLowerCase().contains(q) ||
+            l.pgn.toLowerCase().contains(q))
+          l,
+    ];
+  }
+
   @override
   void initState() {
     super.initState();
@@ -153,7 +171,8 @@ class _LearnScreenState extends State<LearnScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final lessons = _lessons;
+    final lessons = _lessons == null ? null : _filter(_lessons!);
+    final searchingActive = _search.text.trim().isNotEmpty;
     // stable order: curated categories first, community last
     final categories = <String>[];
     for (final l in lessons ?? <Lesson>[]) {
@@ -162,8 +181,26 @@ class _LearnScreenState extends State<LearnScreen> {
     return Scaffold(
       appBar: cappedAppBar(
         AppBar(
-          title: const Text('Learn'),
+          title: _searching
+              ? TextField(
+                  controller: _search,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Search lessons, text, moves (e.g. e4)…',
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                )
+              : const Text('Learn'),
           actions: [
+            IconButton(
+              tooltip: _searching ? 'Close search' : 'Search',
+              icon: Icon(_searching ? Icons.close : Icons.search),
+              onPressed: () => setState(() {
+                if (_searching) _search.clear();
+                _searching = !_searching;
+              }),
+            ),
             if (_treeView) ...[
               IconButton(
                 tooltip: 'Collapse all',
@@ -200,10 +237,10 @@ class _LearnScreenState extends State<LearnScreen> {
             ? const Center(child: CircularProgressIndicator())
             : _treeView
             ? LessonTreeView(
-                key: ValueKey(_treeEpoch),
+                key: ValueKey('$_treeEpoch|${_search.text}'),
                 lessons: lessons,
-                expanded: _treeExpanded,
-                sectionsExpanded: _sectionsExpanded,
+                expanded: _treeExpanded || searchingActive,
+                sectionsExpanded: _sectionsExpanded || searchingActive,
                 onOpenLesson: _open,
                 onOpenTrunk: _openTrunk,
               )
@@ -221,7 +258,7 @@ class _LearnScreenState extends State<LearnScreen> {
                           ),
                         ),
                       ),
-                      for (final l in _pending)
+                      for (final l in _filter(_pending))
                         ListTile(
                           leading: const Icon(Icons.pending_actions),
                           title: Text(l.title),
