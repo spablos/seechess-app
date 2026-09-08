@@ -167,7 +167,7 @@ class _LearnScreenState extends State<LearnScreen> {
             if (_treeView) ...[
               IconButton(
                 tooltip: 'Collapse all',
-                icon: const Icon(Icons.unfold_less_double),
+                icon: const Icon(Icons.compress),
                 onPressed: () => setState(() {
                   _treeExpanded = false;
                   _sectionsExpanded = false;
@@ -176,7 +176,7 @@ class _LearnScreenState extends State<LearnScreen> {
               ),
               IconButton(
                 tooltip: 'Expand all',
-                icon: const Icon(Icons.unfold_more_double),
+                icon: const Icon(Icons.expand),
                 onPressed: () => setState(() {
                   _treeExpanded = true;
                   _sectionsExpanded = true;
@@ -187,8 +187,8 @@ class _LearnScreenState extends State<LearnScreen> {
             IconButton(
               tooltip: _treeView ? 'List view' : 'Tree view',
               isSelected: _treeView,
-              icon: const Icon(Icons.lan_outlined),
-              selectedIcon: const Icon(Icons.lan),
+              icon: const Icon(Icons.park_outlined),
+              selectedIcon: const Icon(Icons.park),
               onPressed: () => setState(() => _treeView = !_treeView),
             ),
           ],

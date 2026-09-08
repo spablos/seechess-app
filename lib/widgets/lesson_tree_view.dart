@@ -124,6 +124,20 @@ class _NodeTileState extends State<_NodeTile> {
       ),
     );
 
+    // a line owned by exactly one lesson renders as ONE row — a trunk row
+    // plus a leaf repeating the same name read as duplication (Pablo)
+    if (!shared &&
+        node.children.isEmpty &&
+        node.lessonsEndingHere.length == 1) {
+      return _LeafTile(
+        lesson: node.lessonsEndingHere.first,
+        rails: widget.rails,
+        isLast: widget.isLast,
+        moves: node.endPly,
+        onOpen: widget.onOpenLesson,
+      );
+    }
+
     // children in connector order: lessons ending here, then sub-branches
     final kids = <Widget>[];
     final total = node.lessonsEndingHere.length + node.children.length;
@@ -132,7 +146,7 @@ class _NodeTileState extends State<_NodeTile> {
       kids.add(
         _LeafTile(
           lesson: lesson,
-          rails: [...widget.rails, if (!widget.isRoot) !widget.isLast],
+          rails: [...widget.rails, !widget.isLast],
           isLast: ++k == total,
           onOpen: widget.onOpenLesson,
         ),
@@ -143,7 +157,7 @@ class _NodeTileState extends State<_NodeTile> {
         _NodeTile(
           node: child,
           side: widget.side,
-          rails: [...widget.rails, if (!widget.isRoot) !widget.isLast],
+          rails: [...widget.rails, !widget.isLast],
           isLast: ++k == total,
           expanded: widget.expanded,
           path: fullPath,
@@ -163,15 +177,14 @@ class _NodeTileState extends State<_NodeTile> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(width: 16),
+                const SizedBox(width: 56),
                 for (final hasRail in widget.rails)
                   _RailCell(vertical: hasRail, color: railColor),
-                if (!widget.isRoot)
-                  _RailCell(
-                    elbow: true,
-                    vertical: !widget.isLast,
-                    color: railColor,
-                  ),
+                _RailCell(
+                  elbow: true,
+                  vertical: !widget.isLast,
+                  color: railColor,
+                ),
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Icon(
@@ -241,10 +254,14 @@ class _NodeTileState extends State<_NodeTile> {
                 ),
                 if (kids.isNotEmpty)
                   IconButton(
-                    icon: Icon(
-                      _open
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
+                    icon: AnimatedRotation(
+                      turns: _open ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 180),
+                      child: Icon(
+                        Icons.expand_circle_down_outlined,
+                        size: 20,
+                        color: theme.colorScheme.outline,
+                      ),
                     ),
                     onPressed: () => setState(() => _open = !_open),
                   ),
@@ -265,11 +282,13 @@ class _LeafTile extends StatelessWidget {
     required this.rails,
     required this.isLast,
     required this.onOpen,
+    this.moves,
   });
 
   final Lesson lesson;
   final List<bool> rails;
   final bool isLast;
+  final int? moves;
   final void Function(Lesson, {int initialPly}) onOpen;
 
   @override
@@ -282,7 +301,7 @@ class _LeafTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(width: 16),
+            const SizedBox(width: 56),
             for (final hasRail in rails)
               _RailCell(
                 vertical: hasRail,
@@ -307,13 +326,37 @@ class _LeafTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(lesson.title, overflow: TextOverflow.ellipsis),
-                  if (lesson.author != null)
-                    Text(
-                      'by ${lesson.author}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                      ),
-                    ),
+                  Row(
+                    children: [
+                      if (moves != null) ...[
+                        Icon(
+                          Icons.straighten,
+                          size: 12,
+                          color: theme.colorScheme.outline,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$moves',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.outline,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                      if (moves != null && lesson.author != null)
+                        const SizedBox(width: 10),
+                      if (lesson.author != null)
+                        Flexible(
+                          child: Text(
+                            'by ${lesson.author}',
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
