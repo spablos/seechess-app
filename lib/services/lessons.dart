@@ -4,6 +4,7 @@ import 'package:universal_io/io.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'pgn.dart';
@@ -66,23 +67,42 @@ class LessonStore {
   }
 
   /// Community lessons approved on the server; network refresh with a
-  /// disk-cache fallback so Learn works offline.
+  /// cache fallback so Learn works offline. The cache is a file on
+  /// mobile and SharedPreferences on web (no filesystem there — the
+  /// direct port threw and killed Learn's community list, Sep 2026).
   Future<List<Lesson>> community() async {
-    final f = await _cacheFile();
+    String? cached;
     try {
       final base = await RecognizerClient.savedUrl();
       final res = await http
           .get(Uri.parse('$base/v1/lessons'))
           .timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
-        await f.writeAsString(res.body);
+        cached = res.body;
+        if (kIsWeb) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('learn_community', res.body);
+        } else {
+          await (await _cacheFile()).writeAsString(res.body);
+        }
       }
     } catch (_) {
       // offline — fall through to the cache
     }
-    if (!await f.exists()) return [];
+    if (cached == null) {
+      try {
+        if (kIsWeb) {
+          final prefs = await SharedPreferences.getInstance();
+          cached = prefs.getString('learn_community');
+        } else {
+          final f = await _cacheFile();
+          if (await f.exists()) cached = await f.readAsString();
+        }
+      } catch (_) {}
+    }
+    if (cached == null) return [];
     try {
-      final list = jsonDecode(await f.readAsString()) as List;
+      final list = jsonDecode(cached) as List;
       final out = <Lesson>[];
       for (final j in list) {
         final lesson = Lesson.fromJson(
