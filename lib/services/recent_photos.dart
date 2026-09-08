@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:universal_io/io.dart';
 
+import 'photo_bytes.dart';
+
 import 'package:path_provider/path_provider.dart';
 
 /// Rolling cache of the last photos sent to recognition. iOS's photo picker
@@ -19,10 +21,22 @@ class RecentPhotos {
   }
 
   static Future<List<File>> list() async {
-    if (kIsWeb) return const [];
+    // web: pseudo-paths backed by localStorage via the photo registry —
+    // File here is only a path carrier, never touched as a file
+    if (kIsWeb) return [for (final k in restoreWebPhotoKeys()) File(k)];
     final files = (await _dir()).listSync().whereType<File>().toList()
       ..sort((a, b) => b.lastModifiedSync().compareTo(a.lastModifiedSync()));
     return files;
+  }
+
+  static Future<void> removeByPath(String path) async {
+    if (isWebPhoto(path)) {
+      removeWebPhoto(path);
+      return;
+    }
+    try {
+      await File(path).delete();
+    } catch (_) {}
   }
 
   /// Copy [sourcePath] into the cache and prune to the newest [_max].
@@ -52,12 +66,14 @@ class RecentPhotos {
   }
 
   static Future<void> remove(File f) async {
-    try {
-      await f.delete();
-    } catch (_) {}
+    await removeByPath(f.path);
   }
 
   static Future<void> clear() async {
+    if (kIsWeb) {
+      clearWebPhotos();
+      return;
+    }
     for (final f in await list()) {
       await remove(f);
     }

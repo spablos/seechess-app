@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:universal_io/io.dart';
 
+import 'web_photo_store.dart';
+
 /// Photo storage that works on every platform. On mobile, photos are real
 /// files (recent_photos, library). The web has no filesystem, so picked
 /// or cropped photos live in this in-memory registry under pseudo-paths —
@@ -12,13 +14,34 @@ int _webSeq = 0;
 bool isWebPhoto(String path) => path.startsWith('web-photo:');
 
 String storeWebPhotoBytes(Uint8List bytes) {
-  final key = 'web-photo:${++_webSeq}';
+  final key = 'web-photo:${DateTime.now().millisecondsSinceEpoch}-${++_webSeq}';
   _webPhotos[key] = bytes;
   // bounded: the session only ever needs the last few
   if (_webPhotos.length > 12) {
     _webPhotos.remove(_webPhotos.keys.first);
   }
+  persistWebPhoto(key, bytes); // recents strip survives reloads (web)
   return key;
+}
+
+/// Rehydrate persisted web recents into the registry; newest-first keys.
+List<String> restoreWebPhotoKeys() {
+  final out = <String>[];
+  for (final (key, bytes) in loadPersistedWebPhotos()) {
+    _webPhotos[key] = bytes;
+    out.add(key);
+  }
+  return out;
+}
+
+void removeWebPhoto(String key) {
+  _webPhotos.remove(key);
+  removePersistedWebPhoto(key);
+}
+
+void clearWebPhotos() {
+  _webPhotos.clear();
+  clearPersistedWebPhotos();
 }
 
 Future<Uint8List> readPhotoBytes(String path) async {

@@ -29,7 +29,6 @@ class PhotoFlowScreen extends StatefulWidget {
 
 class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
   final _picker = ImagePicker();
-  final _urlController = TextEditingController();
   bool _busy = false;
   String? _error;
   String _phase = '';
@@ -46,9 +45,6 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
         (_) => _ingestShared(widget.sharedImagePath!),
       );
     }
-    RecognizerClient.savedUrl().then((url) {
-      if (mounted) _urlController.text = url;
-    });
     _loadRecents();
     if (kIsWeb) {
       // Ctrl/Cmd+V anywhere on this screen recognizes the pasted image
@@ -103,7 +99,6 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
   @override
   void dispose() {
     stopImagePasteListener();
-    _urlController.dispose();
     super.dispose();
   }
 
@@ -171,7 +166,7 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
       _phase = '';
     });
     try {
-      photo.setLastModifiedSync(DateTime.now()); // bump to front
+      if (!kIsWeb) photo.setLastModifiedSync(DateTime.now()); // bump front
       final edited = await editPhoto(context, photo.path);
       if (edited == null) return;
       await _recognize(edited);
@@ -184,8 +179,7 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
   }
 
   Future<void> _recognize(String path) async {
-    final url = _urlController.text.trim();
-    await RecognizerClient.saveUrl(url);
+    final url = await RecognizerClient.savedUrl();
     final client = RecognizerClient(url);
 
     // 1. fast reachability check with one retry — the first request after
@@ -287,7 +281,10 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
               padding: const EdgeInsets.all(12),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(photo, height: 160, fit: BoxFit.cover),
+                child: SizedBox(
+                  height: 160,
+                  child: photoImage(photo.path, fit: BoxFit.cover),
+                ),
               ),
             ),
             ListTile(
@@ -434,11 +431,13 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(
-                                    photo,
+                                  child: SizedBox(
                                     width: 64,
                                     height: 64,
-                                    fit: BoxFit.cover,
+                                    child: photoImage(
+                                      photo.path,
+                                      fit: BoxFit.cover,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -478,49 +477,6 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
                   ),
                 ),
               const Spacer(),
-              ExpansionTile(
-                title: Text(
-                  'Recognition server',
-                  style: theme.textTheme.bodySmall,
-                ),
-                tilePadding: EdgeInsets.zero,
-                children: [
-                  TextField(
-                    controller: _urlController,
-                    decoration: const InputDecoration(
-                      hintText: 'https://seechess.nopatos.com',
-                      isDense: true,
-                    ),
-                    keyboardType: TextInputType.url,
-                    autocorrect: false,
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      icon: const Icon(Icons.network_ping, size: 18),
-                      label: const Text('Test connection'),
-                      onPressed: () async {
-                        final url = _urlController.text.trim();
-                        final messenger = ScaffoldMessenger.of(context);
-                        try {
-                          final rtt = await RecognizerClient(url).ping();
-                          messenger.showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Server OK — ${rtt.inMilliseconds} ms',
-                              ),
-                            ),
-                          );
-                        } catch (e) {
-                          messenger.showSnackBar(
-                            SnackBar(content: Text('Failed: $e')),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
