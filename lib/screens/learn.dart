@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../widgets/capped_app_bar.dart';
+
 import '../services/lesson_tree.dart';
 import '../services/lessons.dart';
 import '../services/stats.dart';
@@ -23,6 +25,11 @@ class _LearnScreenState extends State<LearnScreen> {
   List<Lesson>? _lessons;
   List<Lesson> _pending = const [];
   bool _treeView = false;
+
+  /// Tree expansion: everything starts collapsed; the appbar buttons flip
+  /// every node at once (epoch forces the subtree to rebuild its state).
+  bool _treeExpanded = false;
+  int _treeEpoch = 0;
 
   @override
   void initState() {
@@ -151,24 +158,47 @@ class _LearnScreenState extends State<LearnScreen> {
       if (!categories.contains(l.category)) categories.add(l.category);
     }
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Learn'),
-        actions: [
-          IconButton(
-            tooltip: _treeView ? 'List view' : 'Tree view',
-            isSelected: _treeView,
-            icon: const Icon(Icons.account_tree_outlined),
-            selectedIcon: const Icon(Icons.account_tree),
-            onPressed: () => setState(() => _treeView = !_treeView),
-          ),
-        ],
+      appBar: cappedAppBar(
+        AppBar(
+          title: const Text('Learn'),
+          actions: [
+            if (_treeView) ...[
+              IconButton(
+                tooltip: 'Collapse all',
+                icon: const Icon(Icons.unfold_less),
+                onPressed: () => setState(() {
+                  _treeExpanded = false;
+                  _treeEpoch++;
+                }),
+              ),
+              IconButton(
+                tooltip: 'Expand all',
+                icon: const Icon(Icons.unfold_more),
+                onPressed: () => setState(() {
+                  _treeExpanded = true;
+                  _treeEpoch++;
+                }),
+              ),
+            ],
+            IconButton(
+              tooltip: _treeView ? 'List view' : 'Tree view',
+              isSelected: _treeView,
+              icon: const Icon(Icons.account_tree_outlined),
+              selectedIcon: const Icon(Icons.account_tree),
+              onPressed: () => setState(() => _treeView = !_treeView),
+            ),
+          ],
+        ),
+        width: 760,
       ),
       body: _webCap(
         lessons == null
             ? const Center(child: CircularProgressIndicator())
             : _treeView
             ? _TreeView(
+                key: ValueKey(_treeEpoch),
                 lessons: lessons,
+                expanded: _treeExpanded,
                 onOpenLesson: _open,
                 onOpenTrunk: _openTrunk,
               )
@@ -272,12 +302,15 @@ class _LearnScreenState extends State<LearnScreen> {
 /// common moves; tapping a lesson leaf opens the full lesson.
 class _TreeView extends StatelessWidget {
   const _TreeView({
+    super.key,
     required this.lessons,
+    required this.expanded,
     required this.onOpenLesson,
     required this.onOpenTrunk,
   });
 
   final List<Lesson> lessons;
+  final bool expanded;
   final void Function(Lesson, {int initialPly}) onOpenLesson;
   final void Function(List<String> pathSans, String side) onOpenTrunk;
 
@@ -289,7 +322,7 @@ class _TreeView extends StatelessWidget {
       children: [
         for (final side in const ['w', 'b'])
           ExpansionTile(
-            initiallyExpanded: true,
+            initiallyExpanded: expanded,
             shape: const Border(),
             title: Text(
               side == 'w' ? 'Playing as White' : 'Playing as Black',
@@ -304,6 +337,7 @@ class _TreeView extends StatelessWidget {
                   side: side,
                   depth: 0,
                   path: const [],
+                  expanded: expanded,
                   onOpenLesson: onOpenLesson,
                   onOpenTrunk: onOpenTrunk,
                 ),
@@ -321,6 +355,7 @@ class _TreeNodeTile extends StatefulWidget {
     required this.side,
     required this.depth,
     required this.path,
+    required this.expanded,
     required this.onOpenLesson,
     required this.onOpenTrunk,
   });
@@ -328,6 +363,9 @@ class _TreeNodeTile extends StatefulWidget {
   final LessonTreeNode node;
   final String side;
   final int depth;
+
+  /// Whole-tree default from the appbar buttons.
+  final bool expanded;
 
   /// SAN moves leading up to (excluding) this node.
   final List<String> path;
@@ -339,7 +377,7 @@ class _TreeNodeTile extends StatefulWidget {
 }
 
 class _TreeNodeTileState extends State<_TreeNodeTile> {
-  late bool _expanded = widget.depth < 2; // trunk open, deep forks folded
+  late bool _expanded = widget.expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -440,6 +478,7 @@ class _TreeNodeTileState extends State<_TreeNodeTile> {
               side: widget.side,
               depth: widget.depth + 1,
               path: fullPath,
+              expanded: widget.expanded,
               onOpenLesson: widget.onOpenLesson,
               onOpenTrunk: widget.onOpenTrunk,
             ),

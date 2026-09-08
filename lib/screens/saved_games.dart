@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/capped_app_bar.dart';
+
 import '../services/photo_bytes.dart';
 import '../services/saved_games.dart';
 import 'analysis.dart';
@@ -149,15 +151,18 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Library'),
-        actions: [
-          IconButton(
-            tooltip: 'Import a game (PGN, chess.com, lichess)',
-            icon: const Icon(Icons.download_outlined),
-            onPressed: () => showImportSheet(context),
-          ),
-        ],
+      appBar: cappedAppBar(
+        AppBar(
+          title: const Text('Library'),
+          actions: [
+            IconButton(
+              tooltip: 'Import a game (PGN, chess.com, lichess)',
+              icon: const Icon(Icons.download_outlined),
+              onPressed: () => showImportSheet(context),
+            ),
+          ],
+        ),
+        width: 960,
       ),
       body: _webCap(
         games == null

@@ -24,6 +24,42 @@ class FloatingPhotoPanel extends StatefulWidget {
 
 class _FloatingPhotoPanelState extends State<FloatingPhotoPanel> {
   Offset? _offset; // null until first shown: placed top-right in build
+  Size? _size; // null until first shown: sized to bounds in build
+
+  void _resize(Offset delta, {required bool left, required bool top}) {
+    setState(() {
+      final s = _size!;
+      final maxW = widget.bounds.width;
+      final maxH = widget.bounds.height;
+      final w = (s.width + (left ? -delta.dx : delta.dx)).clamp(170.0, maxW);
+      final h = (s.height + (top ? -delta.dy : delta.dy)).clamp(170.0, maxH);
+      var o = _offset!;
+      if (left) o = o.translate(s.width - w, 0);
+      if (top) o = o.translate(0, s.height - h);
+      _offset = o;
+      _size = Size(w, h);
+    });
+  }
+
+  /// Corner grip that resizes the panel (the X owns the fourth corner).
+  Widget _resizeHandle({required bool left, required bool top}) {
+    return Positioned(
+      left: left ? 0 : null,
+      right: left ? null : 0,
+      top: top ? 0 : null,
+      bottom: top ? null : 0,
+      child: MouseRegion(
+        cursor: (left == top)
+            ? SystemMouseCursors.resizeUpLeftDownRight
+            : SystemMouseCursors.resizeUpRightDownLeft,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanUpdate: (d) => _resize(d.delta, left: left, top: top),
+          child: const SizedBox(width: 22, height: 22),
+        ),
+      ),
+    );
+  }
 
   /// An edge strip that moves the whole panel when dragged — the panel is
   /// grabbable from all four sides; only the photo itself pans/zooms.
@@ -44,9 +80,21 @@ class _FloatingPhotoPanelState extends State<FloatingPhotoPanel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final bounds = widget.bounds;
-    final width = (bounds.width * 0.72).clamp(220.0, 360.0);
-    final height = width * 1.0;
-    _offset ??= Offset(bounds.width - width - 8, 8);
+    _size ??= () {
+      final w = (bounds.width * 0.72).clamp(220.0, 360.0);
+      return Size(w, w);
+    }();
+    final width = _size!.width;
+    final height = _size!.height;
+    // first appearance: hug the content column's top-right (where the
+    // photo toggle lives), not the window's far corner — content is
+    // centered and capped at ~900 on wide screens
+    _offset ??= Offset(
+      (bounds.width + 900) / 2 < bounds.width - 8
+          ? (bounds.width + 900) / 2 - width / 2
+          : bounds.width - width - 8,
+      8,
+    );
     final pos = Offset(
       _offset!.dx.clamp(40.0 - width, bounds.width - 40.0),
       _offset!.dy.clamp(0.0, bounds.height - 48.0),
@@ -62,63 +110,72 @@ class _FloatingPhotoPanelState extends State<FloatingPhotoPanel> {
         child: SizedBox(
           width: width,
           height: height,
-          child: Column(
+          child: Stack(
             children: [
-              _dragZone(
-                height: 36,
-                child: Stack(
-                  children: [
-                    Center(
+              Column(
+                children: [
+                  _dragZone(
+                    height: 36,
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: CustomPaint(
+                            size: const Size(96, 14),
+                            painter: GripPainter(theme.colorScheme.outline),
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          bottom: 0,
+                          child: InkWell(
+                            onTap: widget.onClose,
+                            child: const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Icon(Icons.close, size: 20),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    pos: pos,
+                  ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        _dragZone(width: 18, pos: pos),
+                        Expanded(
+                          child: InteractiveViewer(
+                            maxScale: 8,
+                            child: SizedBox.expand(
+                              child: photoImage(
+                                widget.photoPath,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                        _dragZone(width: 18, pos: pos),
+                      ],
+                    ),
+                  ),
+                  _dragZone(
+                    height: 22,
+                    pos: pos,
+                    child: Center(
                       child: CustomPaint(
-                        size: const Size(96, 14),
+                        size: const Size(64, 14),
                         painter: GripPainter(theme.colorScheme.outline),
                       ),
                     ),
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      bottom: 0,
-                      child: InkWell(
-                        onTap: widget.onClose,
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(Icons.close, size: 20),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                pos: pos,
-              ),
-              Expanded(
-                child: Row(
-                  children: [
-                    _dragZone(width: 18, pos: pos),
-                    Expanded(
-                      child: InteractiveViewer(
-                        maxScale: 8,
-                        child: SizedBox.expand(
-                          child: photoImage(
-                            widget.photoPath,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    ),
-                    _dragZone(width: 18, pos: pos),
-                  ],
-                ),
-              ),
-              _dragZone(
-                height: 22,
-                pos: pos,
-                child: Center(
-                  child: CustomPaint(
-                    size: const Size(64, 14),
-                    painter: GripPainter(theme.colorScheme.outline),
                   ),
-                ),
+                ],
               ),
+              // pull a corner to grow/shrink the panel; top-right stays
+              // the close button
+              _resizeHandle(left: true, top: true),
+              _resizeHandle(left: true, top: false),
+              _resizeHandle(left: false, top: false),
             ],
           ),
         ),

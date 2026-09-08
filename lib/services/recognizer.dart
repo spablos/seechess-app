@@ -85,8 +85,11 @@ class RecognizerClient {
   Future<RecognitionResult> recognize(
     List<int> imageBytes, {
     String filename = 'photo.jpg',
+    bool memory = true,
   }) async {
-    final uri = Uri.parse('$baseUrl/v1/recognize');
+    // memory=false forces a fresh model run — the Redetect flow (a stored
+    // confirmation would otherwise short-circuit recognition)
+    final uri = Uri.parse('$baseUrl/v1/recognize?memory=$memory');
     final request = http.MultipartRequest('POST', uri)
       ..files.add(
         http.MultipartFile.fromBytes('image', imageBytes, filename: filename),

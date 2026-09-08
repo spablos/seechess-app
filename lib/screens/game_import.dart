@@ -3,6 +3,8 @@ import 'package:universal_io/io.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+
+import '../widgets/capped_app_bar.dart';
 import 'package:flutter/services.dart';
 
 import '../services/game_sources.dart';
@@ -413,7 +415,10 @@ class _ImportGamesScreenState extends State<ImportGamesScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text('Games on $_siteLabel')),
+      appBar: cappedAppBar(
+        AppBar(title: Text('Games on $_siteLabel')),
+        width: 960,
+      ),
       body: _webCap(
         SafeArea(
           child: Column(

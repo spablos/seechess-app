@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 
+import '../widgets/capped_app_bar.dart';
+
 import '../models/setup_state.dart';
 import '../services/photo_bytes.dart';
 import '../services/recognizer.dart';
@@ -13,6 +15,7 @@ import '../widgets/board.dart';
 import '../widgets/photo_panel.dart';
 import '../widgets/setup_palette.dart';
 import 'analysis.dart';
+import 'photo_flow.dart' show editPhoto;
 
 /// ≥ this many fixed squares counts as "detection was way off" — the toast
 /// still just states the fact and thanks the user (never apologizes).
@@ -124,6 +127,38 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
         ),
       ),
     );
+  }
+
+  /// Reframe the original photo and force a fresh model run (skipping
+  /// feedback memory) — the escape hatch for recents, which bypass the
+  /// crop editor by default.
+  Future<void> _redetect() async {
+    final edited = await editPhoto(context, widget.photoPath);
+    if (edited == null || !mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final url = await RecognizerClient.savedUrl();
+      final result = await RecognizerClient(
+        url,
+      ).recognize(await readPhotoBytes(edited), memory: false);
+      if (!mounted) return;
+      Navigator.of(context).pop(); // spinner
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ConfirmScreen(photoPath: edited, recognition: result),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // spinner
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Redetect failed: $e')));
+    }
   }
 
   Future<void> _confirm() async {
@@ -311,43 +346,51 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        // no title: five action icons need the room, and the board plus
-        // the Confirm button already say where you are
-        actions: [
-          CopyFenButton(fen: () => setup.toFen()),
-          SharePositionButton(fen: () => setup.toFen()),
-          IconButton(
-            tooltip: 'Flip board (view only)',
-            icon: const Icon(Icons.swap_vert),
-            onPressed: () => setState(() => _flipped = !_flipped),
-          ),
-          IconButton(
-            tooltip: 'Rotate position 90° (edits the position)',
-            icon: const Icon(Icons.rotate_90_degrees_cw_outlined),
-            onPressed: setup.rotate90,
-          ),
-          IconButton(
-            tooltip:
-                'Reverse coordinates — board was photographed '
-                'upside down (pieces stay put, a1 ↔ h8)',
-            icon: const Icon(Icons.screen_rotation_alt),
-            onPressed: () {
-              // reversing the axes AND flipping the view cancel out
-              // visually: the pieces don't move on screen, only the
-              // rank numbers and file letters swap ends
-              setup.rotate180();
-              setState(() => _flipped = !_flipped);
-            },
-          ),
-          IconButton(
-            tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
-            isSelected: _photoVisible,
-            icon: const Icon(Icons.image_outlined),
-            selectedIcon: const Icon(Icons.image),
-            onPressed: () => setState(() => _photoVisible = !_photoVisible),
-          ),
-        ],
+      appBar: cappedAppBar(
+        AppBar(
+          // no title: five action icons need the room, and the board plus
+          // the Confirm button already say where you are
+          actions: [
+            CopyFenButton(fen: () => setup.toFen()),
+            SharePositionButton(fen: () => setup.toFen()),
+            IconButton(
+              tooltip: 'Flip board (view only)',
+              icon: const Icon(Icons.swap_vert),
+              onPressed: () => setState(() => _flipped = !_flipped),
+            ),
+            IconButton(
+              tooltip: 'Rotate position 90° (edits the position)',
+              icon: const Icon(Icons.rotate_90_degrees_cw_outlined),
+              onPressed: setup.rotate90,
+            ),
+            IconButton(
+              tooltip:
+                  'Reverse coordinates — board was photographed '
+                  'upside down (pieces stay put, a1 ↔ h8)',
+              icon: const Icon(Icons.screen_rotation_alt),
+              onPressed: () {
+                // reversing the axes AND flipping the view cancel out
+                // visually: the pieces don't move on screen, only the
+                // rank numbers and file letters swap ends
+                setup.rotate180();
+                setState(() => _flipped = !_flipped);
+              },
+            ),
+            IconButton(
+              tooltip: 'Redetect — reframe the photo and detect again',
+              icon: const Icon(Icons.restart_alt),
+              onPressed: _redetect,
+            ),
+            IconButton(
+              tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
+              isSelected: _photoVisible,
+              icon: const Icon(Icons.image_outlined),
+              selectedIcon: const Icon(Icons.image),
+              onPressed: () => setState(() => _photoVisible = !_photoVisible),
+            ),
+          ],
+        ),
+        width: 900,
       ),
       body: SafeArea(
         child: LayoutBuilder(

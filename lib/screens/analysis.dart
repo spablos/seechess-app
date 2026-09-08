@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
+
+import '../widgets/capped_app_bar.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -664,7 +666,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   Widget build(BuildContext context) {
     if (_fenError != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Analysis')),
+        appBar: cappedAppBar(AppBar(title: const Text('Analysis')), width: 900),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),

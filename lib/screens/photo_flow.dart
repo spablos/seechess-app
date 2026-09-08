@@ -4,6 +4,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../widgets/capped_app_bar.dart';
 import 'package:crop_your_image/crop_your_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -167,9 +169,10 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
     });
     try {
       if (!kIsWeb) photo.setLastModifiedSync(DateTime.now()); // bump front
-      final edited = await editPhoto(context, photo.path);
-      if (edited == null) return;
-      await _recognize(edited);
+      // recents skip the crop editor: an already-confirmed photo answers
+      // instantly from feedback memory (cropping would break the exact-
+      // bytes match) — Redetect on the confirm screen reopens the editor
+      await _recognize(photo.path);
       await _loadRecents();
     } catch (e) {
       setState(() => _error = '$e');
@@ -316,7 +319,10 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Analyze a photo')),
+      appBar: cappedAppBar(
+        AppBar(title: const Text('Analyze a photo')),
+        width: 620,
+      ),
       body: SafeArea(
         child: Align(
           alignment: Alignment.topCenter,
@@ -535,80 +541,97 @@ class _PhotoEditorScreenState extends State<_PhotoEditorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Frame the board'),
-        actions: [
-          TextButton(
-            onPressed: _cropping
-                ? null
-                : () => Navigator.pop(context, Uint8List(0)),
-            child: const Text('Use as is'),
-          ),
-        ],
+      appBar: cappedAppBar(
+        AppBar(
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+          title: const Text('Frame the board'),
+        ),
+        width: 900,
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: Crop(
-                image: widget.bytes,
-                controller: _controller,
-                interactive: true,
-                baseColor: Colors.black,
-                maskColor: Colors.black54,
-                onCropped: (result) {
-                  if (!mounted) return;
-                  switch (result) {
-                    case CropSuccess(:final croppedImage):
-                      Navigator.pop(context, croppedImage);
-                    case CropFailure():
-                      setState(() => _cropping = false);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Could not crop — using the '
-                            'full photo',
-                          ),
+        // one centered stage: image and controls share the same bounds so
+        // nothing drifts to the window's far corners on wide screens
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Column(
+              children: [
+                Expanded(
+                  child: Crop(
+                    image: widget.bytes,
+                    controller: _controller,
+                    // interactive mode force-zooms the image to cover the
+                    // viewport — right for pinch-driven phones, wrong on
+                    // desktop where the whole image should stay visible
+                    // under draggable corners
+                    interactive: !kIsWeb,
+                    baseColor: Colors.black,
+                    maskColor: Colors.black54,
+                    onCropped: (result) {
+                      if (!mounted) return;
+                      switch (result) {
+                        case CropSuccess(:final croppedImage):
+                          Navigator.pop(context, croppedImage);
+                        case CropFailure():
+                          setState(() => _cropping = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Could not crop — using the '
+                                'full photo',
+                              ),
+                            ),
+                          );
+                          Navigator.pop(context, Uint8List(0));
+                      }
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          kIsWeb
+                              ? 'Drag the corners tight around the board'
+                              : 'Drag the corners tight around the board — '
+                                    'pinch to zoom',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
                         ),
-                      );
-                      Navigator.pop(context, Uint8List(0));
-                  }
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Drag the corners tight around the board — '
-                      'pinch to zoom',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
+                      ),
+                      OutlinedButton(
+                        onPressed: _cropping
+                            ? null
+                            : () => Navigator.pop(context, Uint8List(0)),
+                        child: const Text('Use as is'),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        icon: _cropping
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.check),
+                        label: const Text('Detect'),
+                        onPressed: _cropping
+                            ? null
+                            : () {
+                                setState(() => _cropping = true);
+                                _controller.crop();
+                              },
+                      ),
+                    ],
                   ),
-                  FilledButton.icon(
-                    icon: _cropping
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check),
-                    label: const Text('Detect'),
-                    onPressed: _cropping
-                        ? null
-                        : () {
-                            setState(() => _cropping = true);
-                            _controller.crop();
-                          },
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

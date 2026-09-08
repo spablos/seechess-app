@@ -137,6 +137,35 @@ class _SeechessAppState extends State<SeechessApp> {
       title: 'Seechess',
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
+      // desktop web has no status bar, so nothing pushes content off the
+      // window edge — inject a synthetic top inset that every SafeArea
+      // and AppBar already honors (Pablo: basic UX padding, everywhere)
+      builder: kIsWeb
+          ? (context, child) {
+              final mq = MediaQuery.of(context);
+              return MediaQuery(
+                data: mq.copyWith(
+                  // all four edges: desktop windows have no notches or
+                  // home bars, so nothing keeps content off the edges —
+                  // back arrows, appbar actions and bottom button rows
+                  // all honor these via AppBar/SafeArea
+                  padding: mq.padding.copyWith(
+                    top: 28,
+                    left: 20,
+                    right: 20,
+                    bottom: 18,
+                  ),
+                  viewPadding: mq.viewPadding.copyWith(
+                    top: 28,
+                    left: 20,
+                    right: 20,
+                    bottom: 18,
+                  ),
+                ),
+                child: child ?? const SizedBox.shrink(),
+              );
+            }
+          : null,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF739552), // chess.com green
