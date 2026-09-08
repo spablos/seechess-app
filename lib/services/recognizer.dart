@@ -164,11 +164,10 @@ class RecognizerClient {
 
   static const _consentKey = 'feedback_consent';
 
-  /// null = never asked; true/false = user's stored choice.
-  static Future<bool?> feedbackConsent() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_consentKey);
-  }
+  /// Always-on (Pablo, Sep 2026): confirmed corrections are the data
+  /// flywheel and the privacy policy discloses the upload — no opt-in
+  /// dialog. Metadata (EXIF/GPS) is stripped server-side on arrival.
+  static Future<bool?> feedbackConsent() async => true;
 
   static Future<void> setFeedbackConsent(bool value) async {
     final prefs = await SharedPreferences.getInstance();

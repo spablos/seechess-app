@@ -173,37 +173,6 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     final fen = setup.toFen();
     if (fen == _lastFeedbackFen) return;
 
-    var consent = await RecognizerClient.feedbackConsent();
-    if (consent == null && mounted) {
-      consent =
-          await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Help improve recognition?'),
-              content: const Text(
-                'When you confirm a position, seechess can send the photo '
-                'together with the correction back to your recognition '
-                'server. Confirmed corrections are what teach the model '
-                'to read boards like yours. You can change this anytime '
-                'by reinstalling.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('No thanks'),
-                ),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Share confirmations'),
-                ),
-              ],
-            ),
-          ) ??
-          false;
-      await RecognizerClient.setFeedbackConsent(consent);
-    }
-    if (consent != true) return;
-
     _lastFeedbackFen = fen;
     try {
       final url = await RecognizerClient.savedUrl();
