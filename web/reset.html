@@ -14,6 +14,13 @@ height:100vh;margin:0;gap:12px}</style></head><body>
     s.textContent = 'clearing caches';
     const keys = await caches.keys();
     for (const k of keys) await caches.delete(k);
+    s.textContent = 'clearing stored data';
+    try { localStorage.clear(); } catch (e) {}
+    try { sessionStorage.clear(); } catch (e) {}
+    try {
+      const dbs = await (indexedDB.databases ? indexedDB.databases() : []);
+      for (const db of dbs) indexedDB.deleteDatabase(db.name);
+    } catch (e) {}
     s.textContent = 'done — loading a fresh copy';
   } catch (e) { s.textContent = 'reset hit a snag: ' + e; }
   setTimeout(() => location.replace('/'), 800);

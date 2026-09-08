@@ -427,12 +427,17 @@ class _TreeNodeTileState extends State<_TreeNodeTile> {
               if (shared) ...[
                 count(Icons.school, node.lessonCount, 'lessons'),
                 const SizedBox(width: 10),
-              ],
-              count(Icons.link, node.endPly, 'common steps'),
-              if (left > 0) ...[
-                const SizedBox(width: 10),
-                count(Icons.more_horiz, left, 'steps below'),
-              ],
+                count(
+                  Icons.link,
+                  node.endPly,
+                  'steps these ${node.lessonCount} lessons share',
+                ),
+                if (left > 0) ...[
+                  const SizedBox(width: 10),
+                  count(Icons.more_horiz, left, 'further steps below'),
+                ],
+              ] else
+                count(Icons.straighten, node.endPly, 'moves in this line'),
               if (name != null) ...[
                 const SizedBox(width: 10),
                 Expanded(

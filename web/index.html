@@ -31,6 +31,41 @@
 
   <title>seechess</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Pointer-event resilience (Sep 2026, Pablo's machine): an input layer
+    // there delivers mousedown/up WITHOUT pointerdown/up (moves arrive
+    // fine). Flutter web listens for pointer events only, so clicks die
+    // app-wide while hover works. When a mouse press arrives with no
+    // preceding pointerdown, synthesize the pointer event at the same
+    // target. No-op on healthy input stacks.
+    (function () {
+      var lastDown = 0, lastUp = 0;
+      window.addEventListener('pointerdown', function () {
+        lastDown = performance.now();
+      }, true);
+      window.addEventListener('pointerup', function () {
+        lastUp = performance.now();
+      }, true);
+      function synth(type, me) {
+        try {
+          me.target.dispatchEvent(new PointerEvent(type, {
+            bubbles: true, cancelable: true, composed: true,
+            pointerId: 7777, pointerType: 'mouse', isPrimary: true,
+            button: me.button, buttons: type === 'pointerup' ? 0 : (me.buttons || 1),
+            clientX: me.clientX, clientY: me.clientY,
+            screenX: me.screenX, screenY: me.screenY,
+            pressure: type === 'pointerup' ? 0 : 0.5, view: window
+          }));
+        } catch (e) {}
+      }
+      window.addEventListener('mousedown', function (me) {
+        if (performance.now() - lastDown > 50) synth('pointerdown', me);
+      }, true);
+      window.addEventListener('mouseup', function (me) {
+        if (performance.now() - lastUp > 50) synth('pointerup', me);
+      }, true);
+    })();
+  </script>
 </head>
 <body>
   <!--
