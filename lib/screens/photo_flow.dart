@@ -8,6 +8,7 @@ import 'package:crop_your_image/crop_your_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../services/clipboard_image.dart';
 import '../services/photo_bytes.dart';
 import '../services/recent_photos.dart';
 import '../services/recognizer.dart';
@@ -49,6 +50,49 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
       if (mounted) _urlController.text = url;
     });
     _loadRecents();
+    if (kIsWeb) {
+      // Ctrl/Cmd+V anywhere on this screen recognizes the pasted image
+      listenForImagePaste((bytes) {
+        if (mounted) _fromBytes(bytes);
+      });
+    }
+  }
+
+  /// Shared entry for clipboard images (button and paste event).
+  Future<void> _fromBytes(Uint8List bytes) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+      _phase = '';
+    });
+    try {
+      final path = storeWebPhotoBytes(bytes);
+      if (!mounted) return;
+      final edited = await editPhoto(context, path);
+      if (edited == null) return;
+      await _recognize(edited);
+    } catch (e) {
+      setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pasteImage() async {
+    final bytes = await readClipboardImage();
+    if (bytes == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No image in the clipboard — copy one, or press Ctrl/Cmd+V',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+    await _fromBytes(bytes);
   }
 
   Future<void> _loadRecents() async {
@@ -58,6 +102,7 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
 
   @override
   void dispose() {
+    stopImagePasteListener();
     _urlController.dispose();
     super.dispose();
   }
@@ -325,6 +370,17 @@ class _PhotoFlowScreenState extends State<PhotoFlowScreen> {
                   ),
                   onPressed: () => _pick(ImageSource.gallery),
                 ),
+                if (kIsWeb) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.content_paste),
+                    label: const Text('Paste image  (or Ctrl/Cmd+V)'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    onPressed: _busy ? null : _pasteImage,
+                  ),
+                ],
                 if (_recents.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Row(
