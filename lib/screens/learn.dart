@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../widgets/capped_app_bar.dart';
 
-import '../services/lesson_tree.dart';
+import '../widgets/lesson_tree_view.dart';
 import '../services/lessons.dart';
 import '../services/stats.dart';
 import '../services/pgn.dart';
@@ -26,9 +26,11 @@ class _LearnScreenState extends State<LearnScreen> {
   List<Lesson> _pending = const [];
   bool _treeView = false;
 
-  /// Tree expansion: everything starts collapsed; the appbar buttons flip
-  /// every node at once (epoch forces the subtree to rebuild its state).
+  /// Tree expansion: sections (White/Black) start open, everything under
+  /// them collapsed; the appbar buttons flip the whole tree at once
+  /// (epoch forces the subtree to rebuild its state).
   bool _treeExpanded = false;
+  bool _sectionsExpanded = true;
   int _treeEpoch = 0;
 
   @override
@@ -165,17 +167,19 @@ class _LearnScreenState extends State<LearnScreen> {
             if (_treeView) ...[
               IconButton(
                 tooltip: 'Collapse all',
-                icon: const Icon(Icons.unfold_less),
+                icon: const Icon(Icons.unfold_less_double),
                 onPressed: () => setState(() {
                   _treeExpanded = false;
+                  _sectionsExpanded = false;
                   _treeEpoch++;
                 }),
               ),
               IconButton(
                 tooltip: 'Expand all',
-                icon: const Icon(Icons.unfold_more),
+                icon: const Icon(Icons.unfold_more_double),
                 onPressed: () => setState(() {
                   _treeExpanded = true;
+                  _sectionsExpanded = true;
                   _treeEpoch++;
                 }),
               ),
@@ -183,8 +187,8 @@ class _LearnScreenState extends State<LearnScreen> {
             IconButton(
               tooltip: _treeView ? 'List view' : 'Tree view',
               isSelected: _treeView,
-              icon: const Icon(Icons.account_tree_outlined),
-              selectedIcon: const Icon(Icons.account_tree),
+              icon: const Icon(Icons.lan_outlined),
+              selectedIcon: const Icon(Icons.lan),
               onPressed: () => setState(() => _treeView = !_treeView),
             ),
           ],
@@ -195,10 +199,11 @@ class _LearnScreenState extends State<LearnScreen> {
         lessons == null
             ? const Center(child: CircularProgressIndicator())
             : _treeView
-            ? _TreeView(
+            ? LessonTreeView(
                 key: ValueKey(_treeEpoch),
                 lessons: lessons,
                 expanded: _treeExpanded,
+                sectionsExpanded: _sectionsExpanded,
                 onOpenLesson: _open,
                 onOpenTrunk: _openTrunk,
               )
@@ -300,193 +305,6 @@ class _LearnScreenState extends State<LearnScreen> {
 /// The library as two tries — the ecosystem view. Shared move runs are one
 /// row; forks indent below it. Tapping a shared segment replays exactly the
 /// common moves; tapping a lesson leaf opens the full lesson.
-class _TreeView extends StatelessWidget {
-  const _TreeView({
-    super.key,
-    required this.lessons,
-    required this.expanded,
-    required this.onOpenLesson,
-    required this.onOpenTrunk,
-  });
-
-  final List<Lesson> lessons;
-  final bool expanded;
-  final void Function(Lesson, {int initialPly}) onOpenLesson;
-  final void Function(List<String> pathSans, String side) onOpenTrunk;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final forest = buildLessonForest(lessons);
-    return ListView(
-      children: [
-        for (final side in const ['w', 'b'])
-          ExpansionTile(
-            initiallyExpanded: expanded,
-            shape: const Border(),
-            title: Text(
-              side == 'w' ? 'Playing as White' : 'Playing as Black',
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.primary,
-              ),
-            ),
-            children: [
-              for (final node in forest[side]!.roots)
-                _TreeNodeTile(
-                  node: node,
-                  side: side,
-                  depth: 0,
-                  path: const [],
-                  expanded: expanded,
-                  onOpenLesson: onOpenLesson,
-                  onOpenTrunk: onOpenTrunk,
-                ),
-            ],
-          ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-}
-
-class _TreeNodeTile extends StatefulWidget {
-  const _TreeNodeTile({
-    required this.node,
-    required this.side,
-    required this.depth,
-    required this.path,
-    required this.expanded,
-    required this.onOpenLesson,
-    required this.onOpenTrunk,
-  });
-
-  final LessonTreeNode node;
-  final String side;
-  final int depth;
-
-  /// Whole-tree default from the appbar buttons.
-  final bool expanded;
-
-  /// SAN moves leading up to (excluding) this node.
-  final List<String> path;
-  final void Function(Lesson, {int initialPly}) onOpenLesson;
-  final void Function(List<String> pathSans, String side) onOpenTrunk;
-
-  @override
-  State<_TreeNodeTile> createState() => _TreeNodeTileState();
-}
-
-class _TreeNodeTileState extends State<_TreeNodeTile> {
-  late bool _expanded = widget.expanded;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final node = widget.node;
-    final fullPath = [...widget.path, ...node.sans];
-    final shared = node.lessonCount > 1;
-    final indent = 16.0 + widget.depth * 18.0;
-    final name = openingNameFor(fullPath, afterPly: node.startPly);
-    // terse, affordance-first: 🎓 lessons · ⛓ common steps · ⋯ steps left
-    Widget count(IconData icon, int n, String tip) => Tooltip(
-      message: tip,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: theme.colorScheme.outline),
-          const SizedBox(width: 2),
-          Text('$n', style: theme.textTheme.labelSmall),
-        ],
-      ),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ListTile(
-          contentPadding: EdgeInsets.only(left: indent, right: 8),
-          dense: true,
-          leading: Icon(
-            shared ? Icons.alt_route : Icons.trending_flat,
-            size: 18,
-            color: shared
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-          ),
-          title: name != null
-              ? Text(name)
-              : Text(
-                  node.label,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 13.5,
-                  ),
-                ),
-          subtitle: Row(
-            children: [
-              if (shared) ...[
-                count(Icons.school, node.lessonCount, 'lessons'),
-                const SizedBox(width: 10),
-                count(
-                  Icons.link,
-                  node.endPly,
-                  'steps these ${node.lessonCount} lessons share',
-                ),
-              ] else
-                count(Icons.straighten, node.endPly, 'moves in this line'),
-              if (name != null) ...[
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    node.label,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontFamily: 'monospace',
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          trailing: node.isLeaf && node.lessonsEndingHere.length <= 1
-              ? null
-              : IconButton(
-                  icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
-                  onPressed: () => setState(() => _expanded = !_expanded),
-                ),
-          onTap: () => widget.onOpenTrunk(fullPath, widget.side),
-        ),
-        if (_expanded) ...[
-          for (final lesson in node.lessonsEndingHere)
-            ListTile(
-              contentPadding: EdgeInsets.only(left: indent + 18, right: 8),
-              dense: true,
-              leading: Icon(
-                Icons.school,
-                size: 18,
-                color: theme.colorScheme.secondary,
-              ),
-              title: Text(lesson.title),
-              subtitle: lesson.author != null
-                  ? Text('by ${lesson.author}')
-                  : null,
-              onTap: () => widget.onOpenLesson(lesson),
-            ),
-          for (final child in node.children)
-            _TreeNodeTile(
-              node: child,
-              side: widget.side,
-              depth: widget.depth + 1,
-              path: fullPath,
-              expanded: widget.expanded,
-              onOpenLesson: widget.onOpenLesson,
-              onOpenTrunk: widget.onOpenTrunk,
-            ),
-        ],
-      ],
-    );
-  }
-}
 
 /// Keep list content readable inside the full-window web canvas.
 Widget _webCap(Widget child, {double width = 760}) => Align(

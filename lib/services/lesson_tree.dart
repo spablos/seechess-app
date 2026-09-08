@@ -46,6 +46,25 @@ class LessonTreeNode {
       ? endPly
       : children.map((c) => c.deepestPly).reduce((a, b) => a > b ? a : b);
 
+  /// First two moves plus an ellipsis — the tree is for drilling down,
+  /// not reading whole lines (Pablo).
+  String get shortLabel {
+    final b = StringBuffer();
+    final show = sans.length > 2 ? 2 : sans.length;
+    for (var i = 0; i < show; i++) {
+      final ply = startPly + i;
+      if (ply.isEven) {
+        b.write('${ply ~/ 2 + 1}.');
+      } else if (i == 0) {
+        b.write('${ply ~/ 2 + 1}…');
+      }
+      b.write(sans[i]);
+      if (i != show - 1) b.write(' ');
+    }
+    if (sans.length > 2) b.write(' …');
+    return b.toString();
+  }
+
   /// "1.e4 e5 2.Nf3"-style label for the segment.
   String get label {
     final b = StringBuffer();
