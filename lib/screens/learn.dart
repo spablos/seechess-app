@@ -202,13 +202,14 @@ class _LearnScreenState extends State<LearnScreen> {
           editable: true,
           initialPly: 0,
           initialFlipped: side == 'b',
-          title: 'Shared line — ${name ?? host?.title ?? 'openings'}',
+          title: name ?? host?.title ?? 'Openings',
           comments: comments,
           lessonId: host?.id,
           treeLessons: all,
           // only forks inside the subtree entered through — lessons from
           // other opening families are reachable via the tree, not here
           branchesFromPly: pathSans.length,
+          offerHostLesson: true,
         ),
       ),
     );

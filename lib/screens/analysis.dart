@@ -55,6 +55,7 @@ class AnalysisScreen extends StatefulWidget {
     this.lessonId,
     this.treeLessons,
     this.branchesFromPly = 1,
+    this.offerHostLesson = false,
   });
 
   final String? fen;
@@ -105,6 +106,10 @@ class AnalysisScreen extends StatefulWidget {
   /// through (e.g. other opening families at move 1) — never offered.
   /// Entering via a shared trunk raises it to the trunk's length.
   final int branchesFromPly;
+
+  /// Shared-trunk boards ride a host lesson for moves and remarks, but the
+  /// user hasn't picked a path yet — offer the host among the branches too.
+  final bool offerHostLesson;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
@@ -651,6 +656,13 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     for (var ply = widget.branchesFromPly; ply <= line.length; ply++) {
       final alts = tree.branchesAt(id, ply, all);
       if (alts.isNotEmpty) out[ply] = alts;
+    }
+    if (widget.offerHostLesson) {
+      final host = all.firstWhere((l) => l.id == id);
+      out[widget.branchesFromPly] = [
+        host,
+        ...out[widget.branchesFromPly] ?? const [],
+      ];
     }
     return out;
   }
