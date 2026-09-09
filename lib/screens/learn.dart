@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../widgets/capped_app_bar.dart';
 
 import '../widgets/lesson_tree_view.dart';
+import '../services/lesson_tree.dart';
 import '../services/lessons.dart';
 import '../services/stats.dart';
 import '../services/pgn.dart';
@@ -193,6 +194,7 @@ class _LearnScreenState extends State<LearnScreen> {
       return;
     }
     unawaited(AppStats.count('lesson_open'));
+    final name = openingNameFor(pathSans, afterPly: 0);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => AnalysisScreen(
@@ -200,10 +202,13 @@ class _LearnScreenState extends State<LearnScreen> {
           editable: true,
           initialPly: 0,
           initialFlipped: side == 'b',
-          title: 'Shared line — ${host?.title ?? 'openings'}',
+          title: 'Shared line — ${name ?? host?.title ?? 'openings'}',
           comments: comments,
           lessonId: host?.id,
           treeLessons: all,
+          // only forks inside the subtree entered through — lessons from
+          // other opening families are reachable via the tree, not here
+          branchesFromPly: pathSans.length,
         ),
       ),
     );

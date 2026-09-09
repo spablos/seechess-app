@@ -54,6 +54,7 @@ class AnalysisScreen extends StatefulWidget {
     this.importDraft,
     this.lessonId,
     this.treeLessons,
+    this.branchesFromPly = 1,
   });
 
   final String? fen;
@@ -99,6 +100,11 @@ class AnalysisScreen extends StatefulWidget {
   /// path to take from within the board").
   final String? lessonId;
   final List<Lesson>? treeLessons;
+
+  /// Branch points before this ply are outside the subtree the user entered
+  /// through (e.g. other opening families at move 1) — never offered.
+  /// Entering via a shared trunk raises it to the trunk's length.
+  final int branchesFromPly;
 
   @override
   State<AnalysisScreen> createState() => _AnalysisScreenState();
@@ -642,7 +648,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     final line = tree.byId[id];
     if (line == null) return const {};
     final out = <int, List<Lesson>>{};
-    for (var ply = 0; ply <= line.length; ply++) {
+    for (var ply = widget.branchesFromPly; ply <= line.length; ply++) {
       final alts = tree.branchesAt(id, ply, all);
       if (alts.isNotEmpty) out[ply] = alts;
     }
@@ -668,6 +674,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
           comments: replay.game.comments,
           lessonId: lesson.id,
           treeLessons: widget.treeLessons,
+          branchesFromPly: widget.branchesFromPly,
         ),
       ),
     );
