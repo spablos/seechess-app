@@ -975,6 +975,47 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.stretch,
                                         children: [
+                                          // the taught line comes first and
+                                          // is named — the engine's ideas
+                                          // are commentary, not the lesson
+                                          Padding(
+                                            padding: const EdgeInsets.fromLTRB(
+                                              8,
+                                              4,
+                                              8,
+                                              2,
+                                            ),
+                                            child: Text(
+                                              widget.lessonId != null
+                                                  ? 'Lesson line'
+                                                  : 'Moves',
+                                              style: theme.textTheme.labelLarge
+                                                  ?.copyWith(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .primary,
+                                                  ),
+                                            ),
+                                          ),
+                                          moveList,
+                                          const Divider(height: 20),
+                                          Padding(
+                                            padding: const EdgeInsets.fromLTRB(
+                                              8,
+                                              0,
+                                              8,
+                                              2,
+                                            ),
+                                            child: Text(
+                                              'Stockfish suggests',
+                                              style: theme.textTheme.labelLarge
+                                                  ?.copyWith(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                  ),
+                                            ),
+                                          ),
                                           header,
                                           _EngineLines(
                                             lines: lines,
@@ -982,8 +1023,6 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                             onPlay: _playLine,
                                             oneLine: true,
                                           ),
-                                          const SizedBox(height: 8),
-                                          moveList,
                                           const Spacer(),
                                         ],
                                       ),
@@ -1385,7 +1424,7 @@ class _EngineLines extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
-                    vertical: 7,
+                    vertical: 3,
                   ),
                   child: Row(
                     children: [
@@ -1394,7 +1433,6 @@ class _EngineLines extends StatelessWidget {
                         child: Text(
                           line.displayScore,
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
                             fontFeatures: [FontFeature.tabularFigures()],
                           ),
                         ),
