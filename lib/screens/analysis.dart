@@ -663,6 +663,46 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     );
   }
 
+  /// The screen's action icons — shared between the AppBar (mobile/narrow)
+  /// and the desktop-web header row.
+  List<Widget> _actionButtons() => [
+    if (widget.editable)
+      IconButton(
+        icon: const Icon(Icons.edit_outlined),
+        selectedIcon: const Icon(Icons.edit),
+        isSelected: _setup != null,
+        tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
+        onPressed: _toggleEdit,
+      ),
+    if (_photoPath != null)
+      IconButton(
+        tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
+        isSelected: _photoVisible,
+        icon: const Icon(Icons.image_outlined),
+        selectedIcon: const Icon(Icons.image),
+        onPressed: () => setState(() => _photoVisible = !_photoVisible),
+      ),
+    IconButton(
+      tooltip: _coach
+          ? 'Hide coach arrows'
+          : 'Coach arrows: best move & expected reply',
+      isSelected: _coach,
+      icon: const Icon(Icons.school_outlined),
+      selectedIcon: const Icon(Icons.school),
+      onPressed: () async {
+        setState(() => _coach = !_coach);
+        if (_coach) unawaited(AppStats.count('coach_on'));
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('coach_mode', _coach);
+      },
+    ),
+    IconButton(
+      icon: const Icon(Icons.swap_vert),
+      tooltip: 'Flip board',
+      onPressed: () => setState(() => flipped = !flipped),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     if (_fenError != null) {
@@ -680,57 +720,24 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ),
       );
     }
-    // Desktop web: engine panel beside a full-height board; the app bar
-    // caps to the same width so back/actions sit above the content corners.
+    // Desktop web: the board is the centered protagonist — a custom header
+    // (title above, back/actions pulled to the board's corners) replaces
+    // the AppBar, and side panels flank the board symmetrically.
     final wideWeb = kIsWeb && MediaQuery.sizeOf(context).width >= 1150;
     return Scaffold(
-      appBar: cappedAppBar(
-        AppBar(
-          centerTitle: true,
-          title: Text(
-            _setup != null ? 'Set up position' : _title ?? 'Analysis',
-            overflow: TextOverflow.fade,
-          ),
-          actions: [
-            if (widget.editable)
-              IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                selectedIcon: const Icon(Icons.edit),
-                isSelected: _setup != null,
-                tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
-                onPressed: _toggleEdit,
+      appBar: wideWeb && _setup == null
+          ? null
+          : cappedAppBar(
+              AppBar(
+                centerTitle: true,
+                title: Text(
+                  _setup != null ? 'Set up position' : _title ?? 'Analysis',
+                  overflow: TextOverflow.fade,
+                ),
+                actions: _actionButtons(),
               ),
-            if (_photoPath != null)
-              IconButton(
-                tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
-                isSelected: _photoVisible,
-                icon: const Icon(Icons.image_outlined),
-                selectedIcon: const Icon(Icons.image),
-                onPressed: () => setState(() => _photoVisible = !_photoVisible),
-              ),
-            IconButton(
-              tooltip: _coach
-                  ? 'Hide coach arrows'
-                  : 'Coach arrows: best move & expected reply',
-              isSelected: _coach,
-              icon: const Icon(Icons.school_outlined),
-              selectedIcon: const Icon(Icons.school),
-              onPressed: () async {
-                setState(() => _coach = !_coach);
-                if (_coach) unawaited(AppStats.count('coach_on'));
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.setBool('coach_mode', _coach);
-              },
+              width: 860,
             ),
-            IconButton(
-              icon: const Icon(Icons.swap_vert),
-              tooltip: 'Flip board',
-              onPressed: () => setState(() => flipped = !flipped),
-            ),
-          ],
-        ),
-        width: wideWeb ? 1280 : 860,
-      ),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, boxBounds) => Stack(
@@ -843,52 +850,148 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               : () => _playLine(lines.first, 1),
                         );
                         if (wideWeb) {
-                          // board column gets the full height; everything the
-                          // engine says lives in a side panel on the right
-                          return Align(
-                            alignment: Alignment.topCenter,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 1280),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        _EvalBar(share: share),
-                                        _MaterialDiff(fen: game.fen),
-                                        Expanded(child: Center(child: board)),
-                                        _actionStrip(),
-                                        controls,
-                                      ],
-                                    ),
+                          // the centered board is the protagonist: title on
+                          // top, back/actions at the board's corners, equal
+                          // side panels so the board stays dead-center —
+                          // engine on the right, lesson continuations left
+                          const panelW = 360.0;
+                          final side =
+                              (boxBounds.maxHeight - 250).clamp(360.0, 760.0) <
+                                  boxBounds.maxWidth - 2 * panelW - 64
+                              ? (boxBounds.maxHeight - 250).clamp(360.0, 760.0)
+                              : boxBounds.maxWidth - 2 * panelW - 64;
+                          final continuations = onLine
+                              ? (_forks[game.ply] ?? const [])
+                              : const <Lesson>[];
+                          final theme = Theme.of(context);
+                          return Column(
+                            children: [
+                              const SizedBox(height: 4),
+                              Text(
+                                _title ?? 'Analysis',
+                                style: theme.textTheme.titleLarge,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Center(
+                                child: SizedBox(
+                                  width: side + 96,
+                                  height: 44,
+                                  child: Row(
+                                    children: [
+                                      const BackButton(),
+                                      const Spacer(),
+                                      ..._actionButtons(),
+                                    ],
                                   ),
-                                  const SizedBox(width: 12),
-                                  SizedBox(
-                                    width: 380,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        header,
-                                        Expanded(
-                                          child: _EngineLines(
+                                ),
+                              ),
+                              Expanded(
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    SizedBox(
+                                      width: panelW,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (continuations.isNotEmpty)
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.fromLTRB(
+                                                    12,
+                                                    4,
+                                                    12,
+                                                    6,
+                                                  ),
+                                              child: Text(
+                                                'Continue with',
+                                                style: theme
+                                                    .textTheme
+                                                    .labelLarge
+                                                    ?.copyWith(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .primary,
+                                                    ),
+                                              ),
+                                            ),
+                                          Expanded(
+                                            child: ListView(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 12,
+                                                  ),
+                                              children: [
+                                                for (final alt in continuations)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          bottom: 6,
+                                                        ),
+                                                    child: Align(
+                                                      alignment:
+                                                          Alignment.centerLeft,
+                                                      child: ActionChip(
+                                                        avatar: const Icon(
+                                                          Icons.alt_route,
+                                                          size: 16,
+                                                        ),
+                                                        label: Text(alt.title),
+                                                        onPressed: () =>
+                                                            _openBranch(
+                                                              alt,
+                                                              game.ply,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ?remark,
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    SizedBox(
+                                      width: side,
+                                      child: Column(
+                                        children: [
+                                          _EvalBar(share: share),
+                                          _MaterialDiff(fen: game.fen),
+                                          Expanded(child: Center(child: board)),
+                                          _actionStrip(),
+                                          controls,
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    SizedBox(
+                                      width: panelW,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          header,
+                                          _EngineLines(
                                             lines: lines,
                                             baseFen: game.fen,
                                             onPlay: _playLine,
-                                            wrap: true,
+                                            oneLine: true,
                                           ),
-                                        ),
-                                        ?forkChips,
-                                        ?remark,
-                                        moveList,
-                                        const SizedBox(height: 12),
-                                      ],
+                                          const SizedBox(height: 8),
+                                          moveList,
+                                          const Spacer(),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
+                            ],
                           );
                         }
                         return _capped(
@@ -1239,15 +1342,15 @@ class _EngineLines extends StatelessWidget {
     required this.lines,
     required this.baseFen,
     required this.onPlay,
-    this.wrap = false,
+    this.oneLine = false,
   });
   final List<EngineLine> lines;
   final String baseFen;
   final void Function(EngineLine line, int plies) onPlay;
 
-  /// Side-panel mode (desktop web): each line wraps over multiple rows
-  /// instead of scrolling horizontally — the panel has the vertical room.
-  final bool wrap;
+  /// Side-panel mode (desktop web): each variation is one ellipsized row;
+  /// hover for the full line, tap to play its first move.
+  final bool oneLine;
 
   @override
   Widget build(BuildContext context) {
@@ -1265,42 +1368,48 @@ class _EngineLines extends StatelessWidget {
       return san;
     }
 
-    if (wrap) {
-      return ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    if (oneLine) {
+      String fullLine(EngineLine line) => [
+        for (var i = 0; i < line.pvSan.length; i++) label(line, i),
+      ].join(' ');
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final line in lines)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Text(
-                      line.displayScore,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
+            Tooltip(
+              message: fullLine(line),
+              waitDuration: const Duration(milliseconds: 400),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(4),
+                onTap: () => onPlay(line, 1),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 7,
                   ),
-                  for (var i = 0; i < line.pvSan.length; i++)
-                    InkWell(
-                      borderRadius: BorderRadius.circular(4),
-                      onTap: () => onPlay(line, i + 1),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 3,
-                        ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 46,
                         child: Text(
-                          label(line, i),
+                          line.displayScore,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          fullLine(line),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodyMedium,
                         ),
                       ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
         ],

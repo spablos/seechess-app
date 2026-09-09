@@ -165,7 +165,9 @@ class WasmStockfishEngine extends AnalysisEngine {
       final history = g.san_moves();
       final last = history.isEmpty ? null : history.last;
       if (last == null) break;
-      sans.add(last);
+      // san_moves() rows are numbered move pairs ("1. e4 e6") — keep only
+      // the SAN just played, matching the FFI engine
+      sans.add(last.split(RegExp(r'\s+')).last);
     }
     return sans;
   }
