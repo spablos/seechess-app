@@ -38,6 +38,9 @@ class _LearnScreenState extends State<LearnScreen> {
   final _search = TextEditingController();
   bool _searching = false;
 
+  /// List-view perspective filter: null = both sides, 'w', 'b'.
+  String? _sideFilter;
+
   List<Lesson> _filter(List<Lesson> all) {
     final q = _search.text.trim().toLowerCase();
     if (q.isEmpty) return all;
@@ -49,6 +52,38 @@ class _LearnScreenState extends State<LearnScreen> {
             l.pgn.toLowerCase().contains(q))
           l,
     ];
+  }
+
+  List<Lesson> _bySide(List<Lesson> all) => _sideFilter == null
+      ? all
+      : [
+          for (final l in all)
+            if (l.side == _sideFilter) l,
+        ];
+
+  /// The filter button's face: the same white/black circle the lesson rows
+  /// wear — split in half when both sides are shown.
+  Widget _sideFilterIcon(ThemeData theme) {
+    const white = Colors.white;
+    const black = Color(0xFF1E1E1E);
+    return Container(
+      width: 22,
+      height: 22,
+      foregroundDecoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: theme.colorScheme.outline),
+      ),
+      child: ClipOval(
+        child: _sideFilter == null
+            ? const Row(
+                children: [
+                  Expanded(child: ColoredBox(color: white)),
+                  Expanded(child: ColoredBox(color: black)),
+                ],
+              )
+            : ColoredBox(color: _sideFilter == 'w' ? white : black),
+      ),
+    );
   }
 
   @override
@@ -172,10 +207,11 @@ class _LearnScreenState extends State<LearnScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final lessons = _lessons == null ? null : _filter(_lessons!);
+    final listLessons = lessons == null ? null : _bySide(lessons);
     final searchingActive = _search.text.trim().isNotEmpty;
     // stable order: curated categories first, community last
     final categories = <String>[];
-    for (final l in lessons ?? <Lesson>[]) {
+    for (final l in listLessons ?? <Lesson>[]) {
       if (!categories.contains(l.category)) categories.add(l.category);
     }
     return Scaffold(
@@ -201,6 +237,22 @@ class _LearnScreenState extends State<LearnScreen> {
                 _searching = !_searching;
               }),
             ),
+            if (!_treeView)
+              IconButton(
+                tooltip: switch (_sideFilter) {
+                  'w' => 'Showing White lessons — tap for Black',
+                  'b' => 'Showing Black lessons — tap for both',
+                  _ => 'Showing both sides — tap for White',
+                },
+                icon: _sideFilterIcon(theme),
+                onPressed: () => setState(() {
+                  _sideFilter = switch (_sideFilter) {
+                    null => 'w',
+                    'w' => 'b',
+                    _ => null,
+                  };
+                }),
+              ),
             if (_treeView) ...[
               IconButton(
                 tooltip: 'Collapse all',
@@ -258,7 +310,7 @@ class _LearnScreenState extends State<LearnScreen> {
                           ),
                         ),
                       ),
-                      for (final l in _filter(_pending))
+                      for (final l in _bySide(_filter(_pending)))
                         ListTile(
                           leading: const Icon(Icons.pending_actions),
                           title: Text(l.title),
@@ -298,7 +350,9 @@ class _LearnScreenState extends State<LearnScreen> {
                           ),
                         ),
                       ),
-                      for (final l in lessons.where((l) => l.category == cat))
+                      for (final l in listLessons!.where(
+                        (l) => l.category == cat,
+                      ))
                         ListTile(
                           leading: Container(
                             width: 34,
