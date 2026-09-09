@@ -159,6 +159,14 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// confirm-time validation). The in-process engine would crash on it.
   String? _fenError;
 
+  /// Desktop web: fraction of the right panel the lesson line gets — the
+  /// splitter between it and the engine section drags this; remembered.
+  double _lessonShare = 0.30;
+
+  /// Keeps the current move in view as the walkthrough steps.
+  final GlobalKey _activeMoveKey = GlobalKey();
+  int _autoScrolledPly = -1;
+
   /// The position the current game's move list starts from — follows
   /// Paste FEN and editor applies, so a save replays correctly.
   late String _startFen =
@@ -186,9 +194,11 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
     }
     if (widget.initialPly != null) game.stepTo(widget.initialPly!);
     SharedPreferences.getInstance().then((prefs) {
-      if (mounted && (prefs.getBool('coach_mode') ?? false)) {
-        setState(() => _coach = true);
-      }
+      if (!mounted) return;
+      setState(() {
+        if (prefs.getBool('coach_mode') ?? false) _coach = true;
+        _lessonShare = prefs.getDouble('lesson_split') ?? _lessonShare;
+      });
     });
     _ownsEngine = widget.engineFactory != null;
     engine = _ownsEngine ? widget.engineFactory!() : sharedAnalysisEngine();
@@ -850,6 +860,20 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                               : () => _playLine(lines.first, 1),
                         );
                         if (wideWeb) {
+                          // keep the current move visible in the lesson pane
+                          if (_autoScrolledPly != game.ply) {
+                            _autoScrolledPly = game.ply;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              final ctx = _activeMoveKey.currentContext;
+                              if (ctx != null) {
+                                Scrollable.ensureVisible(
+                                  ctx,
+                                  alignment: 0.5,
+                                  duration: const Duration(milliseconds: 150),
+                                );
+                              }
+                            });
+                          }
                           // the centered board is the protagonist: title on
                           // top, back/actions at the board's corners, equal
                           // side panels so the board stays dead-center —
@@ -860,9 +884,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                   boxBounds.maxWidth - 2 * panelW - 64
                               ? (boxBounds.maxHeight - 250).clamp(360.0, 760.0)
                               : boxBounds.maxWidth - 2 * panelW - 64;
-                          final continuations = onLine
-                              ? (_forks[game.ply] ?? const [])
-                              : const <Lesson>[];
+                          // every branch point of the whole lesson, always on
+                          // show — not only when the walkthrough sits on one
+                          final forkGroups = _forks.entries.toList()
+                            ..sort((a, b) => a.key.compareTo(b.key));
+                          String branchLabel(int ply) {
+                            if (ply == 0 || ply > game.moves.length) {
+                              return 'From the start';
+                            }
+                            final san = game.moves[ply - 1].san;
+                            final n = (ply + 1) ~/ 2;
+                            return 'After $n${ply.isOdd ? '.' : '…'} $san';
+                          }
+
                           final theme = Theme.of(context);
                           return Column(
                             children: [
@@ -897,7 +931,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.stretch,
                                         children: [
-                                          if (continuations.isNotEmpty)
+                                          if (forkGroups.isNotEmpty)
                                             Padding(
                                               padding:
                                                   const EdgeInsets.fromLTRB(
@@ -907,7 +941,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                                     6,
                                                   ),
                                               child: Text(
-                                                'Continue with',
+                                                'Branching lessons',
                                                 style: theme
                                                     .textTheme
                                                     .labelLarge
@@ -925,29 +959,64 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                                     horizontal: 12,
                                                   ),
                                               children: [
-                                                for (final alt in continuations)
+                                                for (final group
+                                                    in forkGroups) ...[
                                                   Padding(
                                                     padding:
                                                         const EdgeInsets.only(
-                                                          bottom: 6,
+                                                          top: 4,
+                                                          bottom: 4,
                                                         ),
-                                                    child: Align(
-                                                      alignment:
-                                                          Alignment.centerLeft,
-                                                      child: ActionChip(
-                                                        avatar: const Icon(
-                                                          Icons.alt_route,
-                                                          size: 16,
-                                                        ),
-                                                        label: Text(alt.title),
-                                                        onPressed: () =>
-                                                            _openBranch(
-                                                              alt,
-                                                              game.ply,
-                                                            ),
-                                                      ),
+                                                    child: Text(
+                                                      branchLabel(group.key),
+                                                      style: theme
+                                                          .textTheme
+                                                          .labelMedium
+                                                          ?.copyWith(
+                                                            color:
+                                                                group.key ==
+                                                                    game.ply
+                                                                ? theme
+                                                                      .colorScheme
+                                                                      .primary
+                                                                : theme
+                                                                      .colorScheme
+                                                                      .onSurfaceVariant,
+                                                            fontWeight:
+                                                                group.key ==
+                                                                    game.ply
+                                                                ? FontWeight
+                                                                      .w700
+                                                                : null,
+                                                          ),
                                                     ),
                                                   ),
+                                                  for (final alt in group.value)
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                            bottom: 6,
+                                                          ),
+                                                      child: Align(
+                                                        alignment: Alignment
+                                                            .centerLeft,
+                                                        child: ActionChip(
+                                                          avatar: const Icon(
+                                                            Icons.alt_route,
+                                                            size: 16,
+                                                          ),
+                                                          label: Text(
+                                                            alt.title,
+                                                          ),
+                                                          onPressed: () =>
+                                                              _openBranch(
+                                                                alt,
+                                                                group.key,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
                                                 ?remark,
                                               ],
                                             ),
@@ -971,60 +1040,136 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                     const SizedBox(width: 16),
                                     SizedBox(
                                       width: panelW,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          // the taught line comes first and
-                                          // is named — the engine's ideas
-                                          // are commentary, not the lesson
-                                          Padding(
-                                            padding: const EdgeInsets.fromLTRB(
-                                              8,
-                                              4,
-                                              8,
-                                              2,
-                                            ),
-                                            child: Text(
-                                              widget.lessonId != null
-                                                  ? 'Lesson line'
-                                                  : 'Moves',
-                                              style: theme.textTheme.labelLarge
-                                                  ?.copyWith(
-                                                    color: theme
-                                                        .colorScheme
-                                                        .primary,
+                                      child: LayoutBuilder(
+                                        builder: (context, panelBox) {
+                                          // the taught line comes first and is
+                                          // named; a draggable splitter trades
+                                          // its space against the engine's
+                                          final maxLesson =
+                                              (panelBox.maxHeight - 230).clamp(
+                                                34.0,
+                                                double.infinity,
+                                              );
+                                          final lessonH =
+                                              (panelBox.maxHeight *
+                                                      _lessonShare)
+                                                  .clamp(34.0, maxLesson);
+                                          return Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.fromLTRB(
+                                                      8,
+                                                      4,
+                                                      8,
+                                                      2,
+                                                    ),
+                                                child: Text(
+                                                  widget.lessonId != null
+                                                      ? 'Lesson line'
+                                                      : 'Moves',
+                                                  style: theme
+                                                      .textTheme
+                                                      .labelLarge
+                                                      ?.copyWith(
+                                                        color: theme
+                                                            .colorScheme
+                                                            .primary,
+                                                      ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                height: lessonH,
+                                                child: SingleChildScrollView(
+                                                  child: _MoveList(
+                                                    game: game,
+                                                    onAnnotate: _editRemark,
+                                                    wrapped: true,
+                                                    activeKey: _activeMoveKey,
                                                   ),
-                                            ),
-                                          ),
-                                          moveList,
-                                          const Divider(height: 20),
-                                          Padding(
-                                            padding: const EdgeInsets.fromLTRB(
-                                              8,
-                                              0,
-                                              8,
-                                              2,
-                                            ),
-                                            child: Text(
-                                              'Stockfish suggests',
-                                              style: theme.textTheme.labelLarge
-                                                  ?.copyWith(
-                                                    color: theme
-                                                        .colorScheme
-                                                        .onSurfaceVariant,
+                                                ),
+                                              ),
+                                              MouseRegion(
+                                                cursor: SystemMouseCursors
+                                                    .resizeRow,
+                                                child: GestureDetector(
+                                                  behavior:
+                                                      HitTestBehavior.opaque,
+                                                  onVerticalDragUpdate: (d) =>
+                                                      setState(() {
+                                                        _lessonShare =
+                                                            ((lessonH +
+                                                                        d
+                                                                            .delta
+                                                                            .dy) /
+                                                                    panelBox
+                                                                        .maxHeight)
+                                                                .clamp(
+                                                                  0.04,
+                                                                  0.85,
+                                                                );
+                                                      }),
+                                                  onVerticalDragEnd: (_) async {
+                                                    final prefs =
+                                                        await SharedPreferences.getInstance();
+                                                    await prefs.setDouble(
+                                                      'lesson_split',
+                                                      _lessonShare,
+                                                    );
+                                                  },
+                                                  child: SizedBox(
+                                                    height: 18,
+                                                    child: Center(
+                                                      child: Container(
+                                                        height: 4,
+                                                        width: 56,
+                                                        decoration: BoxDecoration(
+                                                          color: theme
+                                                              .colorScheme
+                                                              .outlineVariant,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                2,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ),
                                                   ),
-                                            ),
-                                          ),
-                                          header,
-                                          _EngineLines(
-                                            lines: lines,
-                                            baseFen: game.fen,
-                                            onPlay: _playLine,
-                                            oneLine: true,
-                                          ),
-                                          const Spacer(),
-                                        ],
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.fromLTRB(
+                                                      8,
+                                                      0,
+                                                      8,
+                                                      2,
+                                                    ),
+                                                child: Text(
+                                                  'Stockfish suggests',
+                                                  style: theme
+                                                      .textTheme
+                                                      .labelLarge
+                                                      ?.copyWith(
+                                                        color: theme
+                                                            .colorScheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                ),
+                                              ),
+                                              header,
+                                              _EngineLines(
+                                                lines: lines,
+                                                baseFen: game.fen,
+                                                onPlay: _playLine,
+                                                oneLine: true,
+                                              ),
+                                              const Spacer(),
+                                            ],
+                                          );
+                                        },
                                       ),
                                     ),
                                   ],
@@ -1506,43 +1651,69 @@ class _EngineLines extends StatelessWidget {
 }
 
 class _MoveList extends StatelessWidget {
-  const _MoveList({required this.game, this.onAnnotate});
+  const _MoveList({
+    required this.game,
+    this.onAnnotate,
+    this.wrapped = false,
+    this.activeKey,
+  });
   final GameState game;
 
   /// Long-press a move to add/edit its coaching remark (lesson authoring).
   final void Function(int ply)? onAnnotate;
 
+  /// Side-panel mode: the whole line wraps over multiple rows so every move
+  /// stays visible, instead of a single horizontally-scrolled strip.
+  final bool wrapped;
+
+  /// Attached to the current move so the parent can scroll it into view.
+  final Key? activeKey;
+
   @override
   Widget build(BuildContext context) {
+    Widget item(int i) {
+      final numberPrefix = i.isEven ? '${i ~/ 2 + 1}. ' : '';
+      final active = i == game.ply - 1;
+      return InkWell(
+        key: active ? activeKey : null,
+        onTap: () => game.stepTo(i + 1),
+        onLongPress: onAnnotate == null ? null : () => onAnnotate!(i + 1),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: wrapped ? 5 : 6,
+            vertical: wrapped ? 4 : 8,
+          ),
+          decoration: active
+              ? BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(4),
+                )
+              : null,
+          child: Text(
+            '$numberPrefix${game.moves[i].san}',
+            style: TextStyle(
+              fontWeight: active ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (wrapped) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Wrap(
+          children: [for (var i = 0; i < game.moves.length; i++) item(i)],
+        ),
+      );
+    }
     return SizedBox(
       height: 36,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         itemCount: game.moves.length,
-        itemBuilder: (context, i) {
-          final numberPrefix = i.isEven ? '${i ~/ 2 + 1}. ' : '';
-          final active = i == game.ply - 1;
-          return InkWell(
-            onTap: () => game.stepTo(i + 1),
-            onLongPress: onAnnotate == null ? null : () => onAnnotate!(i + 1),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              decoration: active
-                  ? BoxDecoration(
-                      color: Theme.of(context).colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(4),
-                    )
-                  : null,
-              child: Text(
-                '$numberPrefix${game.moves[i].san}',
-                style: TextStyle(
-                  fontWeight: active ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ),
-          );
-        },
+        itemBuilder: (context, i) => item(i),
       ),
     );
   }
