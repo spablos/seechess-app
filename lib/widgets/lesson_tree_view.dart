@@ -32,10 +32,20 @@ class LessonTreeView extends StatelessWidget {
           ExpansionTile(
             initiallyExpanded: sectionsExpanded,
             shape: const Border(),
-            leading: Image.asset(
-              side == 'w' ? 'assets/pieces/wK.png' : 'assets/pieces/bK.png',
-              width: 26,
-              height: 26,
+            leading: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+              ),
+              child: Icon(
+                Icons.school,
+                size: 18,
+                color: side == 'w' ? Colors.black54 : Colors.white70,
+              ),
             ),
             title: Text(
               side == 'w' ? 'Playing as White' : 'Playing as Black',
