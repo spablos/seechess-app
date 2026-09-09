@@ -71,7 +71,10 @@ class _LearnScreenState extends State<LearnScreen> {
       height: 24,
       foregroundDecoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: theme.colorScheme.onSurfaceVariant, width: 1.5),
+        border: Border.all(
+          color: theme.colorScheme.onSurfaceVariant,
+          width: 1.5,
+        ),
       ),
       child: ClipOval(
         child: _sideFilter == null
@@ -240,22 +243,21 @@ class _LearnScreenState extends State<LearnScreen> {
                 _searching = !_searching;
               }),
             ),
-            if (!_treeView)
-              IconButton(
-                tooltip: switch (_sideFilter) {
-                  'w' => 'Showing White lessons — tap for Black',
-                  'b' => 'Showing Black lessons — tap for both',
-                  _ => 'Showing both sides — tap for White',
-                },
-                icon: _sideFilterIcon(theme),
-                onPressed: () => setState(() {
-                  _sideFilter = switch (_sideFilter) {
-                    null => 'w',
-                    'w' => 'b',
-                    _ => null,
-                  };
-                }),
-              ),
+            IconButton(
+              tooltip: switch (_sideFilter) {
+                'w' => 'Showing White lessons — tap for Black',
+                'b' => 'Showing Black lessons — tap for both',
+                _ => 'Showing both sides — tap for White',
+              },
+              icon: _sideFilterIcon(theme),
+              onPressed: () => setState(() {
+                _sideFilter = switch (_sideFilter) {
+                  null => 'w',
+                  'w' => 'b',
+                  _ => null,
+                };
+              }),
+            ),
             if (_treeView) ...[
               IconButton(
                 tooltip: 'Collapse all',
@@ -292,8 +294,8 @@ class _LearnScreenState extends State<LearnScreen> {
             ? const Center(child: CircularProgressIndicator())
             : _treeView
             ? LessonTreeView(
-                key: ValueKey('$_treeEpoch|${_search.text}'),
-                lessons: lessons,
+                key: ValueKey('$_treeEpoch|${_search.text}|$_sideFilter'),
+                lessons: listLessons!,
                 expanded: _treeExpanded || searchingActive,
                 sectionsExpanded: _sectionsExpanded || searchingActive,
                 onOpenLesson: _open,

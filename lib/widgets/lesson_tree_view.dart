@@ -29,45 +29,46 @@ class LessonTreeView extends StatelessWidget {
     return ListView(
       children: [
         for (final side in const ['w', 'b'])
-          ExpansionTile(
-            initiallyExpanded: sectionsExpanded,
-            shape: const Border(),
-            leading: Container(
-              width: 34,
-              height: 34,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
-                border: Border.all(color: theme.colorScheme.outlineVariant),
-              ),
-              child: Icon(
-                Icons.school,
-                size: 18,
-                color: side == 'w' ? Colors.black54 : Colors.white70,
-              ),
-            ),
-            title: Text(
-              side == 'w' ? 'Playing as White' : 'Playing as Black',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            children: [
-              for (final (i, node) in forest[side]!.roots.indexed)
-                _NodeTile(
-                  node: node,
-                  side: side,
-                  rails: const [],
-                  isLast: i == forest[side]!.roots.length - 1,
-                  isRoot: true,
-                  expanded: expanded,
-                  onOpenLesson: onOpenLesson,
-                  onOpenTrunk: onOpenTrunk,
+          if (forest[side]!.roots.isNotEmpty)
+            ExpansionTile(
+              initiallyExpanded: sectionsExpanded,
+              shape: const Border(),
+              leading: Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
                 ),
-            ],
-          ),
+                child: Icon(
+                  Icons.school,
+                  size: 18,
+                  color: side == 'w' ? Colors.black54 : Colors.white70,
+                ),
+              ),
+              title: Text(
+                side == 'w' ? 'Playing as White' : 'Playing as Black',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              children: [
+                for (final (i, node) in forest[side]!.roots.indexed)
+                  _NodeTile(
+                    node: node,
+                    side: side,
+                    rails: const [],
+                    isLast: i == forest[side]!.roots.length - 1,
+                    isRoot: true,
+                    expanded: expanded,
+                    onOpenLesson: onOpenLesson,
+                    onOpenTrunk: onOpenTrunk,
+                  ),
+              ],
+            ),
         const SizedBox(height: 24),
       ],
     );

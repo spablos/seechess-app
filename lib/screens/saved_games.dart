@@ -153,7 +153,7 @@ class _SavedGamesScreenState extends State<SavedGamesScreen> {
     return Scaffold(
       appBar: cappedAppBar(
         AppBar(
-          title: const Text('Library'),
+          title: const Text('My Library'),
           actions: [
             IconButton(
               tooltip: 'Import a game (PGN, chess.com, lichess)',

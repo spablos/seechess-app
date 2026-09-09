@@ -83,7 +83,7 @@ class HomeScreen extends StatelessWidget {
                       _ActionCard(
                         icon: Icons.bookmark,
                         color: const Color(0xFF9C7BC9),
-                        title: 'Library',
+                        title: 'My Library',
                         subtitle:
                             'Every confirmed board and saved game — search, '
                             'labels, history',
