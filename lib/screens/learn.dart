@@ -67,21 +67,24 @@ class _LearnScreenState extends State<LearnScreen> {
     const white = Colors.white;
     const black = Color(0xFF1E1E1E);
     return Container(
-      width: 22,
-      height: 22,
+      width: 24,
+      height: 24,
       foregroundDecoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: theme.colorScheme.outline),
+        border: Border.all(color: theme.colorScheme.onSurfaceVariant, width: 1.5),
       ),
       child: ClipOval(
         child: _sideFilter == null
             ? const Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(child: ColoredBox(color: white)),
                   Expanded(child: ColoredBox(color: black)),
                 ],
               )
-            : ColoredBox(color: _sideFilter == 'w' ? white : black),
+            : SizedBox.expand(
+                child: ColoredBox(color: _sideFilter == 'w' ? white : black),
+              ),
       ),
     );
   }
