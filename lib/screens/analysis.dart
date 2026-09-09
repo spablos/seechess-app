@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:chess/chess.dart' as ch;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../widgets/capped_app_bar.dart';
@@ -679,49 +680,56 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ),
       );
     }
+    // Desktop web: engine panel beside a full-height board; the app bar
+    // caps to the same width so back/actions sit above the content corners.
+    final wideWeb = kIsWeb && MediaQuery.sizeOf(context).width >= 1150;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          _setup != null ? 'Set up position' : _title ?? 'Analysis',
-          overflow: TextOverflow.fade,
+      appBar: cappedAppBar(
+        AppBar(
+          centerTitle: true,
+          title: Text(
+            _setup != null ? 'Set up position' : _title ?? 'Analysis',
+            overflow: TextOverflow.fade,
+          ),
+          actions: [
+            if (widget.editable)
+              IconButton(
+                icon: const Icon(Icons.edit_outlined),
+                selectedIcon: const Icon(Icons.edit),
+                isSelected: _setup != null,
+                tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
+                onPressed: _toggleEdit,
+              ),
+            if (_photoPath != null)
+              IconButton(
+                tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
+                isSelected: _photoVisible,
+                icon: const Icon(Icons.image_outlined),
+                selectedIcon: const Icon(Icons.image),
+                onPressed: () => setState(() => _photoVisible = !_photoVisible),
+              ),
+            IconButton(
+              tooltip: _coach
+                  ? 'Hide coach arrows'
+                  : 'Coach arrows: best move & expected reply',
+              isSelected: _coach,
+              icon: const Icon(Icons.school_outlined),
+              selectedIcon: const Icon(Icons.school),
+              onPressed: () async {
+                setState(() => _coach = !_coach);
+                if (_coach) unawaited(AppStats.count('coach_on'));
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('coach_mode', _coach);
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.swap_vert),
+              tooltip: 'Flip board',
+              onPressed: () => setState(() => flipped = !flipped),
+            ),
+          ],
         ),
-        actions: [
-          if (widget.editable)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              selectedIcon: const Icon(Icons.edit),
-              isSelected: _setup != null,
-              tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
-              onPressed: _toggleEdit,
-            ),
-          if (_photoPath != null)
-            IconButton(
-              tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
-              isSelected: _photoVisible,
-              icon: const Icon(Icons.image_outlined),
-              selectedIcon: const Icon(Icons.image),
-              onPressed: () => setState(() => _photoVisible = !_photoVisible),
-            ),
-          IconButton(
-            tooltip: _coach
-                ? 'Hide coach arrows'
-                : 'Coach arrows: best move & expected reply',
-            isSelected: _coach,
-            icon: const Icon(Icons.school_outlined),
-            selectedIcon: const Icon(Icons.school),
-            onPressed: () async {
-              setState(() => _coach = !_coach);
-              if (_coach) unawaited(AppStats.count('coach_on'));
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setBool('coach_mode', _coach);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.swap_vert),
-            tooltip: 'Flip board',
-            onPressed: () => setState(() => flipped = !flipped),
-          ),
-        ],
+        width: wideWeb ? 1280 : 860,
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -751,115 +759,155 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                             : result.startsWith('0')
                             ? 0.0
                             : 0.5;
+                        final onLine =
+                            offLineStatus(game.moves, game.ply, _original) ==
+                            null;
+                        final header = _EngineHeader(
+                          best: best,
+                          ready: engine.ready,
+                          result: result,
+                          whiteToMove: game.fen.split(' ')[1] == 'w',
+                          onLine: _original == null ? null : onLine,
+                          onBackToGame: _backToGame,
+                        );
+                        final board = ChessBoard(
+                          pieces: game.pieceMap(),
+                          flipped: flipped,
+                          lastMoveFrom: lastMove?.substring(0, 2),
+                          lastMoveTo: lastMove?.substring(2, 4),
+                          legalTargetsFor: game.legalTargets,
+                          onMove: (from, to) => game.tryMove(from, to),
+                          arrows: _coach && result == null
+                              ? _coachArrows(lines)
+                              : const [],
+                        );
+                        final moveList = _MoveList(
+                          game: game,
+                          onAnnotate: _editRemark,
+                        );
+                        final forkChips =
+                            onLine && (_forks[game.ply] ?? const []).isNotEmpty
+                            ? SizedBox(
+                                height: 40,
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  children: [
+                                    for (final alt in _forks[game.ply]!)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 6,
+                                        ),
+                                        child: ActionChip(
+                                          avatar: const Icon(
+                                            Icons.alt_route,
+                                            size: 16,
+                                          ),
+                                          label: Text(alt.title),
+                                          onPressed: () =>
+                                              _openBranch(alt, game.ply),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              )
+                            : null;
+                        final remark = onLine && _comments[game.ply] != null
+                            ? Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  0,
+                                  12,
+                                  4,
+                                ),
+                                child: Text(
+                                  _comments[game.ply]!,
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        fontStyle: FontStyle.italic,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                      ),
+                                  maxLines: wideWeb ? 8 : 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              )
+                            : null;
+                        final controls = _Controls(
+                          game: game,
+                          onBestMove: lines.isEmpty
+                              ? null
+                              : () => _playLine(lines.first, 1),
+                        );
+                        if (wideWeb) {
+                          // board column gets the full height; everything the
+                          // engine says lives in a side panel on the right
+                          return Align(
+                            alignment: Alignment.topCenter,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1280),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        _EvalBar(share: share),
+                                        _MaterialDiff(fen: game.fen),
+                                        Expanded(child: Center(child: board)),
+                                        _actionStrip(),
+                                        controls,
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  SizedBox(
+                                    width: 380,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        header,
+                                        Expanded(
+                                          child: _EngineLines(
+                                            lines: lines,
+                                            baseFen: game.fen,
+                                            onPlay: _playLine,
+                                            wrap: true,
+                                          ),
+                                        ),
+                                        ?forkChips,
+                                        ?remark,
+                                        moveList,
+                                        const SizedBox(height: 12),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
                         return _capped(
                           Column(
                             children: [
-                              _EngineHeader(
-                                best: best,
-                                ready: engine.ready,
-                                result: result,
-                                whiteToMove: game.fen.split(' ')[1] == 'w',
-                                onLine: _original == null
-                                    ? null
-                                    : offLineStatus(
-                                            game.moves,
-                                            game.ply,
-                                            _original,
-                                          ) ==
-                                          null,
-                                onBackToGame: _backToGame,
-                              ),
+                              header,
                               _EvalBar(share: share),
                               _MaterialDiff(fen: game.fen),
-                              Expanded(
-                                child: Center(
-                                  child: ChessBoard(
-                                    pieces: game.pieceMap(),
-                                    flipped: flipped,
-                                    lastMoveFrom: lastMove?.substring(0, 2),
-                                    lastMoveTo: lastMove?.substring(2, 4),
-                                    legalTargetsFor: game.legalTargets,
-                                    onMove: (from, to) =>
-                                        game.tryMove(from, to),
-                                    arrows: _coach && result == null
-                                        ? _coachArrows(lines)
-                                        : const [],
-                                  ),
-                                ),
-                              ),
+                              Expanded(child: Center(child: board)),
                               _EngineLines(
                                 lines: lines,
                                 baseFen: game.fen,
                                 onPlay: _playLine,
                               ),
-                              _MoveList(game: game, onAnnotate: _editRemark),
-                              if (offLineStatus(
-                                        game.moves,
-                                        game.ply,
-                                        _original,
-                                      ) ==
-                                      null &&
-                                  (_forks[game.ply] ?? const []).isNotEmpty)
-                                SizedBox(
-                                  height: 40,
-                                  child: ListView(
-                                    scrollDirection: Axis.horizontal,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    children: [
-                                      for (final alt in _forks[game.ply]!)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            right: 6,
-                                          ),
-                                          child: ActionChip(
-                                            avatar: const Icon(
-                                              Icons.alt_route,
-                                              size: 16,
-                                            ),
-                                            label: Text(alt.title),
-                                            onPressed: () =>
-                                                _openBranch(alt, game.ply),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              if (offLineStatus(
-                                        game.moves,
-                                        game.ply,
-                                        _original,
-                                      ) ==
-                                      null &&
-                                  _comments[game.ply] != null)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    12,
-                                    0,
-                                    12,
-                                    4,
-                                  ),
-                                  child: Text(
-                                    _comments[game.ply]!,
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          fontStyle: FontStyle.italic,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
-                                        ),
-                                    maxLines: 3,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
+                              moveList,
+                              ?forkChips,
+                              ?remark,
                               _actionStrip(),
-                              _Controls(
-                                game: game,
-                                onBestMove: lines.isEmpty
-                                    ? null
-                                    : () => _playLine(lines.first, 1),
-                              ),
+                              controls,
                             ],
                           ),
                         );
@@ -1191,10 +1239,15 @@ class _EngineLines extends StatelessWidget {
     required this.lines,
     required this.baseFen,
     required this.onPlay,
+    this.wrap = false,
   });
   final List<EngineLine> lines;
   final String baseFen;
   final void Function(EngineLine line, int plies) onPlay;
+
+  /// Side-panel mode (desktop web): each line wraps over multiple rows
+  /// instead of scrolling horizontally — the panel has the vertical room.
+  final bool wrap;
 
   @override
   Widget build(BuildContext context) {
@@ -1212,6 +1265,47 @@ class _EngineLines extends StatelessWidget {
       return san;
     }
 
+    if (wrap) {
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        children: [
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Text(
+                      line.displayScore,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                  for (var i = 0; i < line.pvSan.length; i++)
+                    InkWell(
+                      borderRadius: BorderRadius.circular(4),
+                      onTap: () => onPlay(line, i + 1),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 3,
+                        ),
+                        child: Text(
+                          label(line, i),
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
     return Container(
       constraints: const BoxConstraints(minHeight: 66, maxHeight: 116),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
