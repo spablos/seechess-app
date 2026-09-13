@@ -282,11 +282,20 @@ class _NodeTileState extends State<_NodeTile> {
                       Row(
                         children: [
                           if (shared)
-                            count(
-                              Icons.link,
-                              node.endPly,
-                              'steps these ${node.lessonCount} lessons share',
-                              theme.colorScheme.tertiary,
+                            // the chain is the row's board affordance:
+                            // tapping it replays the shared steps, while
+                            // the rest of the row expands/collapses
+                            InkWell(
+                              borderRadius: BorderRadius.circular(4),
+                              onTap: () =>
+                                  widget.onOpenTrunk(fullPath, widget.side),
+                              child: count(
+                                Icons.link,
+                                node.endPly,
+                                'steps these ${node.lessonCount} lessons '
+                                'share — tap to replay them on the board',
+                                theme.colorScheme.tertiary,
+                              ),
                             )
                           else
                             count(
