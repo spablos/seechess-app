@@ -192,7 +192,11 @@ class _NodeTileState extends State<_NodeTile> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         InkWell(
-          onTap: () => widget.onOpenTrunk(fullPath, widget.side),
+          // a branch row is a container, not a lesson: every part of it —
+          // hats, digit, title — expands/collapses; only leaf titles open
+          // the board (Pablo). Long-press still replays the shared line.
+          onTap: () => setState(() => _open = !_open),
+          onLongPress: () => widget.onOpenTrunk(fullPath, widget.side),
           child: SizedBox(
             height: 46,
             child: Row(

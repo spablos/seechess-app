@@ -10,7 +10,16 @@ height:100vh;margin:0;gap:12px}</style></head><body>
   const s = document.getElementById('s');
   try {
     const regs = await navigator.serviceWorker.getRegistrations();
-    for (const r of regs) await r.unregister();
+    if (regs.length > 0 || navigator.serviceWorker.controller) {
+      // an unregistered worker still CONTROLS already-open pages — this
+      // one included — so its cache would intercept our refetches below.
+      // Unregister, purge, then reload this page uncontrolled (phase 2).
+      for (const r of regs) await r.unregister();
+      for (const k of await caches.keys()) await caches.delete(k);
+      s.textContent = 'service worker removed — restarting cleaner';
+      setTimeout(() => location.reload(), 400);
+      return;
+    }
     s.textContent = 'clearing caches';
     const keys = await caches.keys();
     for (const k of keys) await caches.delete(k);
