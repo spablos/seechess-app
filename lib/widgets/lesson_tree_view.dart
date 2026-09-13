@@ -14,6 +14,7 @@ class LessonTreeView extends StatelessWidget {
     required this.sectionsExpanded,
     required this.onOpenLesson,
     required this.onOpenTrunk,
+    this.onRenameNode,
   });
 
   final List<Lesson> lessons;
@@ -21,6 +22,10 @@ class LessonTreeView extends StatelessWidget {
   final bool sectionsExpanded;
   final void Function(Lesson, {int initialPly}) onOpenLesson;
   final void Function(List<String> pathSans, String side) onOpenTrunk;
+
+  /// Admin mode: rename a node inline — the new name is stored on the
+  /// server and reaches every client. null hides the edit affordance.
+  final Future<void> Function(List<String> pathSans, String name)? onRenameNode;
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +81,7 @@ class LessonTreeView extends StatelessWidget {
                     expanded: expanded,
                     onOpenLesson: onOpenLesson,
                     onOpenTrunk: onOpenTrunk,
+                    onRenameNode: onRenameNode,
                   ),
               ],
             ),
@@ -94,6 +100,7 @@ class _NodeTile extends StatefulWidget {
     required this.expanded,
     required this.onOpenLesson,
     required this.onOpenTrunk,
+    this.onRenameNode,
     this.isRoot = false,
     this.path = const [],
   });
@@ -110,6 +117,7 @@ class _NodeTile extends StatefulWidget {
   final List<String> path;
   final void Function(Lesson, {int initialPly}) onOpenLesson;
   final void Function(List<String> pathSans, String side) onOpenTrunk;
+  final Future<void> Function(List<String> pathSans, String name)? onRenameNode;
 
   @override
   State<_NodeTile> createState() => _NodeTileState();
@@ -117,6 +125,22 @@ class _NodeTile extends StatefulWidget {
 
 class _NodeTileState extends State<_NodeTile> {
   late bool _open = widget.expanded;
+
+  /// Inline rename (admin): the name text swaps to a text field.
+  bool _editing = false;
+  final TextEditingController _nameCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitRename(List<String> fullPath) async {
+    final name = _nameCtrl.text.trim();
+    setState(() => _editing = false);
+    await widget.onRenameNode?.call(fullPath, name);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,6 +208,7 @@ class _NodeTileState extends State<_NodeTile> {
           path: fullPath,
           onOpenLesson: widget.onOpenLesson,
           onOpenTrunk: widget.onOpenTrunk,
+          onRenameNode: widget.onRenameNode,
         ),
       );
     }
@@ -268,16 +293,61 @@ class _NodeTileState extends State<_NodeTile> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name ?? node.shortLabel,
-                        overflow: TextOverflow.ellipsis,
-                        style: name != null
-                            ? theme.textTheme.bodyMedium
-                            : theme.textTheme.bodyMedium?.copyWith(
-                                fontFamily: 'monospace',
-                                fontSize: 13.5,
+                      if (_editing)
+                        SizedBox(
+                          height: 24,
+                          child: TextField(
+                            controller: _nameCtrl,
+                            autofocus: true,
+                            style: theme.textTheme.bodyMedium,
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              hintText: 'Node name (empty = show moves)',
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 4,
                               ),
-                      ),
+                            ),
+                            onSubmitted: (_) => _submitRename(fullPath),
+                            onTapOutside: (_) =>
+                                setState(() => _editing = false),
+                          ),
+                        )
+                      else
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                name ?? node.shortLabel,
+                                overflow: TextOverflow.ellipsis,
+                                style: name != null
+                                    ? theme.textTheme.bodyMedium
+                                    : theme.textTheme.bodyMedium?.copyWith(
+                                        fontFamily: 'monospace',
+                                        fontSize: 13.5,
+                                      ),
+                              ),
+                            ),
+                            if (widget.onRenameNode != null) ...[
+                              const SizedBox(width: 6),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(4),
+                                onTap: () => setState(() {
+                                  _nameCtrl.text = name ?? '';
+                                  _editing = true;
+                                }),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(2),
+                                  child: Icon(
+                                    Icons.edit_outlined,
+                                    size: 14,
+                                    color: theme.colorScheme.outline,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       const SizedBox(height: 2),
                       Row(
                         children: [

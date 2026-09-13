@@ -211,3 +211,20 @@ Future<Map<String, String>> fetchOpeningNames() async {
   } catch (_) {}
   return const {};
 }
+
+/// Admin: set (or clear) a learn-tree node's name override on the server.
+Future<bool> setOpeningName(String token, String path, String name) async {
+  try {
+    final base = await RecognizerClient.savedUrl();
+    final res = await http
+        .post(
+          Uri.parse('$base/v1/openings/set'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'token': token, 'path': path, 'name': name}),
+        )
+        .timeout(const Duration(seconds: 8));
+    return res.statusCode == 200;
+  } catch (_) {
+    return false;
+  }
+}

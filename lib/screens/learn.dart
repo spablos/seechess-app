@@ -138,6 +138,22 @@ class _LearnScreenState extends State<LearnScreen> {
     if (ok) unawaited(_load());
   }
 
+  /// Admin: rename a tree node inline; the override is stored server-side
+  /// and every client shows it on its next Learn load.
+  Future<void> _renameNode(List<String> pathSans, String name) async {
+    final token = adminToken();
+    if (token == null) return;
+    final ok = await setOpeningName(token, pathSans.join(' '), name);
+    final names = await fetchOpeningNames();
+    if (!mounted) return;
+    setState(() => setCustomOpeningNames(names));
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Rename failed — check the token')),
+      );
+    }
+  }
+
   void _open(Lesson lesson, {int initialPly = 0}) {
     final PgnReplay replay;
     try {
@@ -311,6 +327,7 @@ class _LearnScreenState extends State<LearnScreen> {
                 sectionsExpanded: _sectionsExpanded || searchingActive,
                 onOpenLesson: _open,
                 onOpenTrunk: _openTrunk,
+                onRenameNode: adminToken() != null ? _renameNode : null,
               )
             : RefreshIndicator(
                 onRefresh: _load,
