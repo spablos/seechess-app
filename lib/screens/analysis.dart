@@ -174,6 +174,10 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// splitter between it and the engine section drags this; remembered.
   double _lessonShare = 0.30;
 
+  /// Desktop web: the Stockfish section stays collapsed until the user
+  /// explicitly opens it; the choice is remembered.
+  bool _engineOpen = false;
+
   /// Keeps the current move in view as the walkthrough steps.
   final GlobalKey _activeMoveKey = GlobalKey();
   int _autoScrolledPly = -1;
@@ -209,6 +213,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
       setState(() {
         if (prefs.getBool('coach_mode') ?? false) _coach = true;
         _lessonShare = prefs.getDouble('lesson_split') ?? _lessonShare;
+        _engineOpen = prefs.getBool('engine_open') ?? _engineOpen;
       });
     });
     _ownsEngine = widget.engineFactory != null;
@@ -1085,18 +1090,42 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                                       8,
                                                       2,
                                                     ),
-                                                child: Text(
-                                                  widget.lessonId != null
-                                                      ? 'Lesson line'
-                                                      : 'Moves',
-                                                  style: theme
-                                                      .textTheme
-                                                      .labelLarge
-                                                      ?.copyWith(
-                                                        color: theme
-                                                            .colorScheme
-                                                            .primary,
+                                                child: Row(
+                                                  children: [
+                                                    Text(
+                                                      widget.lessonId != null
+                                                          ? 'Lesson line'
+                                                          : 'Moves',
+                                                      style: theme
+                                                          .textTheme
+                                                          .labelLarge
+                                                          ?.copyWith(
+                                                            color: theme
+                                                                .colorScheme
+                                                                .primary,
+                                                          ),
+                                                    ),
+                                                    const Spacer(),
+                                                    // game-state icons live
+                                                    // here, outside the
+                                                    // collapsible engine box
+                                                    if (_original != null) ...[
+                                                      _OnLineIndicator(
+                                                        onLine: onLine,
+                                                        onBackToGame:
+                                                            _backToGame,
                                                       ),
+                                                      const SizedBox(width: 10),
+                                                    ],
+                                                    if (result == null)
+                                                      _TurnDisc(
+                                                        whiteToMove:
+                                                            game.fen.split(
+                                                              ' ',
+                                                            )[1] ==
+                                                            'w',
+                                                      ),
+                                                  ],
                                                 ),
                                               ),
                                               SizedBox(
@@ -1158,33 +1187,78 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                                                   ),
                                                 ),
                                               ),
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.fromLTRB(
-                                                      8,
-                                                      0,
-                                                      8,
-                                                      2,
-                                                    ),
-                                                child: Text(
-                                                  'Stockfish suggests',
-                                                  style: theme
-                                                      .textTheme
-                                                      .labelLarge
-                                                      ?.copyWith(
-                                                        color: theme
-                                                            .colorScheme
-                                                            .onSurfaceVariant,
+                                              InkWell(
+                                                onTap: () async {
+                                                  setState(
+                                                    () => _engineOpen =
+                                                        !_engineOpen,
+                                                  );
+                                                  final prefs =
+                                                      await SharedPreferences.getInstance();
+                                                  await prefs.setBool(
+                                                    'engine_open',
+                                                    _engineOpen,
+                                                  );
+                                                },
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                        8,
+                                                        0,
+                                                        8,
+                                                        2,
                                                       ),
+                                                  child: Row(
+                                                    children: [
+                                                      Text(
+                                                        'Stockfish',
+                                                        style: theme
+                                                            .textTheme
+                                                            .labelLarge
+                                                            ?.copyWith(
+                                                              color: theme
+                                                                  .colorScheme
+                                                                  .onSurfaceVariant,
+                                                            ),
+                                                      ),
+                                                      const Spacer(),
+                                                      AnimatedRotation(
+                                                        turns: _engineOpen
+                                                            ? 0.5
+                                                            : 0,
+                                                        duration:
+                                                            const Duration(
+                                                              milliseconds: 180,
+                                                            ),
+                                                        child: Icon(
+                                                          Icons.expand_more,
+                                                          size: 18,
+                                                          color: theme
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
-                                              header,
-                                              _EngineLines(
-                                                lines: lines,
-                                                baseFen: game.fen,
-                                                onPlay: _playLine,
-                                                oneLine: true,
-                                              ),
+                                              if (_engineOpen) ...[
+                                                _EngineHeader(
+                                                  best: best,
+                                                  ready: engine.ready,
+                                                  result: result,
+                                                  whiteToMove:
+                                                      game.fen.split(' ')[1] ==
+                                                      'w',
+                                                  statusIcons: false,
+                                                ),
+                                                _EngineLines(
+                                                  lines: lines,
+                                                  baseFen: game.fen,
+                                                  onPlay: _playLine,
+                                                  oneLine: true,
+                                                ),
+                                              ],
                                               const Spacer(),
                                             ],
                                           );
@@ -1357,10 +1431,15 @@ class _EngineHeader extends StatelessWidget {
     this.result,
     this.onLine,
     this.onBackToGame,
+    this.statusIcons = true,
   });
   final EngineLine? best;
   final bool ready;
   final bool whiteToMove;
+
+  /// Desktop web hides the game-state icons here — they live on the
+  /// always-visible Lesson line row instead.
+  final bool statusIcons;
 
   /// Game-over result ("1–0 mate") — replaces the live score.
   final String? result;
@@ -1389,63 +1468,83 @@ class _EngineHeader extends StatelessWidget {
           if (result == null && best != null)
             Text('depth ${best!.depth}', style: theme.textTheme.bodySmall),
           const Spacer(),
-          // original-line indicator: a line while on it, "off" over the
-          // line when analysis wandered — tap returns to the game
-          if (onLine != null) ...[
-            Tooltip(
-              message: onLine!
-                  ? "On the game's original line"
-                  : "Off the game's line — tap to return",
-              child: InkWell(
-                onTap: onLine! ? null : onBackToGame,
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 28,
-                  height: 24,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // the line always looks the same; going off it just
-                      // crosses it with the word — a strikethrough in
-                      // reverse (text over line, not line over text)
-                      Icon(
-                        Icons.timeline,
-                        size: 20,
-                        color: theme.colorScheme.primary,
-                      ),
-                      if (!onLine!)
-                        Text(
-                          'OFF',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            fontSize: 9,
-                            height: 1.0,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.5,
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                    ],
+          if (statusIcons) ...[
+            if (onLine != null) ...[
+              _OnLineIndicator(onLine: onLine!, onBackToGame: onBackToGame),
+              const SizedBox(width: 10),
+            ],
+            if (result == null) _TurnDisc(whiteToMove: whiteToMove),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Original-line indicator: a line while on it, "off" over the line when
+/// analysis wandered — tap returns to the game.
+class _OnLineIndicator extends StatelessWidget {
+  const _OnLineIndicator({required this.onLine, this.onBackToGame});
+  final bool onLine;
+  final VoidCallback? onBackToGame;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: onLine
+          ? "On the game's original line"
+          : "Off the game's line — tap to return",
+      child: InkWell(
+        onTap: onLine ? null : onBackToGame,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 28,
+          height: 24,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // the line always looks the same; going off it just
+              // crosses it with the word — a strikethrough in
+              // reverse (text over line, not line over text)
+              Icon(Icons.timeline, size: 20, color: theme.colorScheme.primary),
+              if (!onLine)
+                Text(
+                  'OFF',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontSize: 9,
+                    height: 1.0,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                    color: theme.colorScheme.error,
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
-          ],
-          // whose turn — a disc alone says it (no words)
-          if (result == null)
-            Tooltip(
-              message: whiteToMove ? 'White to move' : 'Black to move',
-              child: Container(
-                width: 18,
-                height: 18,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: whiteToMove ? Colors.white : const Color(0xFF1E1E1E),
-                  border: Border.all(color: theme.colorScheme.outlineVariant),
-                ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Whose turn — a disc alone says it (no words).
+class _TurnDisc extends StatelessWidget {
+  const _TurnDisc({required this.whiteToMove});
+  final bool whiteToMove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: whiteToMove ? 'White to move' : 'Black to move',
+      child: Container(
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: whiteToMove ? Colors.white : const Color(0xFF1E1E1E),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
       ),
     );
   }
