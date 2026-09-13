@@ -212,19 +212,49 @@ class _NodeTileState extends State<_NodeTile> {
                     child: Tooltip(
                       message:
                           '${node.lessonCount} lesson${node.lessonCount == 1 ? '' : 's'} under this line',
-                      child: Badge.count(
-                        count: node.lessonCount,
-                        backgroundColor: theme.colorScheme.primary,
-                        textColor: theme.colorScheme.onPrimary,
-                        child: Icon(
-                          shared
-                              ? Icons.alt_route
-                              : Icons.subdirectory_arrow_right,
-                          size: 20,
-                          color: shared
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.outline,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // "several hats": a faded cap peeking behind the
+                          // main one — the only icon a branch row carries
+                          SizedBox(
+                            width: 25,
+                            height: 22,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Positioned(
+                                  left: 7,
+                                  top: -1,
+                                  child: Icon(
+                                    Icons.school,
+                                    size: 14,
+                                    color: theme.colorScheme.primary.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 0,
+                                  bottom: 0,
+                                  child: Icon(
+                                    Icons.school,
+                                    size: 18,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${node.lessonCount}',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
