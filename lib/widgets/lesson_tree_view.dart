@@ -369,12 +369,36 @@ class _LeafTile extends StatelessWidget {
               vertical: !isLast,
               color: theme.colorScheme.outlineVariant,
             ),
+            // same geometry as the branch rows' hats+count cluster, so
+            // single lessons line up with the nodes above them
             Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(
-                Icons.school,
-                size: 18,
-                color: theme.colorScheme.secondary,
+              padding: const EdgeInsets.only(right: 10),
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 25,
+                      height: 22,
+                      child: Align(
+                        alignment: Alignment.bottomLeft,
+                        child: Icon(
+                          Icons.school,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '1',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             Expanded(
