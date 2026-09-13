@@ -183,3 +183,31 @@ Future<bool> moderateLesson(String token, String id, bool approve) async {
       .timeout(const Duration(seconds: 10));
   return res.statusCode == 200;
 }
+
+/// Server-editable opening names for learn-tree nodes ("e4 e5" -> name),
+/// with an offline cache. Merged over the built-in book by lesson_tree.
+Future<Map<String, String>> fetchOpeningNames() async {
+  final prefs = await SharedPreferences.getInstance();
+  try {
+    final base = await RecognizerClient.savedUrl();
+    final res = await http
+        .get(Uri.parse('$base/v1/openings'))
+        .timeout(const Duration(seconds: 8));
+    if (res.statusCode == 200) {
+      final names = ((jsonDecode(res.body) as Map)['names'] as Map).map(
+        (k, v) => MapEntry(k.toString(), v.toString()),
+      );
+      await prefs.setString('opening_names', jsonEncode(names));
+      return names;
+    }
+  } catch (_) {}
+  try {
+    final cached = prefs.getString('opening_names');
+    if (cached != null) {
+      return (jsonDecode(cached) as Map).map(
+        (k, v) => MapEntry(k.toString(), v.toString()),
+      );
+    }
+  } catch (_) {}
+  return const {};
+}

@@ -238,12 +238,19 @@ const Map<String, String> _openingNames = {
   'b4': 'Polish (Orangutan)',
 };
 
+/// Server-editable overrides merged over the built-in book (back office
+/// /openings page); an empty name hides a built-in one.
+Map<String, String> _customOpeningNames = {};
+void setCustomOpeningNames(Map<String, String> names) {
+  _customOpeningNames = names;
+}
+
 /// Name for the line ending at [endPly] along [fullPath], but only when
 /// the naming move falls after [afterPly] (inside the current segment).
 String? openingNameFor(List<String> fullPath, {int afterPly = -1}) {
   String? best;
   var bestLen = -1;
-  for (final e in _openingNames.entries) {
+  for (final e in {..._openingNames, ..._customOpeningNames}.entries) {
     final seq = e.key.split(' ');
     if (seq.length <= afterPly || seq.length > fullPath.length) continue;
     if (seq.length <= bestLen) continue;
@@ -259,5 +266,5 @@ String? openingNameFor(List<String> fullPath, {int afterPly = -1}) {
       bestLen = seq.length;
     }
   }
-  return best;
+  return (best == null || best.isEmpty) ? null : best;
 }

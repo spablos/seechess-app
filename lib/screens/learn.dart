@@ -100,6 +100,11 @@ class _LearnScreenState extends State<LearnScreen> {
   }
 
   Future<void> _load() async {
+    unawaited(
+      fetchOpeningNames().then((names) {
+        if (mounted) setState(() => setCustomOpeningNames(names));
+      }),
+    );
     final store = LessonStore();
     final bundled = await store.bundled();
     if (mounted) setState(() => _lessons = bundled);

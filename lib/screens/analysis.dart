@@ -182,6 +182,32 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   final GlobalKey _activeMoveKey = GlobalKey();
   int _autoScrolledPly = -1;
 
+  /// Plays the loaded line through without stopping (the bottom ▶ button);
+  /// pressing again — or reaching the end — stops it.
+  Timer? _autoPlayTimer;
+
+  void _toggleAutoPlay() {
+    final t = _autoPlayTimer;
+    if (t != null) {
+      t.cancel();
+      setState(() => _autoPlayTimer = null);
+      return;
+    }
+    if (game.atLatest) game.stepTo(0); // replay from the start
+    setState(() {
+      _autoPlayTimer = Timer.periodic(const Duration(milliseconds: 1400), (
+        timer,
+      ) {
+        if (!mounted || game.atLatest) {
+          timer.cancel();
+          if (mounted) setState(() => _autoPlayTimer = null);
+          return;
+        }
+        game.stepForward();
+      });
+    });
+  }
+
   /// The position the current game's move list starts from — follows
   /// Paste FEN and editor applies, so a save replays correctly.
   late String _startFen =
@@ -281,6 +307,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   @override
   void dispose() {
+    _autoPlayTimer?.cancel();
     if (_fenError == null) {
       game.removeListener(_onPosition);
       engine.stop();
@@ -882,6 +909,8 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
                           onBestMove: lines.isEmpty
                               ? null
                               : () => _playLine(lines.first, 1),
+                          playing: _autoPlayTimer != null,
+                          onPlayPause: _toggleAutoPlay,
                         );
                         if (wideWeb) {
                           // keep the current move visible in the lesson pane
@@ -1838,11 +1867,20 @@ class _MoveList extends StatelessWidget {
 }
 
 class _Controls extends StatelessWidget {
-  const _Controls({required this.game, this.onBestMove});
+  const _Controls({
+    required this.game,
+    this.onBestMove,
+    this.playing = false,
+    this.onPlayPause,
+  });
   final GameState game;
 
   /// At the tip of the game the forward arrow plays the engine's best move.
   final VoidCallback? onBestMove;
+
+  /// Autoplay: plays the line through without stopping.
+  final bool playing;
+  final VoidCallback? onPlayPause;
 
   @override
   Widget build(BuildContext context) {
@@ -1861,6 +1899,17 @@ class _Controls extends StatelessWidget {
             icon: const Icon(Icons.chevron_left),
             onPressed: game.ply > 0 ? game.stepBack : null,
           ),
+          if (onPlayPause != null && game.moves.isNotEmpty)
+            IconButton(
+              iconSize: 36,
+              tooltip: playing ? 'Pause' : 'Play the line through',
+              icon: Icon(
+                playing
+                    ? Icons.pause_circle_outline
+                    : Icons.play_circle_outline,
+              ),
+              onPressed: onPlayPause,
+            ),
           IconButton(
             iconSize: 32,
             icon: const Icon(Icons.chevron_right),
