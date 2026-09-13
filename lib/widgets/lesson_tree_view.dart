@@ -33,26 +33,36 @@ class LessonTreeView extends StatelessWidget {
             ExpansionTile(
               initiallyExpanded: sectionsExpanded,
               shape: const Border(),
-              leading: Container(
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
-                  border: Border.all(color: theme.colorScheme.outlineVariant),
-                ),
-                child: Icon(
-                  Icons.school,
-                  size: 18,
-                  color: side == 'w' ? Colors.black54 : Colors.white70,
+              leading: Badge.count(
+                count: forest[side]!.roots.fold(0, (n, r) => n + r.lessonCount),
+                backgroundColor: theme.colorScheme.primary,
+                textColor: theme.colorScheme.onPrimary,
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
+                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                  ),
+                  child: Icon(
+                    Icons.school,
+                    size: 18,
+                    color: side == 'w' ? Colors.black54 : Colors.white70,
+                  ),
                 ),
               ),
-              title: Text(
-                side == 'w' ? 'Playing as White' : 'Playing as Black',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
+              title: Tooltip(
+                message: side == 'w'
+                    ? 'Lessons below are from the White playing perspective'
+                    : 'Lessons below are from the Black playing perspective',
+                child: Text(
+                  side == 'w' ? 'White' : 'Black',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               children: [
@@ -197,13 +207,26 @@ class _NodeTileState extends State<_NodeTile> {
                   color: railColor,
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Icon(
-                    shared ? Icons.alt_route : Icons.subdirectory_arrow_right,
-                    size: 18,
-                    color: shared
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline,
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Center(
+                    child: Tooltip(
+                      message:
+                          '${node.lessonCount} lesson${node.lessonCount == 1 ? '' : 's'} under this line',
+                      child: Badge.count(
+                        count: node.lessonCount,
+                        backgroundColor: theme.colorScheme.primary,
+                        textColor: theme.colorScheme.onPrimary,
+                        child: Icon(
+                          shared
+                              ? Icons.alt_route
+                              : Icons.subdirectory_arrow_right,
+                          size: 20,
+                          color: shared
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
@@ -224,21 +247,14 @@ class _NodeTileState extends State<_NodeTile> {
                       const SizedBox(height: 2),
                       Row(
                         children: [
-                          if (shared) ...[
-                            count(
-                              Icons.school,
-                              node.lessonCount,
-                              'lessons',
-                              theme.colorScheme.primary,
-                            ),
-                            const SizedBox(width: 12),
+                          if (shared)
                             count(
                               Icons.link,
                               node.endPly,
                               'steps these ${node.lessonCount} lessons share',
                               theme.colorScheme.tertiary,
-                            ),
-                          ] else
+                            )
+                          else
                             count(
                               Icons.straighten,
                               node.endPly,
