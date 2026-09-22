@@ -516,13 +516,22 @@ Future<String?> editPhoto(BuildContext context, String path) async {
   );
   if (cropped == null) return null; // cancelled
   if (cropped.isEmpty) return path; // "use as is"
-  if (kIsWeb) return storeWebPhotoBytes(cropped);
+  // the crop REPLACES the original in recents — one photo, one entry
+  if (kIsWeb) {
+    final key = storeWebPhotoBytes(cropped);
+    removeWebPhoto(path);
+    return key;
+  }
   final dir = await getTemporaryDirectory();
   final f = File(
     '${dir.path}/crop_${DateTime.now().millisecondsSinceEpoch}.jpg',
   );
   await f.writeAsBytes(cropped);
-  return RecentPhotos.add(f.path);
+  final added = await RecentPhotos.add(f.path);
+  try {
+    await RecentPhotos.remove(File(path));
+  } catch (_) {}
+  return added;
 }
 
 class _PhotoEditorScreen extends StatefulWidget {
@@ -561,11 +570,16 @@ class _PhotoEditorScreenState extends State<_PhotoEditorScreen> {
                   child: Crop(
                     image: widget.bytes,
                     controller: _controller,
-                    // interactive mode force-zooms the image to cover the
-                    // viewport — right for pinch-driven phones, wrong on
-                    // desktop where the whole image should stay visible
-                    // under draggable corners
-                    interactive: !kIsWeb,
+                    // non-interactive everywhere: interactive mode
+                    // force-zooms the image to cover the viewport, so a
+                    // non-square photo could never be framed whole. Here
+                    // the full image stays visible under draggable
+                    // corners, and the crop starts wrapping all of it —
+                    // touching nothing means "detect the original".
+                    interactive: false,
+                    initialRectBuilder: InitialRectBuilder.withSizeAndRatio(
+                      size: 1.0,
+                    ),
                     baseColor: Colors.black,
                     maskColor: Colors.black54,
                     onCropped: (result) {
@@ -594,10 +608,7 @@ class _PhotoEditorScreenState extends State<_PhotoEditorScreen> {
                     children: [
                       const Expanded(
                         child: Text(
-                          kIsWeb
-                              ? 'Drag the corners tight around the board'
-                              : 'Drag the corners tight around the board — '
-                                    'pinch to zoom',
+                          'Drag the corners tight around the board',
                           style: TextStyle(color: Colors.white70, fontSize: 13),
                         ),
                       ),
