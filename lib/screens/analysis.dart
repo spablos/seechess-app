@@ -596,14 +596,38 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   /// Save: overwrite the saved entry this board came from (no questions
   /// asked — same name, same photo). Only offered once such an entry exists.
+  /// While the position editor is open, saving captures the editor's
+  /// board (no move history); otherwise the game as played.
+  bool _validateEditorForSave() {
+    final setup = _setup;
+    if (setup == null) return true;
+    final problem = setup.validationError();
+    if (problem != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(problem)));
+      return false;
+    }
+    return true;
+  }
+
   Future<void> _save() async {
+    if (!_validateEditorForSave()) return;
     final source = _source!;
-    final saved = source.copyWith(
-      fen: game.fen,
-      modifiedAt: DateTime.now(),
-      startFen: _startFen,
-      movesUci: [for (final m in game.moves) m.uci],
-    );
+    final setup = _setup;
+    final saved = setup != null
+        ? source.copyWith(
+            fen: setup.toFen(),
+            modifiedAt: DateTime.now(),
+            startFen: setup.toFen(),
+            movesUci: const [],
+          )
+        : source.copyWith(
+            fen: game.fen,
+            modifiedAt: DateTime.now(),
+            startFen: _startFen,
+            movesUci: [for (final m in game.moves) m.uci],
+          );
     await SavedGamesStore().update(saved);
     _source = saved;
     if (mounted) {
@@ -615,6 +639,7 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
 
   /// Save as: a new entry under a new name, leaving the original untouched.
   Future<void> _saveAs() async {
+    if (!_validateEditorForSave()) return;
     final nameController = TextEditingController(
       text:
           _importDraft?.name ??
@@ -649,18 +674,19 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
         ? 'Position ${DateTime.now().toString().substring(0, 16)}'
         : nameController.text.trim();
     final draft = _importDraft;
+    final setup = _setup;
     final saved = SavedGame(
       name: name,
-      fen: game.fen,
+      fen: setup?.toFen() ?? game.fen,
       createdAt: DateTime.now(),
-      startFen: _startFen,
-      movesUci: [for (final m in game.moves) m.uci],
+      startFen: setup?.toFen() ?? _startFen,
+      movesUci: setup != null ? const [] : [for (final m in game.moves) m.uci],
       labels: draft?.labels ?? const [],
       white: draft?.white,
       black: draft?.black,
       result: draft?.result,
       sourceUrl: draft?.sourceUrl,
-      comments: _comments,
+      comments: setup != null ? const {} : _comments,
     );
     await SavedGamesStore().add(saved);
     unawaited(AppStats.count('library_save'));
@@ -1359,25 +1385,26 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
             icon: const Icon(Icons.ios_share),
             onPressed: () => sharePosition(context, fen()),
           ),
-          if (!editing) ...[
-            IconButton(
-              tooltip: _source == null
-                  ? 'Save (nothing to overwrite yet — use Save as)'
-                  : 'Save · ${_source!.name}',
-              icon: const Icon(Icons.bookmark),
-              onPressed: _source == null ? null : _save,
-            ),
-            IconButton(
-              tooltip: 'Save as…',
-              icon: const Icon(Icons.bookmark_add_outlined),
-              onPressed: _saveAs,
-            ),
+          // saving works mid-edit too: it captures the editor's board
+          // (overwriting the source entry, or as a new one)
+          IconButton(
+            tooltip: _source == null
+                ? 'Save (nothing to overwrite yet — use Save as)'
+                : 'Save · ${_source!.name}',
+            icon: const Icon(Icons.bookmark),
+            onPressed: _source == null ? null : _save,
+          ),
+          IconButton(
+            tooltip: 'Save as…',
+            icon: const Icon(Icons.bookmark_add_outlined),
+            onPressed: _saveAs,
+          ),
+          if (!editing)
             IconButton(
               tooltip: 'Share as lesson (long-press moves to add remarks)',
               icon: const Icon(Icons.cast_for_education_outlined),
               onPressed: _submitLesson,
             ),
-          ],
         ],
       ),
     );
