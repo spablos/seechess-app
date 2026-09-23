@@ -754,13 +754,21 @@ class _AnalysisScreenState extends State<AnalysisScreen> {
   /// and the desktop-web header row.
   List<Widget> _actionButtons() => [
     if (widget.editable)
-      IconButton(
-        icon: const Icon(Icons.edit_outlined),
-        selectedIcon: const Icon(Icons.edit),
-        isSelected: _setup != null,
-        tooltip: _setup == null ? 'Set up position' : 'Cancel editing',
-        onPressed: _toggleEdit,
-      ),
+      // entering and leaving a mode deserve different icons (Pablo):
+      // pencil enters the editor, the analysis glyph returns from it
+      _setup == null
+          ? IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Set up position',
+              onPressed: _toggleEdit,
+            )
+          : IconButton(
+              icon: const Icon(Icons.query_stats),
+              tooltip:
+                  'Back to analysis — Done applies your edits, '
+                  'this discards them',
+              onPressed: _toggleEdit,
+            ),
     if (_photoPath != null)
       IconButton(
         tooltip: _photoVisible ? 'Hide photo' : 'Show photo',
