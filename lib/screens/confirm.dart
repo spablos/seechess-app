@@ -342,6 +342,79 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     }
   }
 
+  /// Save the board as it stands right now as a standalone position —
+  /// no confirmation, no photo — and continue on the analysis board,
+  /// detached from the upload. For "this position has nothing to do
+  /// with the image anymore" (Pablo). The detection stays unconfirmed:
+  /// nothing is sent to feedback memory.
+  Future<void> _saveAsPosition() async {
+    final problem = setup.validationError();
+    if (problem != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(problem)));
+      return;
+    }
+    final nameController = TextEditingController();
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Save as position'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                hintText: 'e.g. Idea from tonight',
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Saved as a standalone position — without the photo, and '
+              'without confirming the detection. You continue on the '
+              'analysis board.',
+              style: TextStyle(fontSize: 12.5),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save & analyze'),
+          ),
+        ],
+      ),
+    );
+    if (saved != true || !mounted) return;
+    final name = nameController.text.trim().isEmpty
+        ? 'Position ${DateTime.now().toString().substring(0, 16)}'
+        : nameController.text.trim();
+    final entry = SavedGame(
+      name: name,
+      fen: setup.toFen(),
+      createdAt: DateTime.now(),
+    );
+    await SavedGamesStore().add(entry);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => AnalysisScreen(
+          fen: entry.fen,
+          initialFlipped: _flipped,
+          editable: true,
+          source: entry,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -499,9 +572,12 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
                 _Pulse(
                   active: _confirmed,
                   child: IconButton.filledTonal(
-                    tooltip: 'Save',
+                    tooltip: _confirmed
+                        ? 'Save'
+                        : 'Save as a position (without confirming '
+                              'or keeping the photo)',
                     icon: const Icon(Icons.bookmark_add),
-                    onPressed: _confirmed ? _save : null,
+                    onPressed: _confirmed ? _save : _saveAsPosition,
                   ),
                 ),
                 const SizedBox(width: 4),
