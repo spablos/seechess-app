@@ -577,8 +577,10 @@ class _PhotoEditorScreenState extends State<_PhotoEditorScreen> {
                     // corners, and the crop starts wrapping all of it —
                     // touching nothing means "detect the original".
                     interactive: false,
-                    initialRectBuilder: InitialRectBuilder.withSizeAndRatio(
-                      size: 1.0,
+                    // the initial crop rect IS the displayed image: nothing
+                    // is cropped until the user shrinks it
+                    initialRectBuilder: InitialRectBuilder.withBuilder(
+                      (viewportRect, imageRect) => imageRect,
                     ),
                     baseColor: Colors.black,
                     maskColor: Colors.black54,
