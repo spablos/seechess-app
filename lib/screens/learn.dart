@@ -257,6 +257,24 @@ class _LearnScreenState extends State<LearnScreen> {
     });
   }
 
+  /// Tapping the preview board opens what it shows: the selected lesson,
+  /// or the shared line of the previewed node.
+  void _openPreviewed() {
+    final leafId = _selectedLeafId;
+    if (leafId != null) {
+      final all = [...?_lessons, ..._pending];
+      for (final l in all) {
+        if (l.id == leafId) {
+          _open(l);
+          return;
+        }
+      }
+    }
+    if (_previewSans.isNotEmpty) {
+      _openTrunk(_previewSans, _previewSide);
+    }
+  }
+
   String _movesLabel(List<String> sans) {
     if (sans.isEmpty) return 'Start position';
     final b = StringBuffer('After ');
@@ -376,7 +394,7 @@ class _LearnScreenState extends State<LearnScreen> {
             ? Column(
                 children: [
                   Expanded(
-                    flex: 2,
+                    flex: 3,
                     child: LessonTreeView(
                       key: ValueKey('$_treeEpoch|${_search.text}|$_sideFilter'),
                       lessons: listLessons!,
@@ -406,7 +424,7 @@ class _LearnScreenState extends State<LearnScreen> {
                   // lower third: the position at the tapped node (or a
                   // leaf's starting point) — the tree becomes browsable
                   Expanded(
-                    flex: 1,
+                    flex: 2,
                     child: Column(
                       children: [
                         Padding(
@@ -424,12 +442,17 @@ class _LearnScreenState extends State<LearnScreen> {
                           child: Center(
                             child: AspectRatio(
                               aspectRatio: 1,
-                              child: ChessBoard(
-                                pieces: _previewPieces(),
-                                flipped: _previewSide == 'b',
-                                interactive: false,
-                                onMove: (_, _) {},
-                                legalTargetsFor: (_) => const {},
+                              child: GestureDetector(
+                                // the board is a door: tapping it opens
+                                // the previewed lesson or shared line
+                                onTap: _openPreviewed,
+                                child: ChessBoard(
+                                  pieces: _previewPieces(),
+                                  flipped: _previewSide == 'b',
+                                  interactive: false,
+                                  onMove: (_, _) {},
+                                  legalTargetsFor: (_) => const {},
+                                ),
                               ),
                             ),
                           ),
