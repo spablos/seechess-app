@@ -313,6 +313,19 @@ class _LearnScreenState extends State<LearnScreen> {
     }
   }
 
+  /// A leaf previews its parent's position PLUS its own first move:
+  /// siblings share the starting point, so the board must show the one
+  /// move that tells them apart (Pablo).
+  List<String> _leafPreviewSans(Lesson lesson, List<String> sans) {
+    try {
+      final game = parsePgn(lesson.pgn);
+      if (game.startFen != null) return sans;
+      final line = game.sanMoves;
+      if (line.length > sans.length) return line.sublist(0, sans.length + 1);
+    } catch (_) {}
+    return sans;
+  }
+
   String _movesLabel(List<String> sans) {
     if (sans.isEmpty) return 'Start position';
     final b = StringBuffer('After ');
@@ -473,7 +486,7 @@ class _LearnScreenState extends State<LearnScreen> {
                           _selectedLeafId = lesson.id;
                           _previewTitle = lesson.title;
                         });
-                        _preview(sans, side);
+                        _preview(_leafPreviewSans(lesson, sans), side);
                       },
                       drillMode: _drillMode,
                       drillSide: _drillSide,

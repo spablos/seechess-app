@@ -39,8 +39,8 @@ class LessonTreeView extends StatelessWidget {
   /// tapped node's end (or a leaf's starting point) and the side.
   final void Function(List<String> sans, String side)? onPreview;
 
-  /// First tap on a leaf previews its starting position (and selects it);
-  /// a second tap on the already-selected leaf opens the lesson.
+  /// Tapping a leaf selects it and previews its starting position plus
+  /// the leaf's own first move (siblings differ on the board below).
   final String? selectedLessonId;
   final void Function(Lesson lesson, List<String> startSans, String side)?
   onSelectLeaf;
