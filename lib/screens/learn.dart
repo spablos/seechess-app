@@ -253,16 +253,6 @@ class _LearnScreenState extends State<LearnScreen> {
     });
   }
 
-  String _previewLabel() {
-    final b = StringBuffer();
-    for (var i = 0; i < _previewSans.length; i++) {
-      if (i.isEven) b.write('${i ~/ 2 + 1}.');
-      b.write(_previewSans[i]);
-      b.write(' ');
-    }
-    return 'After ${b.toString().trim()}';
-  }
-
   Map<String, String> _previewPieces() {
     final g = ch.Chess();
     for (final san in _previewSans) {
@@ -395,42 +385,37 @@ class _LearnScreenState extends State<LearnScreen> {
                   // leaf's starting point) — the tree becomes browsable
                   Expanded(
                     flex: 1,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(
-                            color: theme.colorScheme.outlineVariant,
-                          ),
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AspectRatio(
-                            aspectRatio: 1,
-                            child: ChessBoard(
-                              pieces: _previewPieces(),
-                              flipped: _previewSide == 'b',
-                              interactive: false,
-                              onMove: (_, _) {},
-                              legalTargetsFor: (_) => const {},
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 7),
+                          child: Container(
+                            height: 4,
+                            width: 56,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.outlineVariant,
+                              borderRadius: BorderRadius.circular(2),
                             ),
                           ),
-                          const SizedBox(width: 14),
-                          Flexible(
-                            child: Text(
-                              _previewSans.isEmpty
-                                  ? 'Tap a branch or lesson to preview '
-                                        'its position'
-                                  : _previewLabel(),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Center(
+                              child: AspectRatio(
+                                aspectRatio: 1,
+                                child: ChessBoard(
+                                  pieces: _previewPieces(),
+                                  flipped: _previewSide == 'b',
+                                  interactive: false,
+                                  onMove: (_, _) {},
+                                  legalTargetsFor: (_) => const {},
+                                ),
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
