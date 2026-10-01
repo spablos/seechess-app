@@ -23,6 +23,10 @@ class LessonTreeView extends StatelessWidget {
     this.drillPath = const [],
     this.onDrill,
     this.onDrillUp,
+    this.openNodes = const {},
+    this.onToggleNode,
+    this.openSections = const {'w', 'b'},
+    this.onToggleSection,
   });
 
   final List<Lesson> lessons;
@@ -53,6 +57,14 @@ class LessonTreeView extends StatelessWidget {
   final void Function(String side, List<String> path)? onDrill;
   final VoidCallback? onDrillUp;
 
+  /// Remembered expansion state (persisted by the owner): node keys are
+  /// the full SAN path joined by spaces; sections are 'w'/'b'. The
+  /// toggles report every change so the owner can store it.
+  final Set<String> openNodes;
+  final void Function(String key, bool open)? onToggleNode;
+  final Set<String> openSections;
+  final void Function(String side, bool open)? onToggleSection;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -63,7 +75,9 @@ class LessonTreeView extends StatelessWidget {
         for (final side in const ['w', 'b'])
           if (forest[side]!.roots.isNotEmpty)
             ExpansionTile(
-              initiallyExpanded: sectionsExpanded,
+              initiallyExpanded:
+                  sectionsExpanded || openSections.contains(side),
+              onExpansionChanged: (o) => onToggleSection?.call(side, o),
               shape: const Border(),
               leading: _SideDisc(
                 side: side,
@@ -97,6 +111,8 @@ class LessonTreeView extends StatelessWidget {
                     onPreview: onPreview,
                     selectedLessonId: selectedLessonId,
                     onSelectLeaf: onSelectLeaf,
+                    openNodes: openNodes,
+                    onToggleNode: onToggleNode,
                   ),
               ],
             ),
@@ -419,6 +435,8 @@ class _NodeTile extends StatefulWidget {
     this.onSelectLeaf,
     this.isRoot = false,
     this.path = const [],
+    this.openNodes = const {},
+    this.onToggleNode,
   });
 
   final LessonTreeNode node;
@@ -438,13 +456,21 @@ class _NodeTile extends StatefulWidget {
   final String? selectedLessonId;
   final void Function(Lesson lesson, List<String> startSans, String side)?
   onSelectLeaf;
+  final Set<String> openNodes;
+  final void Function(String key, bool open)? onToggleNode;
 
   @override
   State<_NodeTile> createState() => _NodeTileState();
 }
 
 class _NodeTileState extends State<_NodeTile> {
-  late bool _open = widget.expanded;
+  String get _pathKey => [...widget.path, ...widget.node.sans].join(' ');
+  late bool _open = widget.expanded || widget.openNodes.contains(_pathKey);
+
+  void _toggle() {
+    setState(() => _open = !_open);
+    widget.onToggleNode?.call(_pathKey, _open);
+  }
 
   /// Inline rename (admin): the name text swaps to a text field.
   bool _editing = false;
@@ -540,6 +566,8 @@ class _NodeTileState extends State<_NodeTile> {
           onPreview: widget.onPreview,
           selectedLessonId: widget.selectedLessonId,
           onSelectLeaf: widget.onSelectLeaf,
+          openNodes: widget.openNodes,
+          onToggleNode: widget.onToggleNode,
         ),
       );
     }
@@ -552,7 +580,7 @@ class _NodeTileState extends State<_NodeTile> {
           // hats, digit, title — expands/collapses; only leaf titles open
           // the board (Pablo). Long-press still replays the shared line.
           onTap: () {
-            setState(() => _open = !_open);
+            _toggle();
             widget.onPreview?.call(fullPath, widget.side);
           },
           onLongPress: () => widget.onOpenTrunk(fullPath, widget.side),
@@ -707,7 +735,7 @@ class _NodeTileState extends State<_NodeTile> {
                         color: theme.colorScheme.outline,
                       ),
                     ),
-                    onPressed: () => setState(() => _open = !_open),
+                    onPressed: _toggle,
                   ),
                 const SizedBox(width: 8),
               ],
@@ -799,7 +827,7 @@ class _LeafTile extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(lesson.title, overflow: TextOverflow.ellipsis),
+                  LessonTitle(lesson.title),
                   Row(
                     children: [
                       if (moves != null) ...[
@@ -849,6 +877,35 @@ class _LeafTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A lesson title with its proper name emphasized: the part before the
+/// " — " is bold, the dash and tagline stay regular.
+class LessonTitle extends StatelessWidget {
+  const LessonTitle(this.title, {super.key, this.style});
+
+  final String title;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final i = title.indexOf(' — ');
+    final head = i < 0 ? title : title.substring(0, i);
+    final rest = i < 0 ? '' : title.substring(i);
+    return Text.rich(
+      TextSpan(
+        style: style,
+        children: [
+          TextSpan(
+            text: head,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          if (rest.isNotEmpty) TextSpan(text: rest),
+        ],
+      ),
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

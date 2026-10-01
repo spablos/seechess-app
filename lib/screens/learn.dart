@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/capped_app_bar.dart';
 
@@ -58,6 +59,7 @@ class _LearnScreenState extends State<LearnScreen> {
           ? (side == 'w' ? 'White' : 'Black')
           : (openingNameFor(path) ?? _movesLabel(path));
     });
+    _saveUiState();
     _preview(path, side);
   }
 
@@ -75,20 +77,108 @@ class _LearnScreenState extends State<LearnScreen> {
       }
       _selectedLeafId = null;
     });
+    _saveUiState();
     if (_drillSide != null) _preview(_drillPath, _drillSide!);
   }
 
-  /// Tree expansion: sections (White/Black) start open, everything under
-  /// them collapsed; the appbar buttons flip the whole tree at once
-  /// (epoch forces the subtree to rebuild its state).
-  bool _treeExpanded = false;
-  bool _sectionsExpanded = true;
+  /// Tree expansion, persisted across launches: node keys are the SAN
+  /// path joined by spaces, sections are 'w'/'b'. The appbar buttons
+  /// rewrite the whole set at once (epoch forces tiles to rebuild).
+  Set<String> _openNodes = {};
+  Set<String> _openSections = {'w', 'b'};
   int _treeEpoch = 0;
+  SharedPreferences? _prefs;
+
+  /// Restore the Learn UI the way it was left: tree expansion, the
+  /// full-tree vs drill-down choice, and the drill location.
+  Future<void> _loadUiState() async {
+    final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _prefs = p;
+      _openNodes = {...?p.getStringList('learn_open_nodes')};
+      _openSections = {
+        ...(p.getStringList('learn_open_sections') ?? const ['w', 'b']),
+      };
+      _drillMode = p.getBool('learn_drill_mode') ?? false;
+      final side = p.getString('learn_drill_side');
+      _drillSide = (side == null || side.isEmpty) ? null : side;
+      _drillPath = p.getStringList('learn_drill_path') ?? const [];
+      _drillCrumbs
+        ..clear()
+        ..addAll([
+          for (final c in p.getStringList('learn_drill_crumbs') ?? const [])
+            c.isEmpty ? <String>[] : c.split(' '),
+        ]);
+      _treeEpoch++;
+    });
+    final ds = _drillSide;
+    if (_drillMode && ds != null) {
+      setState(() {
+        _previewTitle = _drillPath.isEmpty
+            ? (ds == 'w' ? 'White' : 'Black')
+            : (openingNameFor(_drillPath) ?? _movesLabel(_drillPath));
+      });
+      _preview(_drillPath, ds);
+    }
+  }
+
+  void _saveUiState() {
+    final p = _prefs;
+    if (p == null) return;
+    p.setStringList('learn_open_nodes', _openNodes.toList());
+    p.setStringList('learn_open_sections', _openSections.toList());
+    p.setBool('learn_drill_mode', _drillMode);
+    p.setString('learn_drill_side', _drillSide ?? '');
+    p.setStringList('learn_drill_path', _drillPath);
+    p.setStringList('learn_drill_crumbs', [
+      for (final c in _drillCrumbs) c.join(' '),
+    ]);
+  }
+
+  /// Every node key in the forest — "expand all" materialized.
+  Set<String> _allNodeKeys() {
+    final out = <String>{};
+    final forest = buildLessonForest(_lessons ?? const []);
+    void walk(List<LessonTreeNode> nodes, List<String> path) {
+      for (final n in nodes) {
+        final p = [...path, ...n.sans];
+        out.add(p.join(' '));
+        walk(n.children, p);
+      }
+    }
+
+    for (final side in const ['w', 'b']) {
+      walk(forest[side]!.roots, const []);
+    }
+    return out;
+  }
 
   /// Live search over everything a lesson is made of: title, author,
   /// category, remarks and moves (a query like "e4" matches the PGN).
   final _search = TextEditingController();
   bool _searching = false;
+
+  /// Category filter: null = everything, 'o' = openings only,
+  /// 't' = traps & gambits only. Classified by lesson.category.
+  String? _catFilter;
+
+  bool _isTrap(Lesson l) {
+    final c = l.category.toLowerCase();
+    return c.contains('trap') || c.contains('gambit');
+  }
+
+  List<Lesson> _byCat(List<Lesson> all) => switch (_catFilter) {
+    'o' => [
+      for (final l in all)
+        if (!_isTrap(l)) l,
+    ],
+    't' => [
+      for (final l in all)
+        if (_isTrap(l)) l,
+    ],
+    _ => all,
+  };
 
   /// List-view perspective filter: null = both sides, 'w', 'b'.
   String? _sideFilter;
@@ -148,6 +238,7 @@ class _LearnScreenState extends State<LearnScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadUiState();
   }
 
   Future<void> _load() async {
@@ -362,7 +453,7 @@ class _LearnScreenState extends State<LearnScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final lessons = _lessons == null ? null : _filter(_lessons!);
-    final listLessons = lessons == null ? null : _bySide(lessons);
+    final listLessons = lessons == null ? null : _byCat(_bySide(lessons));
     final searchingActive = _search.text.trim().isNotEmpty;
     // stable order: curated categories first, community last
     final categories = <String>[];
@@ -372,17 +463,7 @@ class _LearnScreenState extends State<LearnScreen> {
     return Scaffold(
       appBar: cappedAppBar(
         AppBar(
-          title: _searching
-              ? TextField(
-                  controller: _search,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    hintText: 'Search lessons, text, moves (e.g. e4)…',
-                    border: InputBorder.none,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                )
-              : const Text('Learn'),
+          title: const Text('Learn'),
           actions: [
             IconButton(
               tooltip: _searching ? 'Close search' : 'Search',
@@ -407,6 +488,31 @@ class _LearnScreenState extends State<LearnScreen> {
                 };
               }),
             ),
+            IconButton(
+              tooltip: switch (_catFilter) {
+                'o' => 'Showing openings — tap for traps & gambits',
+                't' => 'Showing traps & gambits — tap for everything',
+                _ => 'Showing everything — tap for openings only',
+              },
+              icon: switch (_catFilter) {
+                'o' => const Icon(Icons.menu_book),
+                't' => const Icon(Icons.flash_on),
+                _ => const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.menu_book, size: 15),
+                    Icon(Icons.flash_on, size: 15),
+                  ],
+                ),
+              },
+              onPressed: () => setState(() {
+                _catFilter = switch (_catFilter) {
+                  null => 'o',
+                  'o' => 't',
+                  _ => null,
+                };
+              }),
+            ),
             if (_treeView)
               IconButton(
                 tooltip: _drillMode
@@ -415,31 +521,40 @@ class _LearnScreenState extends State<LearnScreen> {
                 isSelected: _drillMode,
                 icon: const Icon(Icons.folder_outlined),
                 selectedIcon: const Icon(Icons.folder),
-                onPressed: () => setState(() {
-                  _drillMode = !_drillMode;
-                  _drillSide = null;
-                  _drillPath = const [];
-                  _drillCrumbs.clear();
-                }),
+                onPressed: () {
+                  setState(() {
+                    _drillMode = !_drillMode;
+                    _drillSide = null;
+                    _drillPath = const [];
+                    _drillCrumbs.clear();
+                  });
+                  _saveUiState();
+                },
               ),
             if (_treeView && !_drillMode) ...[
               IconButton(
                 tooltip: 'Collapse all',
                 icon: const Icon(Icons.compress),
-                onPressed: () => setState(() {
-                  _treeExpanded = false;
-                  _sectionsExpanded = false;
-                  _treeEpoch++;
-                }),
+                onPressed: () {
+                  setState(() {
+                    _openNodes = {};
+                    _openSections = {};
+                    _treeEpoch++;
+                  });
+                  _saveUiState();
+                },
               ),
               IconButton(
                 tooltip: 'Expand all',
                 icon: const Icon(Icons.expand),
-                onPressed: () => setState(() {
-                  _treeExpanded = true;
-                  _sectionsExpanded = true;
-                  _treeEpoch++;
-                }),
+                onPressed: () {
+                  setState(() {
+                    _openNodes = _allNodeKeys();
+                    _openSections = {'w', 'b'};
+                    _treeEpoch++;
+                  });
+                  _saveUiState();
+                },
               ),
             ],
             IconButton(
@@ -454,191 +569,247 @@ class _LearnScreenState extends State<LearnScreen> {
         width: 760,
       ),
       body: _webCap(
-        lessons == null
-            ? const Center(child: CircularProgressIndicator())
-            : _treeView
-            ? Column(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: LessonTreeView(
-                      key: ValueKey(
-                        '$_treeEpoch|${_search.text}|$_sideFilter'
-                        '|$_drillMode|$_drillSide|${_drillPath.join(" ")}',
-                      ),
-                      lessons: listLessons!,
-                      expanded: _treeExpanded || searchingActive,
-                      sectionsExpanded: _sectionsExpanded || searchingActive,
-                      onOpenLesson: _open,
-                      onOpenTrunk: _openTrunk,
-                      onRenameNode: adminToken() != null ? _renameNode : null,
-                      onPreview: (sans, side) {
-                        setState(() {
-                          _selectedLeafId = null;
-                          _previewTitle =
-                              openingNameFor(sans) ?? _movesLabel(sans);
-                        });
-                        _preview(sans, side);
-                      },
-                      selectedLessonId: _selectedLeafId,
-                      onSelectLeaf: (lesson, sans, side) {
-                        setState(() {
-                          _selectedLeafId = lesson.id;
-                          _previewTitle = lesson.title;
-                        });
-                        _preview(_leafPreviewSans(lesson, sans), side);
-                      },
-                      drillMode: _drillMode,
-                      drillSide: _drillSide,
-                      drillPath: _drillPath,
-                      onDrill: _drillInto,
-                      onDrillUp: _drillUp,
+        Column(
+          children: [
+            if (_searching)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                child: TextField(
+                  controller: _search,
+                  autofocus: true,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'Search lessons, text, moves (e.g. e4)…',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _search.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear',
+                            icon: const Icon(Icons.clear),
+                            onPressed: () => setState(_search.clear),
+                          ),
+                    filled: true,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(28),
+                      borderSide: BorderSide.none,
                     ),
                   ),
-                  // lower third: the position at the tapped node (or a
-                  // leaf's starting point) — the tree becomes browsable
-                  Expanded(
-                    flex: 2,
-                    child: Column(
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            Expanded(
+              child: lessons == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : _treeView
+                  ? Column(
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 7),
-                          child: Container(
-                            height: 4,
-                            width: 56,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.outlineVariant,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
                         Expanded(
-                          child: Center(
-                            child: AspectRatio(
-                              aspectRatio: 1,
-                              child: GestureDetector(
-                                // the board is a door: tapping it opens
-                                // the previewed lesson or shared line
-                                onTap: _openPreviewed,
-                                child: ChessBoard(
-                                  pieces: _previewPieces(),
-                                  flipped: _previewSide == 'b',
-                                  interactive: false,
-                                  onMove: (_, _) {},
-                                  legalTargetsFor: (_) => const {},
-                                ),
-                              ),
+                          flex: 3,
+                          child: LessonTreeView(
+                            key: ValueKey(
+                              '$_treeEpoch|${_search.text}|$_sideFilter|$_catFilter'
+                              '|$_drillMode|$_drillSide|${_drillPath.join(" ")}',
                             ),
+                            lessons: listLessons!,
+                            expanded: searchingActive,
+                            sectionsExpanded: searchingActive,
+                            openNodes: _openNodes,
+                            onToggleNode: (key, open) {
+                              open
+                                  ? _openNodes.add(key)
+                                  : _openNodes.remove(key);
+                              _saveUiState();
+                            },
+                            openSections: _openSections,
+                            onToggleSection: (side, open) {
+                              open
+                                  ? _openSections.add(side)
+                                  : _openSections.remove(side);
+                              _saveUiState();
+                            },
+                            onOpenLesson: _open,
+                            onOpenTrunk: _openTrunk,
+                            onRenameNode: adminToken() != null
+                                ? _renameNode
+                                : null,
+                            onPreview: (sans, side) {
+                              setState(() {
+                                _selectedLeafId = null;
+                                _previewTitle =
+                                    openingNameFor(sans) ?? _movesLabel(sans);
+                              });
+                              _preview(sans, side);
+                            },
+                            selectedLessonId: _selectedLeafId,
+                            onSelectLeaf: (lesson, sans, side) {
+                              setState(() {
+                                _selectedLeafId = lesson.id;
+                                _previewTitle = lesson.title;
+                              });
+                              _preview(_leafPreviewSans(lesson, sans), side);
+                            },
+                            drillMode: _drillMode,
+                            drillSide: _drillSide,
+                            drillPath: _drillPath,
+                            onDrill: _drillInto,
+                            onDrillUp: _drillUp,
                           ),
                         ),
-                        // the caption IS the bottom padding
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                          child: Text(
-                            _previewTitle,
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              )
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: ListView(
-                  children: [
-                    if (_pending.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                        child: Text(
-                          'Pending review (admin)',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: theme.colorScheme.error,
-                          ),
-                        ),
-                      ),
-                      for (final l in _bySide(_filter(_pending)))
-                        ListTile(
-                          leading: const Icon(Icons.pending_actions),
-                          title: Text(l.title),
-                          subtitle: Text('by ${l.author ?? 'anonymous'}'),
-                          onTap: () => _open(l),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
+                        // lower third: the position at the tapped node (or a
+                        // leaf's starting point) — the tree becomes browsable
+                        Expanded(
+                          flex: 2,
+                          child: Column(
                             children: [
-                              IconButton(
-                                tooltip: 'Approve',
-                                icon: const Icon(
-                                  Icons.check_circle,
-                                  color: Color(0xFF2E7D32),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 7,
                                 ),
-                                onPressed: () => _moderate(l, true),
+                                child: Container(
+                                  height: 4,
+                                  width: 56,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.outlineVariant,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
                               ),
-                              IconButton(
-                                tooltip: 'Reject',
-                                icon: const Icon(
-                                  Icons.cancel,
-                                  color: Color(0xFFC62828),
+                              Expanded(
+                                child: Center(
+                                  child: AspectRatio(
+                                    aspectRatio: 1,
+                                    child: GestureDetector(
+                                      // the board is a door: tapping it opens
+                                      // the previewed lesson or shared line
+                                      onTap: _openPreviewed,
+                                      child: ChessBoard(
+                                        pieces: _previewPieces(),
+                                        flipped: _previewSide == 'b',
+                                        interactive: false,
+                                        onMove: (_, _) {},
+                                        legalTargetsFor: (_) => const {},
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                                onPressed: () => _moderate(l, false),
+                              ),
+                              // the caption IS the bottom padding
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  8,
+                                  16,
+                                  12,
+                                ),
+                                child: Text(
+                                  _previewTitle,
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      const Divider(),
-                    ],
-                    for (final cat in categories) ...[
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                        child: Text(
-                          cat,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      for (final l in listLessons!.where(
-                        (l) => l.category == cat,
-                      ))
-                        ListTile(
-                          leading: Container(
-                            width: 34,
-                            height: 34,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: l.side == 'w'
-                                  ? Colors.white
-                                  : const Color(0xFF1E1E1E),
-                              border: Border.all(
-                                color: theme.colorScheme.outlineVariant,
+                      ],
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView(
+                        children: [
+                          if (_pending.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                              child: Text(
+                                'Pending review (admin)',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
                               ),
                             ),
-                            child: Icon(
-                              Icons.school,
-                              size: 18,
-                              color: l.side == 'w'
-                                  ? Colors.black54
-                                  : Colors.white70,
+                            for (final l in _byCat(_bySide(_filter(_pending))))
+                              ListTile(
+                                leading: const Icon(Icons.pending_actions),
+                                title: LessonTitle(l.title),
+                                subtitle: Text('by ${l.author ?? 'anonymous'}'),
+                                onTap: () => _open(l),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Approve',
+                                      icon: const Icon(
+                                        Icons.check_circle,
+                                        color: Color(0xFF2E7D32),
+                                      ),
+                                      onPressed: () => _moderate(l, true),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Reject',
+                                      icon: const Icon(
+                                        Icons.cancel,
+                                        color: Color(0xFFC62828),
+                                      ),
+                                      onPressed: () => _moderate(l, false),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            const Divider(),
+                          ],
+                          for (final cat in categories) ...[
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                              child: Text(
+                                cat,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
                             ),
-                          ),
-                          title: Text(l.title),
-                          subtitle: l.author != null
-                              ? Text('by ${l.author}')
-                              : null,
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _open(l),
-                        ),
-                    ],
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
+                            for (final l in listLessons!.where(
+                              (l) => l.category == cat,
+                            ))
+                              ListTile(
+                                leading: Container(
+                                  width: 34,
+                                  height: 34,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: l.side == 'w'
+                                        ? Colors.white
+                                        : const Color(0xFF1E1E1E),
+                                    border: Border.all(
+                                      color: theme.colorScheme.outlineVariant,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.school,
+                                    size: 18,
+                                    color: l.side == 'w'
+                                        ? Colors.black54
+                                        : Colors.white70,
+                                  ),
+                                ),
+                                title: LessonTitle(l.title),
+                                subtitle: l.author != null
+                                    ? Text('by ${l.author}')
+                                    : null,
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => _open(l),
+                              ),
+                          ],
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
         width: 760,
       ),
     );
