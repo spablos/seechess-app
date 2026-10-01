@@ -15,6 +15,9 @@ class LessonTreeView extends StatelessWidget {
     required this.onOpenLesson,
     required this.onOpenTrunk,
     this.onRenameNode,
+    this.onPreview,
+    this.selectedLessonId,
+    this.onSelectLeaf,
   });
 
   final List<Lesson> lessons;
@@ -26,6 +29,16 @@ class LessonTreeView extends StatelessWidget {
   /// Admin mode: rename a node inline — the new name is stored on the
   /// server and reaches every client. null hides the edit affordance.
   final Future<void> Function(List<String> pathSans, String name)? onRenameNode;
+
+  /// Preview board below the tree: called with the moves leading to the
+  /// tapped node's end (or a leaf's starting point) and the side.
+  final void Function(List<String> sans, String side)? onPreview;
+
+  /// First tap on a leaf previews its starting position (and selects it);
+  /// a second tap on the already-selected leaf opens the lesson.
+  final String? selectedLessonId;
+  final void Function(Lesson lesson, List<String> startSans, String side)?
+  onSelectLeaf;
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +95,9 @@ class LessonTreeView extends StatelessWidget {
                     onOpenLesson: onOpenLesson,
                     onOpenTrunk: onOpenTrunk,
                     onRenameNode: onRenameNode,
+                    onPreview: onPreview,
+                    selectedLessonId: selectedLessonId,
+                    onSelectLeaf: onSelectLeaf,
                   ),
               ],
             ),
@@ -101,6 +117,9 @@ class _NodeTile extends StatefulWidget {
     required this.onOpenLesson,
     required this.onOpenTrunk,
     this.onRenameNode,
+    this.onPreview,
+    this.selectedLessonId,
+    this.onSelectLeaf,
     this.isRoot = false,
     this.path = const [],
   });
@@ -118,6 +137,10 @@ class _NodeTile extends StatefulWidget {
   final void Function(Lesson, {int initialPly}) onOpenLesson;
   final void Function(List<String> pathSans, String side) onOpenTrunk;
   final Future<void> Function(List<String> pathSans, String name)? onRenameNode;
+  final void Function(List<String> sans, String side)? onPreview;
+  final String? selectedLessonId;
+  final void Function(Lesson lesson, List<String> startSans, String side)?
+  onSelectLeaf;
 
   @override
   State<_NodeTile> createState() => _NodeTileState();
@@ -180,6 +203,10 @@ class _NodeTileState extends State<_NodeTile> {
         isLast: widget.isLast,
         moves: node.endPly,
         onOpen: widget.onOpenLesson,
+        startSans: widget.path,
+        side: widget.side,
+        onSelect: widget.onSelectLeaf,
+        selected: widget.selectedLessonId == node.lessonsEndingHere.first.id,
       );
     }
 
@@ -194,6 +221,10 @@ class _NodeTileState extends State<_NodeTile> {
           rails: [...widget.rails, !widget.isLast],
           isLast: ++k == total,
           onOpen: widget.onOpenLesson,
+          startSans: widget.path,
+          side: widget.side,
+          onSelect: widget.onSelectLeaf,
+          selected: widget.selectedLessonId == lesson.id,
         ),
       );
     }
@@ -209,6 +240,9 @@ class _NodeTileState extends State<_NodeTile> {
           onOpenLesson: widget.onOpenLesson,
           onOpenTrunk: widget.onOpenTrunk,
           onRenameNode: widget.onRenameNode,
+          onPreview: widget.onPreview,
+          selectedLessonId: widget.selectedLessonId,
+          onSelectLeaf: widget.onSelectLeaf,
         ),
       );
     }
@@ -220,7 +254,10 @@ class _NodeTileState extends State<_NodeTile> {
           // a branch row is a container, not a lesson: every part of it —
           // hats, digit, title — expands/collapses; only leaf titles open
           // the board (Pablo). Long-press still replays the shared line.
-          onTap: () => setState(() => _open = !_open),
+          onTap: () {
+            setState(() => _open = !_open);
+            widget.onPreview?.call(fullPath, widget.side);
+          },
           onLongPress: () => widget.onOpenTrunk(fullPath, widget.side),
           child: SizedBox(
             height: 46,
@@ -423,6 +460,10 @@ class _LeafTile extends StatelessWidget {
     required this.isLast,
     required this.onOpen,
     this.moves,
+    this.startSans = const [],
+    this.side = 'w',
+    this.onSelect,
+    this.selected = false,
   });
 
   final Lesson lesson;
@@ -431,12 +472,31 @@ class _LeafTile extends StatelessWidget {
   final int? moves;
   final void Function(Lesson, {int initialPly}) onOpen;
 
+  /// Moves leading to where this lesson's own line begins — shown on the
+  /// preview board on first tap; the second tap opens the lesson.
+  final List<String> startSans;
+  final String side;
+  final void Function(Lesson lesson, List<String> startSans, String side)?
+  onSelect;
+  final bool selected;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return InkWell(
-      onTap: () => onOpen(lesson),
-      child: SizedBox(
+      // browse-then-enter: first tap previews the leaf's starting
+      // position on the board below; tapping the selected leaf opens it
+      onTap: () {
+        if (onSelect == null || selected) {
+          onOpen(lesson);
+        } else {
+          onSelect!(lesson, startSans, side);
+        }
+      },
+      child: Container(
+        color: selected
+            ? theme.colorScheme.primaryContainer.withValues(alpha: 0.25)
+            : null,
         height: 42,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,

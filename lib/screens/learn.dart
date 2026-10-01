@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
 
 import '../widgets/capped_app_bar.dart';
 
+import '../widgets/board.dart';
 import '../widgets/lesson_tree_view.dart';
 import '../services/lesson_tree.dart';
 import '../services/lessons.dart';
@@ -25,7 +27,14 @@ class LearnScreen extends StatefulWidget {
 class _LearnScreenState extends State<LearnScreen> {
   List<Lesson>? _lessons;
   List<Lesson> _pending = const [];
-  bool _treeView = false;
+  // the tree IS the library (Pablo): Learn opens in tree view
+  bool _treeView = true;
+
+  /// Preview board under the tree: the position at the tapped node's end
+  /// (or a leaf's starting point). Empty = initial position.
+  List<String> _previewSans = const [];
+  String _previewSide = 'w';
+  String? _selectedLeafId;
 
   /// Tree expansion: sections (White/Black) start open, everything under
   /// them collapsed; the appbar buttons flip the whole tree at once
@@ -236,6 +245,45 @@ class _LearnScreenState extends State<LearnScreen> {
     );
   }
 
+  void _preview(List<String> sans, String side) {
+    setState(() {
+      _previewSans = sans;
+      _previewSide = side;
+      // tapping a trunk clears any leaf selection
+    });
+  }
+
+  String _previewLabel() {
+    final b = StringBuffer();
+    for (var i = 0; i < _previewSans.length; i++) {
+      if (i.isEven) b.write('${i ~/ 2 + 1}.');
+      b.write(_previewSans[i]);
+      b.write(' ');
+    }
+    return 'After ${b.toString().trim()}';
+  }
+
+  Map<String, String> _previewPieces() {
+    final g = ch.Chess();
+    for (final san in _previewSans) {
+      try {
+        if (g.move(san) != true) break;
+      } catch (_) {
+        break;
+      }
+    }
+    final out = <String, String>{};
+    for (final sq in ch.Chess.SQUARES.keys) {
+      final piece = g.get(sq);
+      if (piece != null) {
+        out[sq] =
+            '${piece.color == ch.Color.WHITE ? 'w' : 'b'}'
+            '${piece.type.toUpperCase()}';
+      }
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -320,14 +368,72 @@ class _LearnScreenState extends State<LearnScreen> {
         lessons == null
             ? const Center(child: CircularProgressIndicator())
             : _treeView
-            ? LessonTreeView(
-                key: ValueKey('$_treeEpoch|${_search.text}|$_sideFilter'),
-                lessons: listLessons!,
-                expanded: _treeExpanded || searchingActive,
-                sectionsExpanded: _sectionsExpanded || searchingActive,
-                onOpenLesson: _open,
-                onOpenTrunk: _openTrunk,
-                onRenameNode: adminToken() != null ? _renameNode : null,
+            ? Column(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: LessonTreeView(
+                      key: ValueKey('$_treeEpoch|${_search.text}|$_sideFilter'),
+                      lessons: listLessons!,
+                      expanded: _treeExpanded || searchingActive,
+                      sectionsExpanded: _sectionsExpanded || searchingActive,
+                      onOpenLesson: _open,
+                      onOpenTrunk: _openTrunk,
+                      onRenameNode: adminToken() != null ? _renameNode : null,
+                      onPreview: (sans, side) {
+                        setState(() => _selectedLeafId = null);
+                        _preview(sans, side);
+                      },
+                      selectedLessonId: _selectedLeafId,
+                      onSelectLeaf: (lesson, sans, side) {
+                        setState(() => _selectedLeafId = lesson.id);
+                        _preview(sans, side);
+                      },
+                    ),
+                  ),
+                  // lower third: the position at the tapped node (or a
+                  // leaf's starting point) — the tree becomes browsable
+                  Expanded(
+                    flex: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          AspectRatio(
+                            aspectRatio: 1,
+                            child: ChessBoard(
+                              pieces: _previewPieces(),
+                              flipped: _previewSide == 'b',
+                              interactive: false,
+                              onMove: (_, _) {},
+                              legalTargetsFor: (_) => const {},
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Flexible(
+                            child: Text(
+                              _previewSans.isEmpty
+                                  ? 'Tap a branch or lesson to preview '
+                                        'its position'
+                                  : _previewLabel(),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               )
             : RefreshIndicator(
                 onRefresh: _load,
