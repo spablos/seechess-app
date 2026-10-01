@@ -36,6 +36,10 @@ class _LearnScreenState extends State<LearnScreen> {
   String _previewSide = 'w';
   String? _selectedLeafId;
 
+  /// Caption under the preview board: the node's name (or the lesson's
+  /// title for a selected leaf); doubles as bottom padding.
+  String _previewTitle = 'Start position';
+
   /// Tree expansion: sections (White/Black) start open, everything under
   /// them collapsed; the appbar buttons flip the whole tree at once
   /// (epoch forces the subtree to rebuild its state).
@@ -253,6 +257,17 @@ class _LearnScreenState extends State<LearnScreen> {
     });
   }
 
+  String _movesLabel(List<String> sans) {
+    if (sans.isEmpty) return 'Start position';
+    final b = StringBuffer('After ');
+    for (var i = 0; i < sans.length; i++) {
+      if (i.isEven) b.write('${i ~/ 2 + 1}.');
+      b.write(sans[i]);
+      if (i != sans.length - 1) b.write(' ');
+    }
+    return b.toString();
+  }
+
   Map<String, String> _previewPieces() {
     final g = ch.Chess();
     for (final san in _previewSans) {
@@ -371,12 +386,19 @@ class _LearnScreenState extends State<LearnScreen> {
                       onOpenTrunk: _openTrunk,
                       onRenameNode: adminToken() != null ? _renameNode : null,
                       onPreview: (sans, side) {
-                        setState(() => _selectedLeafId = null);
+                        setState(() {
+                          _selectedLeafId = null;
+                          _previewTitle =
+                              openingNameFor(sans) ?? _movesLabel(sans);
+                        });
                         _preview(sans, side);
                       },
                       selectedLessonId: _selectedLeafId,
                       onSelectLeaf: (lesson, sans, side) {
-                        setState(() => _selectedLeafId = lesson.id);
+                        setState(() {
+                          _selectedLeafId = lesson.id;
+                          _previewTitle = lesson.title;
+                        });
                         _preview(sans, side);
                       },
                     ),
@@ -399,19 +421,28 @@ class _LearnScreenState extends State<LearnScreen> {
                           ),
                         ),
                         Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Center(
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: ChessBoard(
-                                  pieces: _previewPieces(),
-                                  flipped: _previewSide == 'b',
-                                  interactive: false,
-                                  onMove: (_, _) {},
-                                  legalTargetsFor: (_) => const {},
-                                ),
+                          child: Center(
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: ChessBoard(
+                                pieces: _previewPieces(),
+                                flipped: _previewSide == 'b',
+                                interactive: false,
+                                onMove: (_, _) {},
+                                legalTargetsFor: (_) => const {},
                               ),
+                            ),
+                          ),
+                        ),
+                        // the caption IS the bottom padding
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                          child: Text(
+                            _previewTitle,
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
