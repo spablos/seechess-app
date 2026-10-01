@@ -40,6 +40,44 @@ class _LearnScreenState extends State<LearnScreen> {
   /// title for a selected leaf); doubles as bottom padding.
   String _previewTitle = 'Start position';
 
+  /// Drill-down mode: the tree shows only the current subtree, one level
+  /// at a time, like a file explorer. The crumbs stack holds the paths we
+  /// drilled through so "back" retraces them exactly.
+  bool _drillMode = false;
+  String? _drillSide;
+  List<String> _drillPath = const [];
+  final List<List<String>> _drillCrumbs = [];
+
+  void _drillInto(String side, List<String> path) {
+    setState(() {
+      if (_drillSide != null) _drillCrumbs.add(_drillPath);
+      _drillSide = side;
+      _drillPath = path;
+      _selectedLeafId = null;
+      _previewTitle = path.isEmpty
+          ? (side == 'w' ? 'White' : 'Black')
+          : (openingNameFor(path) ?? _movesLabel(path));
+    });
+    _preview(path, side);
+  }
+
+  void _drillUp() {
+    setState(() {
+      if (_drillCrumbs.isNotEmpty) {
+        _drillPath = _drillCrumbs.removeLast();
+        _previewTitle = _drillPath.isEmpty
+            ? (_drillSide == 'w' ? 'White' : 'Black')
+            : (openingNameFor(_drillPath) ?? _movesLabel(_drillPath));
+      } else {
+        _drillSide = null;
+        _drillPath = const [];
+        _previewTitle = 'Start position';
+      }
+      _selectedLeafId = null;
+    });
+    if (_drillSide != null) _preview(_drillPath, _drillSide!);
+  }
+
   /// Tree expansion: sections (White/Black) start open, everything under
   /// them collapsed; the appbar buttons flip the whole tree at once
   /// (epoch forces the subtree to rebuild its state).
@@ -356,7 +394,22 @@ class _LearnScreenState extends State<LearnScreen> {
                 };
               }),
             ),
-            if (_treeView) ...[
+            if (_treeView)
+              IconButton(
+                tooltip: _drillMode
+                    ? 'Back to the full tree'
+                    : 'Drill-down mode — browse one branch at a time',
+                isSelected: _drillMode,
+                icon: const Icon(Icons.folder_outlined),
+                selectedIcon: const Icon(Icons.folder),
+                onPressed: () => setState(() {
+                  _drillMode = !_drillMode;
+                  _drillSide = null;
+                  _drillPath = const [];
+                  _drillCrumbs.clear();
+                }),
+              ),
+            if (_treeView && !_drillMode) ...[
               IconButton(
                 tooltip: 'Collapse all',
                 icon: const Icon(Icons.compress),
@@ -396,7 +449,10 @@ class _LearnScreenState extends State<LearnScreen> {
                   Expanded(
                     flex: 3,
                     child: LessonTreeView(
-                      key: ValueKey('$_treeEpoch|${_search.text}|$_sideFilter'),
+                      key: ValueKey(
+                        '$_treeEpoch|${_search.text}|$_sideFilter'
+                        '|$_drillMode|$_drillSide|${_drillPath.join(" ")}',
+                      ),
                       lessons: listLessons!,
                       expanded: _treeExpanded || searchingActive,
                       sectionsExpanded: _sectionsExpanded || searchingActive,
@@ -419,6 +475,11 @@ class _LearnScreenState extends State<LearnScreen> {
                         });
                         _preview(sans, side);
                       },
+                      drillMode: _drillMode,
+                      drillSide: _drillSide,
+                      drillPath: _drillPath,
+                      onDrill: _drillInto,
+                      onDrillUp: _drillUp,
                     ),
                   ),
                   // lower third: the position at the tapped node (or a

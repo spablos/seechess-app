@@ -18,6 +18,11 @@ class LessonTreeView extends StatelessWidget {
     this.onPreview,
     this.selectedLessonId,
     this.onSelectLeaf,
+    this.drillMode = false,
+    this.drillSide,
+    this.drillPath = const [],
+    this.onDrill,
+    this.onDrillUp,
   });
 
   final List<Lesson> lessons;
@@ -40,10 +45,19 @@ class LessonTreeView extends StatelessWidget {
   final void Function(Lesson lesson, List<String> startSans, String side)?
   onSelectLeaf;
 
+  /// Drill-down mode (file-explorer style): the view shows only the
+  /// current subtree — one level of children — with a back row on top.
+  final bool drillMode;
+  final String? drillSide;
+  final List<String> drillPath;
+  final void Function(String side, List<String> path)? onDrill;
+  final VoidCallback? onDrillUp;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final forest = buildLessonForest(lessons);
+    if (drillMode) return _buildDrill(context, theme, forest);
     return ListView(
       children: [
         for (final side in const ['w', 'b'])
@@ -51,25 +65,10 @@ class LessonTreeView extends StatelessWidget {
             ExpansionTile(
               initiallyExpanded: sectionsExpanded,
               shape: const Border(),
-              leading: Badge.count(
+              leading: _SideDisc(
+                side: side,
                 count: forest[side]!.roots.fold(0, (n, r) => n + r.lessonCount),
-                backgroundColor: theme.colorScheme.primary,
-                textColor: theme.colorScheme.onPrimary,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
-                    border: Border.all(color: theme.colorScheme.outlineVariant),
-                  ),
-                  child: Icon(
-                    Icons.school,
-                    size: 18,
-                    color: side == 'w' ? Colors.black54 : Colors.white70,
-                  ),
-                ),
+                size: 34,
               ),
               title: Tooltip(
                 message: side == 'w'
@@ -103,6 +102,304 @@ class LessonTreeView extends StatelessWidget {
             ),
         const SizedBox(height: 24),
       ],
+    );
+  }
+
+  /// Walk the collapsed tree to the node whose accumulated sans equal
+  /// [path]; null means the side's root level.
+  LessonTreeNode? _findNode(LessonTree tree, List<String> path) {
+    var nodes = tree.roots;
+    var i = 0;
+    LessonTreeNode? cur;
+    while (i < path.length) {
+      LessonTreeNode? hit;
+      for (final n in nodes) {
+        if (i + n.sans.length <= path.length) {
+          var ok = true;
+          for (var j = 0; j < n.sans.length; j++) {
+            if (n.sans[j] != path[i + j]) {
+              ok = false;
+              break;
+            }
+          }
+          if (ok) {
+            hit = n;
+            break;
+          }
+        }
+      }
+      if (hit == null) return cur;
+      cur = hit;
+      i += hit.sans.length;
+      nodes = hit.children;
+    }
+    return cur;
+  }
+
+  Widget _buildDrill(
+    BuildContext context,
+    ThemeData theme,
+    Map<String, LessonTree> forest,
+  ) {
+    // top level: the two perspectives act as folders
+    if (drillSide == null) {
+      return ListView(
+        children: [
+          for (final side in const ['w', 'b'])
+            if (forest[side]!.roots.isNotEmpty)
+              _DrillRow(
+                disc: _SideDisc(
+                  side: side,
+                  count: forest[side]!.roots.fold(
+                    0,
+                    (n, r) => n + r.lessonCount,
+                  ),
+                  size: 30,
+                ),
+                title: side == 'w' ? 'White' : 'Black',
+                titleStyle: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+                onTap: () => onDrill?.call(side, const []),
+              ),
+          const SizedBox(height: 24),
+        ],
+      );
+    }
+
+    final side = drillSide!;
+    final tree = forest[side]!;
+    final cur = drillPath.isEmpty ? null : _findNode(tree, drillPath);
+    final children = cur?.children ?? tree.roots;
+    final ending = cur?.lessonsEndingHere ?? const <Lesson>[];
+    final curName = cur == null
+        ? (side == 'w' ? 'White' : 'Black')
+        : (openingNameFor(drillPath, afterPly: cur.startPly) ?? cur.shortLabel);
+
+    final rows = <Widget>[
+      // back row: where you are, tap to go up one level
+      InkWell(
+        onTap: onDrillUp,
+        child: SizedBox(
+          height: 52,
+          child: Row(
+            children: [
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_back,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 10),
+              _SideDisc(
+                side: side,
+                count:
+                    cur?.lessonCount ??
+                    tree.roots.fold(0, (n, r) => n + r.lessonCount),
+                size: 30,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  curName,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (cur != null)
+                IconButton(
+                  tooltip: 'Study this line on the board',
+                  icon: Icon(
+                    Icons.play_circle_outline,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  onPressed: () => onOpenTrunk(drillPath, side),
+                ),
+              const SizedBox(width: 8),
+            ],
+          ),
+        ),
+      ),
+      const Divider(height: 1),
+    ];
+
+    for (final lesson in ending) {
+      rows.add(
+        _LeafTile(
+          lesson: lesson,
+          rails: const [],
+          isLast: true,
+          flat: true,
+          onOpen: onOpenLesson,
+          startSans: drillPath,
+          side: side,
+          onSelect: onSelectLeaf,
+          selected: selectedLessonId == lesson.id,
+        ),
+      );
+    }
+
+    for (final child in children) {
+      final childPath = [...drillPath, ...child.sans];
+      // a line owned by one lesson is the lesson itself, not a folder
+      if (child.lessonCount == 1 &&
+          child.children.isEmpty &&
+          child.lessonsEndingHere.length == 1) {
+        rows.add(
+          _LeafTile(
+            lesson: child.lessonsEndingHere.first,
+            rails: const [],
+            isLast: true,
+            flat: true,
+            moves: child.endPly,
+            onOpen: onOpenLesson,
+            startSans: drillPath,
+            side: side,
+            onSelect: onSelectLeaf,
+            selected: selectedLessonId == child.lessonsEndingHere.first.id,
+          ),
+        );
+        continue;
+      }
+      final childName = openingNameFor(childPath, afterPly: child.startPly);
+      rows.add(
+        _DrillRow(
+          disc: _SideDisc(side: side, count: child.lessonCount, size: 26),
+          title: childName ?? child.shortLabel,
+          titleStyle: childName != null
+              ? theme.textTheme.bodyMedium
+              : theme.textTheme.bodyMedium?.copyWith(
+                  fontFamily: 'monospace',
+                  fontSize: 13.5,
+                ),
+          subtitle: childName != null ? child.shortLabel : null,
+          onTap: () {
+            onDrill?.call(side, childPath);
+            onPreview?.call(childPath, side);
+          },
+          onOpenBoard: () => onOpenTrunk(childPath, side),
+        ),
+      );
+    }
+
+    rows.add(const SizedBox(height: 24));
+    return ListView(children: rows);
+  }
+}
+
+/// One folder row in drill-down mode: disc, name, optional moves line,
+/// explicit board icon, and a chevron hinting "drills deeper".
+class _DrillRow extends StatelessWidget {
+  const _DrillRow({
+    required this.disc,
+    required this.title,
+    required this.onTap,
+    this.titleStyle,
+    this.subtitle,
+    this.onOpenBoard,
+  });
+
+  final Widget disc;
+  final String title;
+  final TextStyle? titleStyle;
+  final String? subtitle;
+  final VoidCallback onTap;
+  final VoidCallback? onOpenBoard;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: 52,
+        child: Row(
+          children: [
+            const SizedBox(width: 16),
+            disc,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle,
+                  ),
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontFamily: 'monospace',
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (onOpenBoard != null)
+              IconButton(
+                tooltip: 'Study this line on the board',
+                icon: Icon(
+                  Icons.play_circle_outline,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                onPressed: onOpenBoard,
+              ),
+            Icon(
+              Icons.chevron_right,
+              size: 22,
+              color: theme.colorScheme.outline,
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The side-colored circle used across the whole tree: white disc for
+/// White-perspective nodes, black for Black, with the lesson count as a
+/// badge on the circle's upper right.
+class _SideDisc extends StatelessWidget {
+  const _SideDisc({required this.side, required this.count, this.size = 26});
+
+  final String side;
+  final int count;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Badge.count(
+      count: count,
+      backgroundColor: theme.colorScheme.primary,
+      textColor: theme.colorScheme.onPrimary,
+      child: Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Icon(
+          Icons.school,
+          size: size * 0.55,
+          color: side == 'w' ? Colors.black54 : Colors.white70,
+        ),
+      ),
     );
   }
 }
@@ -278,49 +575,10 @@ class _NodeTileState extends State<_NodeTile> {
                     child: Tooltip(
                       message:
                           '${node.lessonCount} lesson${node.lessonCount == 1 ? '' : 's'} under this line',
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // "several hats": a faded cap peeking behind the
-                          // main one — the only icon a branch row carries
-                          SizedBox(
-                            width: 25,
-                            height: 22,
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Positioned(
-                                  left: 7,
-                                  top: -1,
-                                  child: Icon(
-                                    Icons.school,
-                                    size: 14,
-                                    color: theme.colorScheme.primary.withValues(
-                                      alpha: 0.4,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  left: 0,
-                                  bottom: 0,
-                                  child: Icon(
-                                    Icons.school,
-                                    size: 18,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${node.lessonCount}',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                      child: _SideDisc(
+                        side: widget.side,
+                        count: node.lessonCount,
+                        size: 26,
                       ),
                     ),
                   ),
@@ -429,6 +687,15 @@ class _NodeTileState extends State<_NodeTile> {
                     ],
                   ),
                 ),
+                IconButton(
+                  tooltip: 'Study this line on the board',
+                  icon: Icon(
+                    Icons.play_circle_outline,
+                    size: 20,
+                    color: theme.colorScheme.primary,
+                  ),
+                  onPressed: () => widget.onOpenTrunk(fullPath, widget.side),
+                ),
                 if (kids.isNotEmpty)
                   IconButton(
                     icon: AnimatedRotation(
@@ -464,6 +731,7 @@ class _LeafTile extends StatelessWidget {
     this.side = 'w',
     this.onSelect,
     this.selected = false,
+    this.flat = false,
   });
 
   final Lesson lesson;
@@ -480,14 +748,19 @@ class _LeafTile extends StatelessWidget {
   onSelect;
   final bool selected;
 
+  /// Drill-down mode: no rails/elbow, flush-left like a file row.
+  final bool flat;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return InkWell(
       // browse-then-enter: first tap previews the leaf's starting
       // position on the board below; tapping the selected leaf opens it
+      // the row only selects/previews; the play icon opens the lesson
+      // (with no preview context the row opens directly)
       onTap: () {
-        if (onSelect == null || selected) {
+        if (onSelect == null) {
           onOpen(lesson);
         } else {
           onSelect!(lesson, startSans, side);
@@ -501,48 +774,25 @@ class _LeafTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(width: 56),
-            for (final hasRail in rails)
+            if (flat)
+              const SizedBox(width: 16)
+            else ...[
+              const SizedBox(width: 56),
+              for (final hasRail in rails)
+                _RailCell(
+                  vertical: hasRail,
+                  color: theme.colorScheme.outlineVariant,
+                ),
               _RailCell(
-                vertical: hasRail,
+                elbow: true,
+                vertical: !isLast,
                 color: theme.colorScheme.outlineVariant,
               ),
-            _RailCell(
-              elbow: true,
-              vertical: !isLast,
-              color: theme.colorScheme.outlineVariant,
-            ),
-            // same geometry as the branch rows' hats+count cluster, so
-            // single lessons line up with the nodes above them
+            ],
+            // same disc as branch rows (count 1) — one visual system
             Padding(
               padding: const EdgeInsets.only(right: 10),
-              child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 25,
-                      height: 22,
-                      child: Align(
-                        alignment: Alignment.bottomLeft,
-                        child: Icon(
-                          Icons.school,
-                          size: 18,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '1',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: Center(child: _SideDisc(side: side, count: 1, size: 26)),
             ),
             Expanded(
               child: Column(
@@ -582,6 +832,17 @@ class _LeafTile extends StatelessWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+            Center(
+              child: IconButton(
+                tooltip: 'Open this lesson',
+                icon: Icon(
+                  Icons.play_circle_outline,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+                onPressed: () => onOpen(lesson),
               ),
             ),
             const SizedBox(width: 8),
