@@ -251,8 +251,15 @@ class _LearnScreenState extends State<LearnScreen> {
     final bundled = await store.bundled();
     if (mounted) setState(() => _lessons = bundled);
     final community = await store.community();
-    if (mounted && community.isNotEmpty) {
-      setState(() => _lessons = [...bundled, ...community]);
+    // a graduated lesson exists both bundled and on the server while
+    // old clients catch up — the bundled copy wins, never show twice
+    final bundledIds = {for (final l in bundled) l.id};
+    final fresh = [
+      for (final l in community)
+        if (!bundledIds.contains(l.id)) l,
+    ];
+    if (mounted && fresh.isNotEmpty) {
+      setState(() => _lessons = [...bundled, ...fresh]);
     }
     final token = adminToken();
     if (token != null) {
