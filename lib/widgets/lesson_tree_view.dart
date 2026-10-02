@@ -388,34 +388,46 @@ class _DrillRow extends StatelessWidget {
 /// White-perspective nodes, black for Black, with the lesson count as a
 /// badge on the circle's upper right.
 class _SideDisc extends StatelessWidget {
-  const _SideDisc({required this.side, required this.count, this.size = 26});
+  const _SideDisc({
+    required this.side,
+    required this.count,
+    this.size = 26,
+    this.leaf = false,
+  });
 
   final String side;
   final int count;
   final double size;
 
+  /// Leaves carry an open book — a single readable lesson — while
+  /// branches keep the graduation cap of a lesson group.
+  final bool leaf;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final disc = Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Icon(
+        leaf ? Icons.auto_stories : Icons.school,
+        size: size * 0.55,
+        color: side == 'w' ? Colors.black54 : Colors.white70,
+      ),
+    );
+    // the open book already says "one lesson" — a badge saying 1 is noise
+    if (leaf) return disc;
     return Badge.count(
       count: count,
       backgroundColor: theme.colorScheme.primary,
       textColor: theme.colorScheme.onPrimary,
-      child: Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: side == 'w' ? Colors.white : const Color(0xFF1E1E1E),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
-        child: Icon(
-          Icons.school,
-          size: size * 0.55,
-          color: side == 'w' ? Colors.black54 : Colors.white70,
-        ),
-      ),
+      child: disc,
     );
   }
 }
@@ -820,7 +832,9 @@ class _LeafTile extends StatelessWidget {
             // same disc as branch rows (count 1) — one visual system
             Padding(
               padding: const EdgeInsets.only(right: 10),
-              child: Center(child: _SideDisc(side: side, count: 1, size: 26)),
+              child: Center(
+                child: _SideDisc(side: side, count: 1, size: 26, leaf: true),
+              ),
             ),
             Expanded(
               child: Column(
