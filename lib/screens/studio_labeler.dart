@@ -274,53 +274,66 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                 else ...[
                   Expanded(
                     flex: 5,
-                    child: InteractiveViewer(
-                      maxScale: 6,
-                      // taps normalize against the exact image rect, so
-                      // the picture is constrained to its own aspect
-                      // ratio instead of letterboxing inside the slot
-                      child: Center(
-                        child: _imgSize == null
-                            ? Image.network(
-                                '$_base/v1/dataset/${e.id}/display',
-                                fit: BoxFit.contain,
-                                gaplessPlayback: true,
-                              )
-                            : AspectRatio(
-                                aspectRatio: _imgSize!.width / _imgSize!.height,
-                                child: LayoutBuilder(
-                                  builder: (context, box) => GestureDetector(
-                                    onTapDown: (d) =>
-                                        _onImageTap(d, box.biggest),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Image.network(
-                                          '$_base/v1/dataset/${e.id}/display',
-                                          fit: BoxFit.fill,
-                                          gaplessPlayback: true,
-                                        ),
-                                        for (final c in _cornerTaps)
-                                          Positioned(
-                                            left: c[0] * box.biggest.width - 8,
-                                            top: c[1] * box.biggest.height - 8,
-                                            child: Container(
-                                              width: 16,
-                                              height: 16,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                border: Border.all(
-                                                  color: Colors.redAccent,
-                                                  width: 3,
+                    child: Container(
+                      decoration: _cornersMode
+                          ? BoxDecoration(
+                              border: Border.all(
+                                color: theme.colorScheme.error,
+                                width: 3,
+                              ),
+                            )
+                          : null,
+                      child: InteractiveViewer(
+                        maxScale: 6,
+                        // taps normalize against the exact image rect, so
+                        // the picture is constrained to its own aspect
+                        // ratio instead of letterboxing inside the slot
+                        child: Center(
+                          child: _imgSize == null
+                              ? Image.network(
+                                  '$_base/v1/dataset/${e.id}/display',
+                                  fit: BoxFit.contain,
+                                  gaplessPlayback: true,
+                                )
+                              : AspectRatio(
+                                  aspectRatio:
+                                      _imgSize!.width / _imgSize!.height,
+                                  child: LayoutBuilder(
+                                    builder: (context, box) => GestureDetector(
+                                      onTapDown: (d) =>
+                                          _onImageTap(d, box.biggest),
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Image.network(
+                                            '$_base/v1/dataset/${e.id}/display',
+                                            fit: BoxFit.fill,
+                                            gaplessPlayback: true,
+                                          ),
+                                          for (final c in _cornerTaps)
+                                            Positioned(
+                                              left:
+                                                  c[0] * box.biggest.width - 8,
+                                              top:
+                                                  c[1] * box.biggest.height - 8,
+                                              child: Container(
+                                                width: 16,
+                                                height: 16,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                    color: Colors.redAccent,
+                                                    width: 3,
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
+                        ),
                       ),
                     ),
                   ),
@@ -336,7 +349,13 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                   Expanded(
                     flex: 6,
                     child: Center(
-                      child: AspectRatio(aspectRatio: 1, child: _grid(theme)),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Opacity(
+                          opacity: _cornersMode ? 0.35 : 1,
+                          child: _grid(theme),
+                        ),
+                      ),
                     ),
                   ),
                   GestureDetector(
@@ -360,31 +379,51 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                           ])
                             Padding(
                               padding: const EdgeInsets.all(3),
-                              child: InkWell(
-                                onTap: () => setState(() => _tool = kind),
-                                child: Container(
-                                  width: 44,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      width: 2,
-                                      color: _tool == kind
-                                          ? theme.colorScheme.primary
-                                          : theme.colorScheme.outlineVariant,
-                                    ),
-                                  ),
-                                  child: kind == 'erase'
-                                      ? Icon(
-                                          Icons.cleaning_services_outlined,
-                                          size: 22,
-                                          color: theme.colorScheme.error,
-                                        )
-                                      : pieceImage(
-                                          '${_paletteWhite ? 'w' : 'b'}$kind',
-                                          32,
+                              child: Builder(
+                                builder: (context) {
+                                  final chip = InkWell(
+                                    onTap: () => setState(() => _tool = kind),
+                                    child: Container(
+                                      width: 44,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          width: 2,
+                                          color: _tool == kind
+                                              ? theme.colorScheme.primary
+                                              : theme
+                                                    .colorScheme
+                                                    .outlineVariant,
                                         ),
-                                ),
+                                      ),
+                                      child: kind == 'erase'
+                                          ? Icon(
+                                              Icons.cleaning_services_outlined,
+                                              size: 22,
+                                              color: theme.colorScheme.error,
+                                            )
+                                          : pieceImage(
+                                              '${_paletteWhite ? 'w' : 'b'}$kind',
+                                              32,
+                                            ),
+                                    ),
+                                  );
+                                  if (kind == 'erase') return chip;
+                                  final code =
+                                      '${_paletteWhite ? 'w' : 'b'}$kind';
+                                  // drag straight onto a square, like the
+                                  // position editor's palette
+                                  return Draggable<String>(
+                                    data: code,
+                                    feedback: pieceImage(code, 52),
+                                    childWhenDragging: Opacity(
+                                      opacity: 0.4,
+                                      child: chip,
+                                    ),
+                                    child: chip,
+                                  );
+                                },
                               ),
                             ),
                           Padding(
@@ -501,36 +540,49 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         final sq = '${'abcdefgh'[f]}$r';
                         final light = (f + r) % 2 == 1;
                         final p = _pieces[sq];
-                        return InkWell(
-                          onTap: () => setState(() {
-                            if (_tool == 'erase') {
-                              _pieces.remove(sq);
-                            } else {
-                              final brush =
-                                  '${_paletteWhite ? 'w' : 'b'}$_tool';
-                              if (_pieces[sq] == brush) {
+                        return DragTarget<String>(
+                          onAcceptWithDetails: (d) =>
+                              setState(() => _pieces[sq] = d.data),
+                          builder: (context, cand, rej) => InkWell(
+                            onTap: () => setState(() {
+                              if (_cornersMode) {
+                                _status =
+                                    'Corners are marked on the PHOTO '
+                                    'above — tap the board corners in '
+                                    'the image';
+                                return;
+                              }
+                              if (_tool == 'erase') {
                                 _pieces.remove(sq);
                               } else {
-                                _pieces[sq] = brush;
+                                final brush =
+                                    '${_paletteWhite ? 'w' : 'b'}$_tool';
+                                if (_pieces[sq] == brush) {
+                                  _pieces.remove(sq);
+                                } else {
+                                  _pieces[sq] = brush;
+                                }
                               }
-                            }
-                          }),
-                          // like the board editor: double-tap flips the
-                          // piece's color in place
-                          onDoubleTap: () => setState(() {
-                            final p = _pieces[sq];
-                            if (p != null) {
-                              _pieces[sq] = '${p[0] == 'w' ? 'b' : 'w'}${p[1]}';
-                            }
-                          }),
-                          child: Container(
-                            color: light
-                                ? const Color(0xFFF0D9B5)
-                                : const Color(0xFFB58863),
-                            alignment: Alignment.center,
-                            child: p == null
-                                ? null
-                                : FittedBox(child: pieceImage(p, 40)),
+                            }),
+                            // like the board editor: double-tap flips the
+                            // piece's color in place
+                            onDoubleTap: () => setState(() {
+                              if (_cornersMode) return;
+                              final p = _pieces[sq];
+                              if (p != null) {
+                                _pieces[sq] =
+                                    '${p[0] == 'w' ? 'b' : 'w'}${p[1]}';
+                              }
+                            }),
+                            child: Container(
+                              color: light
+                                  ? const Color(0xFFF0D9B5)
+                                  : const Color(0xFFB58863),
+                              alignment: Alignment.center,
+                              child: p == null
+                                  ? null
+                                  : FittedBox(child: pieceImage(p, 40)),
+                            ),
                           ),
                         );
                       },
