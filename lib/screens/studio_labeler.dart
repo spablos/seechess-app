@@ -30,6 +30,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   /// Draggable corner handles, normalized 0..1, order a8 h8 h1 a1.
   List<List<double>> _handles = const [];
   int? _dragIdx;
+  Offset _dragOff = Offset.zero;
   double _lastScale = 1.0;
   final TransformationController _viewCtrl = TransformationController();
   static const _cornerNames = ['a8', 'h8', 'h1', 'a1'];
@@ -300,7 +301,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             )
                           : null,
                       child: InteractiveViewer(
-                        maxScale: 6,
+                        maxScale: 12,
                         transformationController: _viewCtrl,
                         panEnabled: !_cornersMode,
                         scaleEnabled: !_cornersMode,
@@ -326,7 +327,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                   return;
                                                 }
                                                 var best = -1;
-                                                var bestDist = 56.0;
+                                                // grab radius constant on
+                                                // screen, not on the image
+                                                var bestDist =
+                                                    56.0 /
+                                                    _viewCtrl.value
+                                                        .getMaxScaleOnAxis();
                                                 for (var i = 0; i < 4; i++) {
                                                   final h = Offset(
                                                     _handles[i][0] *
@@ -340,6 +346,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                   if (dist < bestDist) {
                                                     bestDist = dist;
                                                     best = i;
+                                                    _dragOff =
+                                                        h - d.localFocalPoint;
                                                   }
                                                 }
                                                 _dragIdx = best >= 0
@@ -352,15 +360,22 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                 final i = _dragIdx;
                                                 if (i != null &&
                                                     d.pointerCount == 1) {
+                                                  // relative drag: the handle
+                                                  // keeps its grab offset so
+                                                  // it never jumps under the
+                                                  // finger and stays visible
+                                                  final pos =
+                                                      d.localFocalPoint +
+                                                      _dragOff;
                                                   setState(() {
                                                     _handles[i][0] =
-                                                        (d.localFocalPoint.dx /
+                                                        (pos.dx /
                                                                 box
                                                                     .biggest
                                                                     .width)
                                                             .clamp(0.0, 1.0);
                                                     _handles[i][1] =
-                                                        (d.localFocalPoint.dy /
+                                                        (pos.dy /
                                                                 box
                                                                     .biggest
                                                                     .height)
@@ -379,7 +394,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                 _lastScale = d.scale;
                                                 final target = (cur * s).clamp(
                                                   1.0,
-                                                  6.0,
+                                                  12.0,
                                                 );
                                                 s = target / cur;
                                                 final p = d.localFocalPoint;
