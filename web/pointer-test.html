@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Pointer test</title>
+<style>body{font-family:ui-monospace,monospace;background:#111;color:#9f9;
+margin:0;padding:20px}#log{white-space:pre-line}#pad{background:#333;
+border:2px dashed #6a6;border-radius:10px;padding:40px;margin:16px 0;
+text-align:center;font-size:20px;color:#fff}</style></head><body>
+<div id="pad">CLICK HERE with your mouse</div>
+<div id="log">waiting for events…</div>
+<script>
+const log = document.getElementById('log');
+const lines = [];
+function add(s){ lines.unshift(new Date().toISOString().slice(17,23)+' '+s);
+  log.textContent = lines.slice(0,25).join('\n'); }
+for (const ev of ['pointerdown','pointerup','mousedown','mouseup','click',
+                  'pointermove']) {
+  let moveCount = 0;
+  document.getElementById('pad').addEventListener(ev, e => {
+    if (ev === 'pointermove') { if (++moveCount % 50 !== 1) return; }
+    add(`${ev} button=${e.button ?? '-'} type=${e.pointerType ?? '-'} ` +
+        `trusted=${e.isTrusted}`);
+  });
+}
+</script></body></html>

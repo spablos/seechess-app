@@ -418,6 +418,18 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
                     child: Row(
                       children: [
+                        IconButton(
+                          tooltip: 'Previous',
+                          icon: const Icon(Icons.skip_previous),
+                          onPressed: items.length < 2
+                              ? null
+                              : () => setState(() {
+                                  _index =
+                                      (_index - 1 + items.length) %
+                                      items.length;
+                                  _syncBoard();
+                                }),
+                        ),
                         OutlinedButton.icon(
                           icon: Icon(
                             Icons.crop_free,
