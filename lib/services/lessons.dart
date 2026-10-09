@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'admin.dart';
 import 'package:universal_io/io.dart';
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -155,9 +156,12 @@ class LessonStore {
 /// reviewer's Learn tab then also shows pending lessons with approve/
 /// reject, replacing the back-office HTML walker.
 String? adminToken() {
-  if (!kIsWeb) return null;
-  final t = Uri.base.queryParameters['token'];
-  return (t == null || t.isEmpty) ? null : t;
+  if (kIsWeb) {
+    final t = Uri.base.queryParameters['token'];
+    if (t != null && t.isNotEmpty) return t;
+  }
+  // phones: the stored Studio token unlocks the same admin features
+  return studioToken.value;
 }
 
 Future<List<Lesson>> fetchPendingLessons(String token) async {

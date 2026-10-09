@@ -1,4 +1,5 @@
 import 'package:app_links/app_links.dart';
+import 'services/admin.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
@@ -14,7 +15,10 @@ import 'screens/photo_flow.dart';
 import 'services/stats.dart';
 import 'utils/position_link.dart';
 
-void main() => runApp(const SeechessApp());
+void main() {
+  loadStudioToken(); // async fire-and-forget; Studio card appears when read
+  runApp(const SeechessApp());
+}
 
 /// Lets the deep-link listener navigate without a BuildContext.
 final navigatorKey = GlobalKey<NavigatorState>();

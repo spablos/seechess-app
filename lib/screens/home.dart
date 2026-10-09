@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../services/admin.dart';
 import 'analysis.dart';
 import 'offline_lobby.dart';
 import 'photo_flow.dart';
 import 'learn.dart';
 import 'saved_games.dart';
+import 'studio.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -115,22 +117,46 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                       ],
+                      // admin studio — only with the token (long-press
+                      // the version line below to enter it once)
+                      ValueListenableBuilder<String?>(
+                        valueListenable: studioToken,
+                        builder: (context, token, _) => token == null
+                            ? const SizedBox.shrink()
+                            : _ActionCard(
+                                icon: Icons.handyman_outlined,
+                                color: const Color(0xFF2E5D9F),
+                                title: 'Studio',
+                                subtitle:
+                                    'Labeler, reels intake and '
+                                    'lesson management (admin)',
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const StudioScreen(),
+                                  ),
+                                ),
+                              ),
+                      ),
                     ],
                   ),
                 ),
-                // which build is running — first thing support asks for
+                // which build is running — first thing support asks for.
+                // Long-press: enter/clear the admin token (unlocks Studio).
                 FutureBuilder<PackageInfo>(
                   future: PackageInfo.fromPlatform(),
-                  builder: (context, snap) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      snap.hasData
-                          ? 'Seechess ${snap.data!.version} '
-                                '(${snap.data!.buildNumber})'
-                          : '',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.outline,
+                  builder: (context, snap) => GestureDetector(
+                    onLongPress: () => _tokenDialog(context),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        snap.hasData
+                            ? 'Seechess ${snap.data!.version} '
+                                  '(${snap.data!.buildNumber})'
+                            : '',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.outline,
+                        ),
                       ),
                     ),
                   ),
@@ -142,6 +168,35 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _tokenDialog(BuildContext context) async {
+  final ctrl = TextEditingController(text: studioToken.value ?? '');
+  final token = await showDialog<String>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Studio token'),
+      content: TextField(
+        controller: ctrl,
+        autofocus: true,
+        obscureText: true,
+        decoration: const InputDecoration(
+          hintText: 'admin token (empty = lock)',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, ctrl.text),
+          child: const Text('Save'),
+        ),
+      ],
+    ),
+  );
+  if (token != null) await saveStudioToken(token);
 }
 
 class _ActionCard extends StatelessWidget {
