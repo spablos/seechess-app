@@ -26,7 +26,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   bool _paletteWhite = true;
   String _tool = 'P';
   bool _cornersMode = false;
-  final List<List<double>> _cornerTaps = [];
+
+  /// Draggable corner handles, normalized 0..1, order a8 h8 h1 a1.
+  List<List<double>> _handles = const [];
+  static const _cornerNames = ['a8', 'h8', 'h1', 'a1'];
   bool _busy = false;
   String? _status;
   Size? _imgSize;
@@ -105,7 +108,6 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                 ? e.correctedFen!
                 : e.predictedFen,
           );
-    _cornerTaps.clear();
     _cornersMode = false;
     _status = null;
   }
@@ -179,32 +181,43 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     });
   }
 
-  Future<void> _onImageTap(TapDownDetails d, Size size) async {
-    if (!_cornersMode) return;
-    final x = (d.localPosition.dx / size.width).clamp(0.0, 1.0);
-    final y = (d.localPosition.dy / size.height).clamp(0.0, 1.0);
-    setState(() => _cornerTaps.add([x, y]));
-    if (_cornerTaps.length == 4) {
-      final e = _current!;
-      setState(() => _busy = true);
-      final ok = await saveCorners(e.id, List.of(_cornerTaps));
-      DatasetEntry? fresh;
-      if (ok) fresh = await fetchEntry(e.id);
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _cornersMode = false;
-        _cornerTaps.clear();
-        if (fresh != null) {
-          final i = _all.indexWhere((x) => x.id == e.id);
-          if (i >= 0) _all[i] = fresh;
-          _status = 'Corners saved — prediction refreshed';
-          _syncBoard();
-        } else {
-          _status = ok ? 'Corners saved' : 'Corner save failed';
-        }
-      });
-    }
+  void _enterCorners() {
+    final e = _current;
+    final stored = e?.corners;
+    _handles = stored != null
+        ? [
+            for (final c in stored) [c[0], c[1]],
+          ]
+        : [
+            [0.1, 0.1],
+            [0.9, 0.1],
+            [0.9, 0.9],
+            [0.1, 0.9],
+          ];
+    _cornersMode = true;
+    _status = 'drag a8 h8 h1 a1 onto the board corners, then Save corners';
+  }
+
+  Future<void> _saveCorners() async {
+    final e = _current;
+    if (e == null || _busy) return;
+    setState(() => _busy = true);
+    final ok = await saveCorners(e.id, List.of(_handles));
+    DatasetEntry? fresh;
+    if (ok) fresh = await fetchEntry(e.id);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _cornersMode = false;
+      if (fresh != null) {
+        final i = _all.indexWhere((x) => x.id == e.id);
+        if (i >= 0) _all[i] = fresh;
+        _status = 'Corners saved — prediction refreshed';
+        _syncBoard();
+      } else {
+        _status = ok ? 'Corners saved' : 'Corner save failed';
+      }
+    });
   }
 
   @override
@@ -285,6 +298,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                           : null,
                       child: InteractiveViewer(
                         maxScale: 6,
+                        panEnabled: !_cornersMode,
+                        scaleEnabled: !_cornersMode,
                         // taps normalize against the exact image rect, so
                         // the picture is constrained to its own aspect
                         // ratio instead of letterboxing inside the slot
@@ -299,37 +314,73 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   aspectRatio:
                                       _imgSize!.width / _imgSize!.height,
                                   child: LayoutBuilder(
-                                    builder: (context, box) => GestureDetector(
-                                      onTapDown: (d) =>
-                                          _onImageTap(d, box.biggest),
-                                      child: Stack(
-                                        fit: StackFit.expand,
-                                        children: [
-                                          Image.network(
-                                            '$_base/v1/dataset/${e.id}/display',
-                                            fit: BoxFit.fill,
-                                            gaplessPlayback: true,
-                                          ),
-                                          for (final c in _cornerTaps)
+                                    builder: (context, box) => Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.network(
+                                          '$_base/v1/dataset/${e.id}/display',
+                                          fit: BoxFit.fill,
+                                          gaplessPlayback: true,
+                                        ),
+                                        // saved corners stay visible, so
+                                        // a finished marking is evident
+                                        if (!_cornersMode && e.corners != null)
+                                          for (var i = 0; i < 4; i++)
                                             Positioned(
                                               left:
-                                                  c[0] * box.biggest.width - 8,
+                                                  e.corners![i][0] *
+                                                      box.biggest.width -
+                                                  9,
                                               top:
-                                                  c[1] * box.biggest.height - 8,
-                                              child: Container(
-                                                width: 16,
-                                                height: 16,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: Colors.redAccent,
-                                                    width: 3,
-                                                  ),
+                                                  e.corners![i][1] *
+                                                      box.biggest.height -
+                                                  9,
+                                              child: IgnorePointer(
+                                                child: _cornerDot(
+                                                  _cornerNames[i],
+                                                  18,
+                                                  Colors.lightGreen,
                                                 ),
                                               ),
                                             ),
-                                        ],
-                                      ),
+                                        if (_cornersMode)
+                                          for (var i = 0; i < 4; i++)
+                                            Positioned(
+                                              left:
+                                                  _handles[i][0] *
+                                                      box.biggest.width -
+                                                  16,
+                                              top:
+                                                  _handles[i][1] *
+                                                      box.biggest.height -
+                                                  16,
+                                              child: GestureDetector(
+                                                onPanUpdate: (d) => setState(
+                                                  () {
+                                                    _handles[i][0] =
+                                                        (_handles[i][0] +
+                                                                d.delta.dx /
+                                                                    box
+                                                                        .biggest
+                                                                        .width)
+                                                            .clamp(0.0, 1.0);
+                                                    _handles[i][1] =
+                                                        (_handles[i][1] +
+                                                                d.delta.dy /
+                                                                    box
+                                                                        .biggest
+                                                                        .height)
+                                                            .clamp(0.0, 1.0);
+                                                  },
+                                                ),
+                                                child: _cornerDot(
+                                                  _cornerNames[i],
+                                                  32,
+                                                  Colors.redAccent,
+                                                ),
+                                              ),
+                                            ),
+                                      ],
                                     ),
                                   ),
                                 ),
@@ -337,15 +388,6 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       ),
                     ),
                   ),
-                  if (_cornersMode)
-                    Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Text(
-                        'tap corner ${['a8', 'h8', 'h1', 'a1'][_cornerTaps.length.clamp(0, 3)]}'
-                        ' (${_cornerTaps.length}/4)',
-                        style: TextStyle(color: theme.colorScheme.error),
-                      ),
-                    ),
                   Expanded(
                     flex: 6,
                     child: Center(
@@ -477,12 +519,25 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                 ? theme.colorScheme.error
                                 : null,
                           ),
-                          label: Text(_cornersMode ? 'tap a8…' : 'Corners'),
-                          onPressed: () => setState(() {
-                            _cornersMode = !_cornersMode;
-                            _cornerTaps.clear();
-                          }),
+                          label: Text(
+                            _cornersMode ? 'Save corners' : 'Corners',
+                          ),
+                          onPressed: _busy
+                              ? null
+                              : () {
+                                  if (_cornersMode) {
+                                    _saveCorners();
+                                  } else {
+                                    setState(_enterCorners);
+                                  }
+                                },
                         ),
+                        if (_cornersMode)
+                          TextButton(
+                            onPressed: () =>
+                                setState(() => _cornersMode = false),
+                            child: const Text('Cancel'),
+                          ),
                         const SizedBox(width: 4),
                         IconButton(
                           tooltip: 'Skip',
@@ -523,6 +578,27 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                 ],
               ],
             ),
+    );
+  }
+
+  Widget _cornerDot(String name, double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.black38,
+        border: Border.all(color: color, width: 3),
+      ),
+      child: Text(
+        name,
+        style: TextStyle(
+          fontSize: size * 0.34,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 
@@ -578,10 +654,44 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                               color: light
                                   ? const Color(0xFFF0D9B5)
                                   : const Color(0xFFB58863),
-                              alignment: Alignment.center,
-                              child: p == null
-                                  ? null
-                                  : FittedBox(child: pieceImage(p, 40)),
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  if (p != null)
+                                    FittedBox(child: pieceImage(p, 40)),
+                                  // coordinates, like the real board
+                                  if (f == 0)
+                                    Positioned(
+                                      top: 1,
+                                      left: 2,
+                                      child: Text(
+                                        '$r',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: light
+                                              ? const Color(0xFFB58863)
+                                              : const Color(0xFFF0D9B5),
+                                        ),
+                                      ),
+                                    ),
+                                  if (r == 1)
+                                    Positioned(
+                                      bottom: 0,
+                                      right: 2,
+                                      child: Text(
+                                        'abcdefgh'[f],
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: light
+                                              ? const Color(0xFFB58863)
+                                              : const Color(0xFFF0D9B5),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         );

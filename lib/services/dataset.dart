@@ -21,6 +21,9 @@ class DatasetEntry {
   final String predictedFen;
   String? correctedFen;
 
+  /// Human-set board corners, normalized 0..1, order a8 h8 h1 a1.
+  List<List<double>>? corners;
+
   bool get labeled => correctedFen != null && correctedFen!.isNotEmpty;
 
   factory DatasetEntry.fromJson(Map<String, dynamic> j) => DatasetEntry(
@@ -29,7 +32,20 @@ class DatasetEntry {
     inputType: (j['input_type'] ?? 'photo') as String,
     predictedFen: (j['predicted_fen'] ?? '') as String,
     correctedFen: j['corrected_fen'] as String?,
-  );
+  ).._parseCorners(j['corners']);
+
+  void _parseCorners(dynamic raw) {
+    if (raw is! List || raw.length != 4) return;
+    final out = <List<double>>[];
+    for (final c in raw) {
+      if (c is List && c.length == 2 && c[0] is num && c[1] is num) {
+        out.add([(c[0] as num).toDouble(), (c[1] as num).toDouble()]);
+      } else {
+        return; // a null corner: treat as not usable for handles
+      }
+    }
+    corners = out;
+  }
 }
 
 Future<String> datasetBase() => RecognizerClient.savedUrl();
