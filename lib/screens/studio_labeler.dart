@@ -30,6 +30,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   /// Draggable corner handles, normalized 0..1, order a8 h8 h1 a1.
   List<List<double>> _handles = const [];
   int? _dragIdx;
+  double _lastScale = 1.0;
   final TransformationController _viewCtrl = TransformationController();
   static const _cornerNames = ['a8', 'h8', 'h1', 'a1'];
   bool _busy = false;
@@ -302,6 +303,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         maxScale: 6,
                         transformationController: _viewCtrl,
                         panEnabled: !_cornersMode,
+                        scaleEnabled: !_cornersMode,
                         child: Center(
                           child: _imgSize == null
                               ? Image.network(
@@ -315,9 +317,14 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   child: LayoutBuilder(
                                     builder: (context, box) {
                                       return GestureDetector(
-                                        onPanStart: !_cornersMode
+                                        onScaleStart: !_cornersMode
                                             ? null
                                             : (d) {
+                                                _lastScale = 1.0;
+                                                _dragIdx = null;
+                                                if (d.pointerCount != 1) {
+                                                  return;
+                                                }
                                                 var best = -1;
                                                 var bestDist = 56.0;
                                                 for (var i = 0; i < 4; i++) {
@@ -328,7 +335,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                         box.biggest.height,
                                                   );
                                                   final dist =
-                                                      (d.localPosition - h)
+                                                      (d.localFocalPoint - h)
                                                           .distance;
                                                   if (dist < bestDist) {
                                                     bestDist = dist;
@@ -339,39 +346,66 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                     ? best
                                                     : null;
                                               },
-                                        onPanUpdate: !_cornersMode
+                                        onScaleUpdate: !_cornersMode
                                             ? null
                                             : (d) {
                                                 final i = _dragIdx;
-                                                if (i == null) {
-                                                  // not near a handle:
-                                                  // one-finger pan
-                                                  final m =
-                                                      Matrix4.copy(
-                                                        _viewCtrl.value,
-                                                      )..translateByDouble(
-                                                        d.delta.dx,
-                                                        d.delta.dy,
-                                                        0,
-                                                        1,
-                                                      );
-                                                  _viewCtrl.value = m;
+                                                if (i != null &&
+                                                    d.pointerCount == 1) {
+                                                  setState(() {
+                                                    _handles[i][0] =
+                                                        (d.localFocalPoint.dx /
+                                                                box
+                                                                    .biggest
+                                                                    .width)
+                                                            .clamp(0.0, 1.0);
+                                                    _handles[i][1] =
+                                                        (d.localFocalPoint.dy /
+                                                                box
+                                                                    .biggest
+                                                                    .height)
+                                                            .clamp(0.0, 1.0);
+                                                  });
                                                   return;
                                                 }
-                                                setState(() {
-                                                  _handles[i][0] =
-                                                      (d.localPosition.dx /
-                                                              box.biggest.width)
-                                                          .clamp(0.0, 1.0);
-                                                  _handles[i][1] =
-                                                      (d.localPosition.dy /
-                                                              box
-                                                                  .biggest
-                                                                  .height)
-                                                          .clamp(0.0, 1.0);
-                                                });
+                                                // pan + pinch-zoom around
+                                                // the fingers' focal point
+                                                final m = Matrix4.copy(
+                                                  _viewCtrl.value,
+                                                );
+                                                final cur = m
+                                                    .getMaxScaleOnAxis();
+                                                var s = d.scale / _lastScale;
+                                                _lastScale = d.scale;
+                                                final target = (cur * s).clamp(
+                                                  1.0,
+                                                  6.0,
+                                                );
+                                                s = target / cur;
+                                                final p = d.localFocalPoint;
+                                                m
+                                                  ..translateByDouble(
+                                                    p.dx,
+                                                    p.dy,
+                                                    0,
+                                                    1,
+                                                  )
+                                                  ..scaleByDouble(s, s, 1, 1)
+                                                  ..translateByDouble(
+                                                    -p.dx,
+                                                    -p.dy,
+                                                    0,
+                                                    1,
+                                                  )
+                                                  ..translateByDouble(
+                                                    d.focalPointDelta.dx / cur,
+                                                    d.focalPointDelta.dy / cur,
+                                                    0,
+                                                    1,
+                                                  );
+                                                _viewCtrl.value = m;
                                               },
-                                        onPanEnd: (_) => _dragIdx = null,
+                                        onScaleEnd: (_) => _dragIdx = null,
                                         child: Stack(
                                           fit: StackFit.expand,
                                           children: [
