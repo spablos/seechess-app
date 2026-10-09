@@ -30,6 +30,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   /// Draggable corner handles, normalized 0..1, order a8 h8 h1 a1.
   List<List<double>> _handles = const [];
   int? _dragIdx;
+  final TransformationController _viewCtrl = TransformationController();
   static const _cornerNames = ['a8', 'h8', 'h1', 'a1'];
   bool _busy = false;
   String? _status;
@@ -299,6 +300,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                           : null,
                       child: InteractiveViewer(
                         maxScale: 6,
+                        transformationController: _viewCtrl,
                         panEnabled: !_cornersMode,
                         child: Center(
                           child: _imgSize == null
@@ -341,7 +343,21 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                             ? null
                                             : (d) {
                                                 final i = _dragIdx;
-                                                if (i == null) return;
+                                                if (i == null) {
+                                                  // not near a handle:
+                                                  // one-finger pan
+                                                  final m =
+                                                      Matrix4.copy(
+                                                        _viewCtrl.value,
+                                                      )..translateByDouble(
+                                                        d.delta.dx,
+                                                        d.delta.dy,
+                                                        0,
+                                                        1,
+                                                      );
+                                                  _viewCtrl.value = m;
+                                                  return;
+                                                }
                                                 setState(() {
                                                   _handles[i][0] =
                                                       (d.localPosition.dx /
