@@ -29,6 +29,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
 
   /// Draggable corner handles, normalized 0..1, order a8 h8 h1 a1.
   List<List<double>> _handles = const [];
+  int? _dragIdx;
   static const _cornerNames = ['a8', 'h8', 'h1', 'a1'];
   bool _busy = false;
   String? _status;
@@ -286,7 +287,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                   const Expanded(child: Center(child: Text('Batch is done 🎉')))
                 else ...[
                   Expanded(
-                    flex: 5,
+                    flex: 7,
                     child: Container(
                       decoration: _cornersMode
                           ? BoxDecoration(
@@ -299,10 +300,6 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       child: InteractiveViewer(
                         maxScale: 6,
                         panEnabled: !_cornersMode,
-                        scaleEnabled: !_cornersMode,
-                        // taps normalize against the exact image rect, so
-                        // the picture is constrained to its own aspect
-                        // ratio instead of letterboxing inside the slot
                         child: Center(
                           child: _imgSize == null
                               ? Image.network(
@@ -314,74 +311,103 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   aspectRatio:
                                       _imgSize!.width / _imgSize!.height,
                                   child: LayoutBuilder(
-                                    builder: (context, box) => Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Image.network(
-                                          '$_base/v1/dataset/${e.id}/display',
-                                          fit: BoxFit.fill,
-                                          gaplessPlayback: true,
+                                    builder: (context, box) {
+                                      return GestureDetector(
+                                        onPanStart: !_cornersMode
+                                            ? null
+                                            : (d) {
+                                                var best = -1;
+                                                var bestDist = 56.0;
+                                                for (var i = 0; i < 4; i++) {
+                                                  final h = Offset(
+                                                    _handles[i][0] *
+                                                        box.biggest.width,
+                                                    _handles[i][1] *
+                                                        box.biggest.height,
+                                                  );
+                                                  final dist =
+                                                      (d.localPosition - h)
+                                                          .distance;
+                                                  if (dist < bestDist) {
+                                                    bestDist = dist;
+                                                    best = i;
+                                                  }
+                                                }
+                                                _dragIdx = best >= 0
+                                                    ? best
+                                                    : null;
+                                              },
+                                        onPanUpdate: !_cornersMode
+                                            ? null
+                                            : (d) {
+                                                final i = _dragIdx;
+                                                if (i == null) return;
+                                                setState(() {
+                                                  _handles[i][0] =
+                                                      (d.localPosition.dx /
+                                                              box.biggest.width)
+                                                          .clamp(0.0, 1.0);
+                                                  _handles[i][1] =
+                                                      (d.localPosition.dy /
+                                                              box
+                                                                  .biggest
+                                                                  .height)
+                                                          .clamp(0.0, 1.0);
+                                                });
+                                              },
+                                        onPanEnd: (_) => _dragIdx = null,
+                                        child: Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            Image.network(
+                                              '$_base/v1/dataset/${e.id}/display',
+                                              fit: BoxFit.fill,
+                                              gaplessPlayback: true,
+                                            ),
+                                            // saved corners stay visible
+                                            if (!_cornersMode &&
+                                                e.corners != null)
+                                              for (var i = 0; i < 4; i++)
+                                                Positioned(
+                                                  left:
+                                                      e.corners![i][0] *
+                                                          box.biggest.width -
+                                                      9,
+                                                  top:
+                                                      e.corners![i][1] *
+                                                          box.biggest.height -
+                                                      9,
+                                                  child: IgnorePointer(
+                                                    child: _cornerDot(
+                                                      _cornerNames[i],
+                                                      18,
+                                                      Colors.lightGreen,
+                                                    ),
+                                                  ),
+                                                ),
+                                            if (_cornersMode)
+                                              for (var i = 0; i < 4; i++)
+                                                Positioned(
+                                                  left:
+                                                      _handles[i][0] *
+                                                          box.biggest.width -
+                                                      16,
+                                                  top:
+                                                      _handles[i][1] *
+                                                          box.biggest.height -
+                                                      16,
+                                                  child: IgnorePointer(
+                                                    child: _cornerDot(
+                                                      _cornerNames[i],
+                                                      32,
+                                                      Colors.redAccent,
+                                                    ),
+                                                  ),
+                                                ),
+                                          ],
                                         ),
-                                        // saved corners stay visible, so
-                                        // a finished marking is evident
-                                        if (!_cornersMode && e.corners != null)
-                                          for (var i = 0; i < 4; i++)
-                                            Positioned(
-                                              left:
-                                                  e.corners![i][0] *
-                                                      box.biggest.width -
-                                                  9,
-                                              top:
-                                                  e.corners![i][1] *
-                                                      box.biggest.height -
-                                                  9,
-                                              child: IgnorePointer(
-                                                child: _cornerDot(
-                                                  _cornerNames[i],
-                                                  18,
-                                                  Colors.lightGreen,
-                                                ),
-                                              ),
-                                            ),
-                                        if (_cornersMode)
-                                          for (var i = 0; i < 4; i++)
-                                            Positioned(
-                                              left:
-                                                  _handles[i][0] *
-                                                      box.biggest.width -
-                                                  16,
-                                              top:
-                                                  _handles[i][1] *
-                                                      box.biggest.height -
-                                                  16,
-                                              child: GestureDetector(
-                                                onPanUpdate: (d) => setState(
-                                                  () {
-                                                    _handles[i][0] =
-                                                        (_handles[i][0] +
-                                                                d.delta.dx /
-                                                                    box
-                                                                        .biggest
-                                                                        .width)
-                                                            .clamp(0.0, 1.0);
-                                                    _handles[i][1] =
-                                                        (_handles[i][1] +
-                                                                d.delta.dy /
-                                                                    box
-                                                                        .biggest
-                                                                        .height)
-                                                            .clamp(0.0, 1.0);
-                                                  },
-                                                ),
-                                                child: _cornerDot(
-                                                  _cornerNames[i],
-                                                  32,
-                                                  Colors.redAccent,
-                                                ),
-                                              ),
-                                            ),
-                                      ],
-                                    ),
+                                      );
+                                    },
                                   ),
                                 ),
                         ),
@@ -389,7 +415,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                     ),
                   ),
                   Expanded(
-                    flex: 6,
+                    flex: 5,
                     child: Center(
                       child: AspectRatio(
                         aspectRatio: 1,
