@@ -32,6 +32,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   int? _dragIdx;
   Offset _dragOff = Offset.zero;
   double _lastScale = 1.0;
+  int _lastPtrCount = 1;
   final TransformationController _viewCtrl = TransformationController();
   static const _cornerNames = ['a8', 'h8', 'h1', 'a1'];
   bool _busy = false;
@@ -113,6 +114,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                 : e.predictedFen,
           );
     _cornersMode = false;
+    _viewCtrl.value = Matrix4.identity();
     _status = null;
   }
 
@@ -213,6 +215,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     setState(() {
       _busy = false;
       _cornersMode = false;
+      _viewCtrl.value = Matrix4.identity();
       if (fresh != null) {
         final i = _all.indexWhere((x) => x.id == e.id);
         if (i >= 0) _all[i] = fresh;
@@ -322,6 +325,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                             ? null
                                             : (d) {
                                                 _lastScale = 1.0;
+                                                _lastPtrCount = d.pointerCount;
                                                 _dragIdx = null;
                                                 if (d.pointerCount != 1) {
                                                   return;
@@ -383,8 +387,23 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                   });
                                                   return;
                                                 }
-                                                // pan + pinch-zoom around
-                                                // the fingers' focal point
+                                                // one finger only ever moves
+                                                // a handle; the image moves
+                                                // with two fingers (pan +
+                                                // pinch-zoom around them)
+                                                if (d.pointerCount < 2) {
+                                                  _lastPtrCount =
+                                                      d.pointerCount;
+                                                  return;
+                                                }
+                                                if (d.pointerCount !=
+                                                    _lastPtrCount) {
+                                                  // scale baseline resets
+                                                  // when a finger lands/lifts
+                                                  _lastPtrCount =
+                                                      d.pointerCount;
+                                                  _lastScale = d.scale;
+                                                }
                                                 final m = Matrix4.copy(
                                                   _viewCtrl.value,
                                                 );
@@ -625,8 +644,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         ),
                         if (_cornersMode)
                           TextButton(
-                            onPressed: () =>
-                                setState(() => _cornersMode = false),
+                            onPressed: () => setState(() {
+                              _cornersMode = false;
+                              _viewCtrl.value = Matrix4.identity();
+                            }),
                             child: const Text('Cancel'),
                           ),
                         const SizedBox(width: 4),
