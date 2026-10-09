@@ -4,8 +4,8 @@ import '../models/setup_state.dart';
 import 'board.dart';
 
 /// Classic yin-yang: instantly reads as "swap black and white".
-class _YinYangPainter extends CustomPainter {
-  const _YinYangPainter();
+class YinYangPainter extends CustomPainter {
+  const YinYangPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -194,7 +194,7 @@ class SetupPalette extends StatelessWidget {
                   child: const Center(
                     child: CustomPaint(
                       size: Size(28, 28),
-                      painter: _YinYangPainter(),
+                      painter: YinYangPainter(),
                     ),
                   ),
                 ),

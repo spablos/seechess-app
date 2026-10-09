@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/dataset.dart';
 import '../widgets/board.dart' show pieceImage;
+import '../widgets/setup_palette.dart' show YinYangPainter;
 
 /// The phone-first labeler: pick a batch (one board style per reel),
 /// correct the model's reading square by square with a paint palette,
@@ -13,22 +14,6 @@ class StudioLabelerScreen extends StatefulWidget {
   State<StudioLabelerScreen> createState() => _StudioLabelerScreenState();
 }
 
-const _palette = [
-  'wP',
-  'wN',
-  'wB',
-  'wR',
-  'wQ',
-  'wK',
-  'bP',
-  'bN',
-  'bB',
-  'bR',
-  'bQ',
-  'bK',
-  '',
-];
-
 class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   List<DatasetEntry> _all = const [];
   String? _base;
@@ -36,7 +21,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   bool _unlabeledOnly = true;
   int _index = 0;
   Map<String, String> _pieces = {};
-  String _brush = 'wP';
+  // same palette model as the app's position editor: one color at a
+  // time, a piece-type tool or the eraser; double-tap flips colors
+  bool _paletteWhite = true;
+  String _tool = 'P';
   bool _cornersMode = false;
   final List<List<double>> _cornerTaps = [];
   bool _busy = false;
@@ -351,17 +339,60 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       child: AspectRatio(aspectRatio: 1, child: _grid(theme)),
                     ),
                   ),
-                  SizedBox(
-                    height: 52,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      children: [
-                        for (final p in _palette)
+                  GestureDetector(
+                    onDoubleTap: () =>
+                        setState(() => _paletteWhite = !_paletteWhite),
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(
+                      height: 52,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        children: [
+                          for (final kind in const [
+                            'K',
+                            'Q',
+                            'R',
+                            'B',
+                            'N',
+                            'P',
+                            'erase',
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.all(3),
+                              child: InkWell(
+                                onTap: () => setState(() => _tool = kind),
+                                child: Container(
+                                  width: 44,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      width: 2,
+                                      color: _tool == kind
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.outlineVariant,
+                                    ),
+                                  ),
+                                  child: kind == 'erase'
+                                      ? Icon(
+                                          Icons.cleaning_services_outlined,
+                                          size: 22,
+                                          color: theme.colorScheme.error,
+                                        )
+                                      : pieceImage(
+                                          '${_paletteWhite ? 'w' : 'b'}$kind',
+                                          32,
+                                        ),
+                                ),
+                              ),
+                            ),
                           Padding(
                             padding: const EdgeInsets.all(3),
                             child: InkWell(
-                              onTap: () => setState(() => _brush = p),
+                              onTap: () => setState(
+                                () => _paletteWhite = !_paletteWhite,
+                              ),
                               child: Container(
                                 width: 44,
                                 alignment: Alignment.center,
@@ -369,33 +400,39 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     width: 2,
-                                    color: _brush == p
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.outlineVariant,
+                                    color: theme.colorScheme.outlineVariant,
                                   ),
                                 ),
-                                child: p.isEmpty
-                                    ? const Icon(Icons.close, size: 20)
-                                    : pieceImage(p, 32),
+                                child: const CustomPaint(
+                                  size: Size(28, 28),
+                                  painter: YinYangPainter(),
+                                ),
                               ),
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
                     child: Row(
                       children: [
-                        IconButton(
-                          tooltip: 'Fix board corners (4 taps: a8 h8 h1 a1)',
-                          isSelected: _cornersMode,
-                          icon: const Icon(Icons.crop_free),
+                        OutlinedButton.icon(
+                          icon: Icon(
+                            Icons.crop_free,
+                            size: 18,
+                            color: _cornersMode
+                                ? theme.colorScheme.error
+                                : null,
+                          ),
+                          label: Text(_cornersMode ? 'tap a8…' : 'Corners'),
                           onPressed: () => setState(() {
                             _cornersMode = !_cornersMode;
                             _cornerTaps.clear();
                           }),
                         ),
+                        const SizedBox(width: 4),
                         IconButton(
                           tooltip: 'Skip',
                           icon: const Icon(Icons.skip_next),
@@ -454,14 +491,24 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         final p = _pieces[sq];
                         return InkWell(
                           onTap: () => setState(() {
-                            if (_brush.isEmpty) {
-                              _pieces.remove(sq);
-                            } else if (_pieces[sq] == _brush) {
-                              // tapping with the same brush erases — quick
-                              // toggle without switching to the eraser
+                            if (_tool == 'erase') {
                               _pieces.remove(sq);
                             } else {
-                              _pieces[sq] = _brush;
+                              final brush =
+                                  '${_paletteWhite ? 'w' : 'b'}$_tool';
+                              if (_pieces[sq] == brush) {
+                                _pieces.remove(sq);
+                              } else {
+                                _pieces[sq] = brush;
+                              }
+                            }
+                          }),
+                          // like the board editor: double-tap flips the
+                          // piece's color in place
+                          onDoubleTap: () => setState(() {
+                            final p = _pieces[sq];
+                            if (p != null) {
+                              _pieces[sq] = '${p[0] == 'w' ? 'b' : 'w'}${p[1]}';
                             }
                           }),
                           child: Container(
