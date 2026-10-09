@@ -416,6 +416,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                   12.0,
                                                 );
                                                 s = target / cur;
+                                                // deadband: finger-spacing
+                                                // noise while panning must
+                                                // not jitter the zoom
+                                                if ((s - 1).abs() < 0.004) {
+                                                  s = 1;
+                                                }
                                                 final p = d.localFocalPoint;
                                                 m
                                                   ..translateByDouble(
@@ -431,9 +437,16 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                     0,
                                                     1,
                                                   )
+                                                  // focalPointDelta arrives
+                                                  // already in image-local
+                                                  // coords (the detector sits
+                                                  // inside the transform), so
+                                                  // it applies as-is: dividing
+                                                  // by the zoom again made the
+                                                  // pan crawl when zoomed in
                                                   ..translateByDouble(
-                                                    d.focalPointDelta.dx / cur,
-                                                    d.focalPointDelta.dy / cur,
+                                                    d.focalPointDelta.dx,
+                                                    d.focalPointDelta.dy,
                                                     0,
                                                     1,
                                                   );
