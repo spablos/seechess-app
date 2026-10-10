@@ -17,7 +17,10 @@ class DatasetEntry {
 
   final String id;
   final String batch;
-  final String inputType;
+  String inputType;
+
+  /// True once a human confirmed 2D/3D (vs the router's auto-guess).
+  bool typeConfirmed = false;
   final String predictedFen;
   String? correctedFen;
 
@@ -41,7 +44,8 @@ class DatasetEntry {
           correctedFen: j['corrected_fen'] as String?,
         )
         .._parseCorners(j['corners'])
-        .._parseMarks(j['square_marks']);
+        .._parseMarks(j['square_marks'])
+        ..typeConfirmed = j['input_type_labeled_at'] != null;
 
   void _parseCorners(dynamic raw) {
     if (raw is! List || raw.length != 4) return;
@@ -114,6 +118,22 @@ Future<bool> saveSquareMarks(
         body: jsonEncode({
           'transit': transit.toList(),
           'highlight': highlight.toList(),
+        }),
+      )
+      .timeout(const Duration(seconds: 15));
+  return res.statusCode == 200;
+}
+
+/// Human-confirmed input type: 'screenshot' (2D) or 'photo' (3D board).
+Future<bool> saveInputType(String id, String inputType) async {
+  final base = await datasetBase();
+  final res = await http
+      .post(
+        Uri.parse('$base/v1/dataset/input_type'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'ids': [id],
+          'input_type': inputType,
         }),
       )
       .timeout(const Duration(seconds: 15));

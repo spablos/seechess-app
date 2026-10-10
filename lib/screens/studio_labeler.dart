@@ -93,7 +93,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   List<String> _batches(List<DatasetEntry> all) {
     final set = <String>{
       for (final e in all)
-        if (e.batch.isNotEmpty) e.batch,
+        // in unlabeled-only mode, fully-labeled batches are done —
+        // keep them out of the picker (the current one stays until
+        // the operator moves on, so the dropdown value stays valid)
+        if (e.batch.isNotEmpty &&
+            (!_unlabeledOnly || !e.labeled || e.batch == _batch))
+          e.batch,
     };
     final out = set.toList()..sort();
     return out;
@@ -278,6 +283,22 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     });
   }
 
+  Future<void> _setInputType(String t) async {
+    final e = _current;
+    if (e == null) return;
+    final ok = await saveInputType(e.id, t);
+    if (!mounted) return;
+    setState(() {
+      if (ok) {
+        e.inputType = t;
+        e.typeConfirmed = true;
+        _status = t == 'screenshot' ? 'Marked 2D' : 'Marked 3D';
+      } else {
+        _status = 'Type save failed — check connection';
+      }
+    });
+  }
+
   /// Rotate the board VIEW 90° clockwise — frame, axes and pieces turn
   /// together to match a sideways photo; the stored position is
   /// untouched, so the saved FEN stays in true orientation.
@@ -382,7 +403,32 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                           }),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
+                      // 2D rendering vs 3D board: empty = you haven't
+                      // confirmed yet (the router's guess stands)
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'screenshot', label: Text('2D')),
+                          ButtonSegment(value: 'photo', label: Text('3D')),
+                        ],
+                        emptySelectionAllowed: true,
+                        showSelectedIcon: false,
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        selected: {
+                          if (e != null &&
+                              e.typeConfirmed &&
+                              (e.inputType == 'photo' ||
+                                  e.inputType == 'screenshot'))
+                            e.inputType,
+                        },
+                        onSelectionChanged: (sel) {
+                          if (sel.isNotEmpty) _setInputType(sel.first);
+                        },
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         items.isEmpty ? '0/0' : '${_index + 1}/${items.length}',
                         style: theme.textTheme.labelLarge,
@@ -611,6 +657,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
                   GestureDetector(
                     onDoubleTap: () =>
                         setState(() => _paletteWhite = !_paletteWhite),
@@ -727,8 +774,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       ),
                     ),
                   ),
+                  // two action rows: browse/edit tools on top, the
+                  // committing actions below
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                    padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
                     child: Row(
                       children: [
                         IconButton(
@@ -743,6 +792,45 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   _syncBoard();
                                 }),
                         ),
+                        IconButton(
+                          tooltip: 'Skip',
+                          icon: const Icon(Icons.skip_next),
+                          onPressed: items.length < 2
+                              ? null
+                              : () => setState(() {
+                                  _index = (_index + 1) % items.length;
+                                  _syncBoard();
+                                }),
+                        ),
+                        IconButton(
+                          tooltip: 'Rotate board 90°',
+                          icon: const Icon(Icons.rotate_90_degrees_cw),
+                          onPressed: _cornersMode ? null : _rotateBoard,
+                        ),
+                        IconButton(
+                          tooltip: 'Discard image',
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: theme.colorScheme.error,
+                          ),
+                          onPressed: _busy ? null : _discard,
+                        ),
+                        if (_status != null)
+                          Expanded(
+                            child: Text(
+                              _status!,
+                              textAlign: TextAlign.right,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.labelMedium,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                    child: Row(
+                      children: [
                         OutlinedButton.icon(
                           icon: Icon(
                             Icons.crop_free,
@@ -772,40 +860,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             }),
                             child: const Text('Cancel'),
                           ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          tooltip: 'Rotate board 90°',
-                          icon: const Icon(Icons.rotate_90_degrees_cw),
-                          onPressed: _cornersMode ? null : _rotateBoard,
-                        ),
-                        IconButton(
-                          tooltip: 'Discard image',
-                          icon: Icon(
-                            Icons.delete_outline,
-                            color: theme.colorScheme.error,
-                          ),
-                          onPressed: _busy ? null : _discard,
-                        ),
-                        IconButton(
-                          tooltip: 'Skip',
-                          icon: const Icon(Icons.skip_next),
-                          onPressed: items.length < 2
-                              ? null
-                              : () => setState(() {
-                                  _index = (_index + 1) % items.length;
-                                  _syncBoard();
-                                }),
-                        ),
-                        if (_status != null)
-                          Expanded(
-                            child: Text(
-                              _status!,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.labelMedium,
-                            ),
-                          )
-                        else
-                          const Spacer(),
+                        const Spacer(),
                         FilledButton.icon(
                           onPressed: _busy ? null : _save,
                           icon: _busy
