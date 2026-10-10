@@ -406,27 +406,32 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       const SizedBox(width: 8),
                       // 2D rendering vs 3D board: empty = you haven't
                       // confirmed yet (the router's guess stands)
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'screenshot', label: Text('2D')),
-                          ButtonSegment(value: 'photo', label: Text('3D')),
-                        ],
-                        emptySelectionAllowed: true,
-                        showSelectedIcon: false,
-                        style: const ButtonStyle(
-                          visualDensity: VisualDensity.compact,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      // 2D rendering vs 3D board, one small cyclic
+                      // button: ? (not confirmed) -> 2D -> 3D -> 2D ...
+                      SizedBox(
+                        width: 44,
+                        height: 32,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: e == null
+                              ? null
+                              : () => _setInputType(
+                                  e.typeConfirmed && e.inputType == 'screenshot'
+                                      ? 'photo'
+                                      : 'screenshot',
+                                ),
+                          child: Text(
+                            e == null || !e.typeConfirmed
+                                ? '?'
+                                : e.inputType == 'screenshot'
+                                ? '2D'
+                                : '3D',
+                          ),
                         ),
-                        selected: {
-                          if (e != null &&
-                              e.typeConfirmed &&
-                              (e.inputType == 'photo' ||
-                                  e.inputType == 'screenshot'))
-                            e.inputType,
-                        },
-                        onSelectionChanged: (sel) {
-                          if (sel.isNotEmpty) _setInputType(sel.first);
-                        },
                       ),
                       const SizedBox(width: 8),
                       Text(
@@ -675,9 +680,6 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             'B',
                             'N',
                             'P',
-                            'unseen',
-                            'transit',
-                            'hl',
                           ])
                             Padding(
                               padding: const EdgeInsets.all(3),
@@ -699,38 +701,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                     .outlineVariant,
                                         ),
                                       ),
-                                      child: kind == 'unseen'
-                                          // square not visible in the photo
-                                          ? Icon(
-                                              Icons.visibility_off,
-                                              size: 22,
-                                              color: theme.colorScheme.outline,
-                                            )
-                                          : kind == 'transit'
-                                          // piece caught mid-move
-                                          ? const Icon(
-                                              Icons.motion_photos_on,
-                                              size: 22,
-                                              color: Color(0xFF7B1FA2),
-                                            )
-                                          : kind == 'hl'
-                                          // last-move highlight square
-                                          ? const Icon(
-                                              Icons.format_color_fill,
-                                              size: 22,
-                                              color: Color(0xFFFFA000),
-                                            )
-                                          : pieceImage(
-                                              '${_paletteWhite ? 'w' : 'b'}$kind',
-                                              32,
-                                            ),
+                                      child: pieceImage(
+                                        '${_paletteWhite ? 'w' : 'b'}$kind',
+                                        32,
+                                      ),
                                     ),
                                   );
-                                  if (kind == 'unseen' ||
-                                      kind == 'transit' ||
-                                      kind == 'hl') {
-                                    return chip;
-                                  }
                                   final code =
                                       '${_paletteWhite ? 'w' : 'b'}$kind';
                                   // drag straight onto a square, like the
@@ -815,6 +791,22 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                           ),
                           onPressed: _busy ? null : _discard,
                         ),
+                        const SizedBox(width: 2),
+                        _markChip(
+                          'unseen',
+                          Icons.visibility_off,
+                          theme.colorScheme.outline,
+                        ),
+                        _markChip(
+                          'transit',
+                          Icons.motion_photos_on,
+                          const Color(0xFF7B1FA2),
+                        ),
+                        _markChip(
+                          'hl',
+                          Icons.format_color_fill,
+                          const Color(0xFFFFA000),
+                        ),
                         if (_status != null)
                           Expanded(
                             child: Text(
@@ -880,6 +872,31 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                 ],
               ],
             ),
+    );
+  }
+
+  /// Compact tool chip for the square marks, same selected styling as
+  /// the piece palette.
+  Widget _markChip(String kind, IconData icon, Color color) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: () => setState(() => _tool = kind),
+      child: Container(
+        width: 38,
+        height: 30,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            width: 2,
+            color: _tool == kind
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outlineVariant,
+          ),
+        ),
+        child: Icon(icon, size: 20, color: color),
+      ),
     );
   }
 
