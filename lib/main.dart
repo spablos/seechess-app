@@ -17,6 +17,13 @@ import 'utils/position_link.dart';
 
 void main() {
   loadStudioToken(); // async fire-and-forget; Studio card appears when read
+  if (kIsWeb) {
+    // a ?token= in the page URL unlocks Studio right away and is adopted
+    // into storage — fresh browser contexts (in-app browsers, new
+    // devices) open already unlocked from a tokenized link
+    final t = Uri.base.queryParameters['token'];
+    if (t != null && t.isNotEmpty) saveStudioToken(t);
+  }
   runApp(const SeechessApp());
 }
 
