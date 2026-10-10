@@ -16,6 +16,10 @@ import 'services/stats.dart';
 import 'utils/position_link.dart';
 
 void main() {
+  // plugins (SharedPreferences) need the binding before runApp; without
+  // this the token load below threw silently on every cold start and
+  // Studio appeared "logged out" after each TestFlight update
+  WidgetsFlutterBinding.ensureInitialized();
   loadStudioToken(); // async fire-and-forget; Studio card appears when read
   if (kIsWeb) {
     // a ?token= in the page URL unlocks Studio right away and is adopted

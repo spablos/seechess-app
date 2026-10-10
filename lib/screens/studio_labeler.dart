@@ -216,6 +216,49 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     });
   }
 
+  Future<void> _discard() async {
+    final e = _current;
+    if (e == null || _busy) return;
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard this image?'),
+        content: const Text(
+          'Removes it from the training set for good — for boards '
+          'we decided not to support.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (sure != true || !mounted) return;
+    setState(() => _busy = true);
+    final ok = await deleteEntry(e.id);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (ok) {
+        _all.removeWhere((x) => x.id == e.id);
+        if (_index >= _items.length) _index = 0;
+        _status = 'Image discarded';
+        _syncBoard();
+      } else {
+        _status = 'Discard failed — check connection';
+      }
+    });
+  }
+
   void _enterCorners() {
     final e = _current;
     final stored = e?.corners;
@@ -705,6 +748,14 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             child: const Text('Cancel'),
                           ),
                         const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'Discard image',
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: theme.colorScheme.error,
+                          ),
+                          onPressed: _busy ? null : _discard,
+                        ),
                         IconButton(
                           tooltip: 'Skip',
                           icon: const Icon(Icons.skip_next),
