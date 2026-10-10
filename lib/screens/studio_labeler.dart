@@ -704,9 +704,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                       width: 44,
                                       alignment: Alignment.center,
                                       decoration: BoxDecoration(
-                                        // board-light fill so black pieces
-                                        // stay visible on a dark theme
-                                        color: const Color(0xFFF0D9B5),
+                                        // black pieces need a light fill
+                                        // on a dark theme; white ones
+                                        // read fine on the plain surface
+                                        color: _paletteWhite
+                                            ? null
+                                            : const Color(0xFFF0D9B5),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
                                           width: 2,
@@ -749,7 +752,6 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                 width: 44,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF0D9B5),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     width: 2,
