@@ -21,6 +21,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   bool _unlabeledOnly = true;
   int _index = 0;
   Map<String, String> _pieces = {};
+  // per-square training marks: piece caught mid-move (video frame) and
+  // exceptional background color (usually the GUI's last-move highlight)
+  Set<String> _transit = {};
+  Set<String> _hl = {};
   // same palette model as the app's position editor: one color at a
   // time, a piece-type tool or the eraser; double-tap flips colors
   bool _paletteWhite = true;
@@ -113,6 +117,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                 ? e.correctedFen!
                 : e.predictedFen,
           );
+    _transit = {...?e?.transit};
+    _hl = {...?e?.highlight};
     _cornersMode = false;
     _viewCtrl.value = Matrix4.identity();
     _status = null;
@@ -167,12 +173,16 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     final e = _current;
     if (e == null || _busy) return;
     setState(() => _busy = true);
-    final ok = await saveCorrection(e.id, _mapToFen(_pieces));
+    final ok =
+        await saveCorrection(e.id, _mapToFen(_pieces)) &&
+        await saveSquareMarks(e.id, _transit, _hl);
     if (!mounted) return;
     setState(() {
       _busy = false;
       if (ok) {
         e.correctedFen = _mapToFen(_pieces);
+        e.transit = {..._transit};
+        e.highlight = {..._hl};
         _status = 'Saved ✓';
         if (_unlabeledOnly) {
           // the list shrank under us; stay at the same index
@@ -528,6 +538,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             'N',
                             'P',
                             'erase',
+                            'transit',
+                            'hl',
                           ])
                             Padding(
                               padding: const EdgeInsets.all(3),
@@ -555,13 +567,31 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                               size: 22,
                                               color: theme.colorScheme.error,
                                             )
+                                          : kind == 'transit'
+                                          // piece caught mid-move
+                                          ? const Icon(
+                                              Icons.motion_photos_on,
+                                              size: 22,
+                                              color: Color(0xFF7B1FA2),
+                                            )
+                                          : kind == 'hl'
+                                          // last-move highlight square
+                                          ? const Icon(
+                                              Icons.format_color_fill,
+                                              size: 22,
+                                              color: Color(0xFFFFA000),
+                                            )
                                           : pieceImage(
                                               '${_paletteWhite ? 'w' : 'b'}$kind',
                                               32,
                                             ),
                                     ),
                                   );
-                                  if (kind == 'erase') return chip;
+                                  if (kind == 'erase' ||
+                                      kind == 'transit' ||
+                                      kind == 'hl') {
+                                    return chip;
+                                  }
                                   final code =
                                       '${_paletteWhite ? 'w' : 'b'}$kind';
                                   // drag straight onto a square, like the
@@ -740,8 +770,16 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                     'the image';
                                 return;
                               }
-                              if (_tool == 'erase') {
+                              if (_tool == 'transit') {
+                                _transit.contains(sq)
+                                    ? _transit.remove(sq)
+                                    : _transit.add(sq);
+                              } else if (_tool == 'hl') {
+                                _hl.contains(sq) ? _hl.remove(sq) : _hl.add(sq);
+                              } else if (_tool == 'erase') {
                                 _pieces.remove(sq);
+                                _transit.remove(sq);
+                                _hl.remove(sq);
                               } else {
                                 final brush =
                                     '${_paletteWhite ? 'w' : 'b'}$_tool';
@@ -769,8 +807,23 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
+                                  // amber wash = exceptional background
+                                  // (last-move highlight) in the photo
+                                  if (_hl.contains(sq))
+                                    Container(color: const Color(0x66FFA000)),
                                   if (p != null)
                                     FittedBox(child: pieceImage(p, 40)),
+                                  // mid-move piece badge
+                                  if (_transit.contains(sq))
+                                    const Positioned(
+                                      top: 1,
+                                      right: 1,
+                                      child: Icon(
+                                        Icons.motion_photos_on,
+                                        size: 12,
+                                        color: Color(0xFF7B1FA2),
+                                      ),
+                                    ),
                                   // coordinates, like the real board
                                   if (f == 0)
                                     Positioned(

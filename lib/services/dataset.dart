@@ -24,15 +24,24 @@ class DatasetEntry {
   /// Human-set board corners, normalized 0..1, order a8 h8 h1 a1.
   List<List<double>>? corners;
 
+  /// Squares where a piece is caught mid-move (video frames).
+  Set<String> transit = {};
+
+  /// Squares with an exceptional background color (last-move highlight).
+  Set<String> highlight = {};
+
   bool get labeled => correctedFen != null && correctedFen!.isNotEmpty;
 
-  factory DatasetEntry.fromJson(Map<String, dynamic> j) => DatasetEntry(
-    id: j['id'] as String,
-    batch: (j['batch'] ?? '') as String,
-    inputType: (j['input_type'] ?? 'photo') as String,
-    predictedFen: (j['predicted_fen'] ?? '') as String,
-    correctedFen: j['corrected_fen'] as String?,
-  ).._parseCorners(j['corners']);
+  factory DatasetEntry.fromJson(Map<String, dynamic> j) =>
+      DatasetEntry(
+          id: j['id'] as String,
+          batch: (j['batch'] ?? '') as String,
+          inputType: (j['input_type'] ?? 'photo') as String,
+          predictedFen: (j['predicted_fen'] ?? '') as String,
+          correctedFen: j['corrected_fen'] as String?,
+        )
+        .._parseCorners(j['corners'])
+        .._parseMarks(j['square_marks']);
 
   void _parseCorners(dynamic raw) {
     if (raw is! List || raw.length != 4) return;
@@ -45,6 +54,12 @@ class DatasetEntry {
       }
     }
     corners = out;
+  }
+
+  void _parseMarks(dynamic raw) {
+    if (raw is! Map) return;
+    transit = {...?(raw['transit'] as List?)?.cast<String>()};
+    highlight = {...?(raw['highlight'] as List?)?.cast<String>()};
   }
 }
 
@@ -81,6 +96,25 @@ Future<bool> saveCorners(String id, List<List<double>> corners) async {
         Uri.parse('$base/v1/dataset/$id/corners'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'corners': corners}),
+      )
+      .timeout(const Duration(seconds: 15));
+  return res.statusCode == 200;
+}
+
+Future<bool> saveSquareMarks(
+  String id,
+  Set<String> transit,
+  Set<String> highlight,
+) async {
+  final base = await datasetBase();
+  final res = await http
+      .put(
+        Uri.parse('$base/v1/dataset/$id/square_marks'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'transit': transit.toList(),
+          'highlight': highlight.toList(),
+        }),
       )
       .timeout(const Duration(seconds: 15));
   return res.statusCode == 200;
