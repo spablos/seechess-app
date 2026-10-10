@@ -320,15 +320,20 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   void _enterCorners() {
     final e = _current;
     final stored = e?.corners;
+    // default box corners TL TR BR BL; with the board view rotated,
+    // a8..a1 start in the correspondingly rotated image corners
+    const box = [
+      [0.1, 0.1],
+      [0.9, 0.1],
+      [0.9, 0.9],
+      [0.1, 0.9],
+    ];
     _handles = stored != null
         ? [
             for (final c in stored) [c[0], c[1]],
           ]
         : [
-            [0.1, 0.1],
-            [0.9, 0.1],
-            [0.9, 0.9],
-            [0.1, 0.9],
+            for (var i = 0; i < 4; i++) [...box[(i + _rot) % 4]],
           ];
     _cornersMode = true;
     _status = 'drag a8 h8 h1 a1 onto the board corners, then Save corners';
