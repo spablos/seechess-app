@@ -275,6 +275,23 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     });
   }
 
+  /// Rotate the labeled position 90° clockwise — for photos shot
+  /// sideways it is easier to transcribe rotated and square it up after.
+  void _rotateBoard() {
+    String rot(String sq) {
+      final col = 'abcdefgh'.indexOf(sq[0]);
+      final row = 8 - int.parse(sq[1]);
+      return '${'abcdefgh'[7 - row]}${8 - col}';
+    }
+
+    setState(() {
+      _pieces = {for (final e in _pieces.entries) rot(e.key): e.value};
+      _transit = {for (final s in _transit) rot(s)};
+      _hl = {for (final s in _hl) rot(s)};
+      _boardDirty = true;
+    });
+  }
+
   void _enterCorners() {
     final e = _current;
     final stored = e?.corners;
@@ -344,8 +361,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
             }),
           ),
           IconButton(
-            tooltip: 'Reload',
-            icon: const Icon(Icons.refresh),
+            tooltip: 'Reload list from server',
+            icon: const Icon(Icons.sync),
             onPressed: _load,
           ),
         ],
@@ -620,7 +637,6 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             'B',
                             'N',
                             'P',
-                            'erase',
                             'unseen',
                             'transit',
                             'hl',
@@ -645,13 +661,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                                     .outlineVariant,
                                         ),
                                       ),
-                                      child: kind == 'erase'
-                                          ? Icon(
-                                              Icons.cleaning_services_outlined,
-                                              size: 22,
-                                              color: theme.colorScheme.error,
-                                            )
-                                          : kind == 'unseen'
+                                      child: kind == 'unseen'
                                           // square not visible in the photo
                                           ? Icon(
                                               Icons.visibility_off,
@@ -678,8 +688,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                             ),
                                     ),
                                   );
-                                  if (kind == 'erase' ||
-                                      kind == 'unseen' ||
+                                  if (kind == 'unseen' ||
                                       kind == 'transit' ||
                                       kind == 'hl') {
                                     return chip;
@@ -773,6 +782,11 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             child: const Text('Cancel'),
                           ),
                         const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'Rotate board 90°',
+                          icon: const Icon(Icons.rotate_90_degrees_cw),
+                          onPressed: _cornersMode ? null : _rotateBoard,
+                        ),
                         IconButton(
                           tooltip: 'Discard image',
                           icon: Icon(
@@ -907,10 +921,6 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                 } else {
                                   _pieces[sq] = '?';
                                 }
-                              } else if (_tool == 'erase') {
-                                _pieces.remove(sq);
-                                _transit.remove(sq);
-                                _hl.remove(sq);
                               } else {
                                 final brush =
                                     '${_paletteWhite ? 'w' : 'b'}$_tool';
