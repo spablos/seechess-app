@@ -149,16 +149,28 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     if (ranks.length != 8) return out;
     for (var r = 0; r < 8; r++) {
       var file = 0;
-      for (final ch in ranks[r].split('')) {
+      final row = ranks[r];
+      for (var i = 0; i < row.length && file < 8; i++) {
+        final ch = row[i];
         final d = int.tryParse(ch);
         if (d != null) {
           file += d;
+          continue;
+        }
+        final sq = '${'abcdefgh'[file]}${8 - r}';
+        if (ch == '?' || ch == '*') {
+          // extended FEN: square not visible in the photo
+          out[sq] = '?';
+        } else if (ch == '{') {
+          // candidate set from the web labeler: show as unknown here
+          final end = row.indexOf('}', i);
+          out[sq] = '?';
+          if (end > 0) i = end;
         } else {
-          final sq = '${'abcdefgh'[file]}${8 - r}';
           final white = ch.toUpperCase() == ch;
           out[sq] = '${white ? 'w' : 'b'}${ch.toUpperCase()}';
-          file++;
         }
+        file++;
       }
     }
     return out;
@@ -178,8 +190,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
             row += '$empty';
             empty = 0;
           }
-          final letter = p[1];
-          row += p[0] == 'w' ? letter : letter.toLowerCase();
+          if (p == '?') {
+            row += '?';
+          } else {
+            final letter = p[1];
+            row += p[0] == 'w' ? letter : letter.toLowerCase();
+          }
         }
       }
       if (empty > 0) row += '$empty';
@@ -605,6 +621,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             'N',
                             'P',
                             'erase',
+                            'unseen',
                             'transit',
                             'hl',
                           ])
@@ -634,6 +651,13 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                               size: 22,
                                               color: theme.colorScheme.error,
                                             )
+                                          : kind == 'unseen'
+                                          // square not visible in the photo
+                                          ? Icon(
+                                              Icons.visibility_off,
+                                              size: 22,
+                                              color: theme.colorScheme.outline,
+                                            )
                                           : kind == 'transit'
                                           // piece caught mid-move
                                           ? const Icon(
@@ -655,6 +679,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                     ),
                                   );
                                   if (kind == 'erase' ||
+                                      kind == 'unseen' ||
                                       kind == 'transit' ||
                                       kind == 'hl') {
                                     return chip;
@@ -848,7 +873,16 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         final p = _pieces[sq];
                         return DragTarget<String>(
                           onAcceptWithDetails: (d) => setState(() {
-                            _pieces[sq] = d.data;
+                            // 'wK' from the palette, 'wK@e2' from a square
+                            var code = d.data;
+                            final at = code.indexOf('@');
+                            if (at > 0) {
+                              final src = code.substring(at + 1);
+                              code = code.substring(0, at);
+                              if (src == sq) return;
+                              _pieces.remove(src);
+                            }
+                            _pieces[sq] = code;
                             _boardDirty = true;
                           }),
                           builder: (context, cand, rej) => InkWell(
@@ -867,6 +901,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                     : _transit.add(sq);
                               } else if (_tool == 'hl') {
                                 _hl.contains(sq) ? _hl.remove(sq) : _hl.add(sq);
+                              } else if (_tool == 'unseen') {
+                                if (_pieces[sq] == '?') {
+                                  _pieces.remove(sq);
+                                } else {
+                                  _pieces[sq] = '?';
+                                }
                               } else if (_tool == 'erase') {
                                 _pieces.remove(sq);
                                 _transit.remove(sq);
@@ -886,7 +926,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             onDoubleTap: () => setState(() {
                               if (_cornersMode) return;
                               final p = _pieces[sq];
-                              if (p != null) {
+                              if (p != null && p != '?') {
                                 _pieces[sq] =
                                     '${p[0] == 'w' ? 'b' : 'w'}${p[1]}';
                                 _boardDirty = true;
@@ -902,9 +942,45 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   // amber wash = exceptional background
                                   // (last-move highlight) in the photo
                                   if (_hl.contains(sq))
-                                    Container(color: const Color(0x66FFA000)),
-                                  if (p != null)
-                                    FittedBox(child: pieceImage(p, 40)),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xA6FFB300),
+                                        border: Border.all(
+                                          color: const Color(0xFFFF8F00),
+                                          width: 2.5,
+                                        ),
+                                      ),
+                                    ),
+                                  if (p == '?')
+                                    FittedBox(
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: Icon(
+                                          Icons.visibility_off,
+                                          size: 24,
+                                          color: light
+                                              ? const Color(0xAA7A5C3F)
+                                              : const Color(0xAAF0D9B5),
+                                        ),
+                                      ),
+                                    )
+                                  else if (p != null)
+                                    // drag to another square to move it;
+                                    // drop outside the board to delete it
+                                    Draggable<String>(
+                                      data: '$p@$sq',
+                                      feedback: pieceImage(p, 44),
+                                      childWhenDragging:
+                                          const SizedBox.shrink(),
+                                      onDraggableCanceled: (_, _) =>
+                                          setState(() {
+                                            _pieces.remove(sq);
+                                            _boardDirty = true;
+                                          }),
+                                      child: FittedBox(
+                                        child: pieceImage(p, 40),
+                                      ),
+                                    ),
                                   // mid-move piece badge
                                   if (_transit.contains(sq))
                                     const Positioned(
