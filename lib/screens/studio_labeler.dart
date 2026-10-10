@@ -25,6 +25,9 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   // exceptional background color (usually the GUI's last-move highlight)
   Set<String> _transit = {};
   Set<String> _hl = {};
+  // unsaved board edits: a corners save must not wipe them by resyncing
+  // to the server's (re-predicted) FEN
+  bool _boardDirty = false;
   // same palette model as the app's position editor: one color at a
   // time, a piece-type tool or the eraser; double-tap flips colors
   bool _paletteWhite = true;
@@ -119,6 +122,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
           );
     _transit = {...?e?.transit};
     _hl = {...?e?.highlight};
+    _boardDirty = false;
     _cornersMode = false;
     _viewCtrl.value = Matrix4.identity();
     _status = null;
@@ -244,8 +248,13 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
       if (fresh != null) {
         final i = _all.indexWhere((x) => x.id == e.id);
         if (i >= 0) _all[i] = fresh;
-        _status = 'Corners saved — prediction refreshed';
-        _syncBoard();
+        if (_boardDirty) {
+          // keep the operator's unsaved piece/mark edits
+          _status = 'Corners saved';
+        } else {
+          _status = 'Corners saved — prediction refreshed';
+          _syncBoard();
+        }
       } else {
         _status = ok ? 'Corners saved' : 'Corner save failed';
       }
@@ -742,19 +751,32 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     return Container(
       width: size,
       height: size,
-      alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.black38,
         border: Border.all(color: color, width: 3),
       ),
-      child: Text(
-        name,
-        style: TextStyle(
-          fontSize: size * 0.34,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-        ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 45°-rotated cross: its intersection pinpoints the exact
+          // corner without hiding it behind axis-aligned lines
+          CustomPaint(
+            size: Size.square(size * 0.72),
+            painter: _DiagCrossPainter(color),
+          ),
+          Align(
+            alignment: const Alignment(0, -0.62),
+            child: Text(
+              name,
+              style: TextStyle(
+                fontSize: size * 0.26,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -774,8 +796,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         final light = (f + r) % 2 == 1;
                         final p = _pieces[sq];
                         return DragTarget<String>(
-                          onAcceptWithDetails: (d) =>
-                              setState(() => _pieces[sq] = d.data),
+                          onAcceptWithDetails: (d) => setState(() {
+                            _pieces[sq] = d.data;
+                            _boardDirty = true;
+                          }),
                           builder: (context, cand, rej) => InkWell(
                             onTap: () => setState(() {
                               if (_cornersMode) {
@@ -785,6 +809,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                     'the image';
                                 return;
                               }
+                              _boardDirty = true;
                               if (_tool == 'transit') {
                                 _transit.contains(sq)
                                     ? _transit.remove(sq)
@@ -813,6 +838,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                               if (p != null) {
                                 _pieces[sq] =
                                     '${p[0] == 'w' ? 'b' : 'w'}${p[1]}';
+                                _boardDirty = true;
                               }
                             }),
                             child: Container(
@@ -884,4 +910,22 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
       ],
     );
   }
+}
+
+class _DiagCrossPainter extends CustomPainter {
+  const _DiagCrossPainter(this.color);
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = Paint()
+      ..color = color
+      ..strokeWidth = 2;
+    canvas.drawLine(Offset.zero, Offset(size.width, size.height), p);
+    canvas.drawLine(Offset(size.width, 0), Offset(0, size.height), p);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DiagCrossPainter old) => old.color != color;
 }
