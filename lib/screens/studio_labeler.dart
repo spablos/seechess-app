@@ -25,8 +25,13 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   // exceptional background color (usually the GUI's last-move highlight)
   Set<String> _transit = {};
   Set<String> _hl = {};
-  // board view rotation in clockwise quarter-turns (display only)
+  // board view rotation in clockwise quarter-turns (display only),
+  // remembered per image for the session
   int _rot = 0;
+  final Map<String, int> _rotBy = {};
+  // after Save in unlabeled-only mode the image leaves the filtered
+  // list; hold it on screen until the operator navigates away
+  String? _holdId;
   // unsaved board edits: a corners save must not wipe them by resyncing
   // to the server's (re-predicted) FEN
   bool _boardDirty = false;
@@ -110,12 +115,18 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   ];
 
   DatasetEntry? get _current {
+    if (_holdId != null) {
+      for (final e in _all) {
+        if (e.id == _holdId) return e;
+      }
+    }
     final items = _items;
     if (items.isEmpty) return null;
     return items[_index.clamp(0, items.length - 1)];
   }
 
   void _syncBoard() {
+    _holdId = null;
     final e = _current;
     if (e != null && _base != null) {
       _resolveImageSize('$_base/v1/dataset/${e.id}/display');
@@ -130,7 +141,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     _transit = {...?e?.transit};
     _hl = {...?e?.highlight};
     _boardDirty = false;
-    _rot = 0;
+    _rot = e == null ? 0 : (_rotBy[e.id] ?? 0);
     _cornersMode = false;
     _viewCtrl.value = Matrix4.identity();
     _status = null;
@@ -228,12 +239,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
         e.highlight = {..._hl};
         _status = 'Saved ✓';
         if (_unlabeledOnly) {
-          // the saved item left the filtered list: the same index now
-          // shows the next unlabeled image
-          if (_index >= _items.length) _index = 0;
-          _syncBoard();
+          // the saved image left the filtered list — hold it on screen;
+          // Next/Previous release the hold
+          _holdId = e.id;
         }
-        // showing all: stay on the image (Next advances explicitly)
       } else {
         _status = 'Save failed — check connection';
       }
@@ -302,7 +311,11 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   /// Rotate the board VIEW 90° clockwise — frame, axes and pieces turn
   /// together to match a sideways photo; the stored position is
   /// untouched, so the saved FEN stays in true orientation.
-  void _rotateBoard() => setState(() => _rot = (_rot + 1) % 4);
+  void _rotateBoard() => setState(() {
+    _rot = (_rot + 1) % 4;
+    final e = _current;
+    if (e != null) _rotBy[e.id] = _rot;
+  });
 
   void _enterCorners() {
     final e = _current;
@@ -763,7 +776,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         IconButton(
                           tooltip: 'Previous',
                           icon: const Icon(Icons.skip_previous),
-                          onPressed: items.length < 2
+                          onPressed: items.isEmpty
                               ? null
                               : () => setState(() {
                                   _index =
@@ -862,10 +875,17 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         ),
                         const SizedBox(width: 8),
                         FilledButton.tonalIcon(
-                          onPressed: items.length < 2
+                          onPressed: items.isEmpty
                               ? null
                               : () => setState(() {
-                                  _index = (_index + 1) % items.length;
+                                  if (_holdId == null) {
+                                    _index = (_index + 1) % items.length;
+                                  } else if (_index >= items.length) {
+                                    // the held image left the list; the
+                                    // same index already points at the
+                                    // next one
+                                    _index = 0;
+                                  }
                                   _syncBoard();
                                 }),
                           icon: const Icon(Icons.skip_next),
