@@ -228,12 +228,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
         e.highlight = {..._hl};
         _status = 'Saved ✓';
         if (_unlabeledOnly) {
-          // the list shrank under us; stay at the same index
+          // the saved item left the filtered list: the same index now
+          // shows the next unlabeled image
           if (_index >= _items.length) _index = 0;
-        } else if (_index < _items.length - 1) {
-          _index++;
+          _syncBoard();
         }
-        _syncBoard();
+        // showing all: stay on the image (Next advances explicitly)
       } else {
         _status = 'Save failed — check connection';
       }
@@ -691,6 +691,9 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                       width: 44,
                                       alignment: Alignment.center,
                                       decoration: BoxDecoration(
+                                        // board-light fill so black pieces
+                                        // stay visible on a dark theme
+                                        color: const Color(0xFFF0D9B5),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
                                           width: 2,
@@ -733,6 +736,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                 width: 44,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
+                                  color: const Color(0xFFF0D9B5),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     width: 2,
@@ -765,16 +769,6 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   _index =
                                       (_index - 1 + items.length) %
                                       items.length;
-                                  _syncBoard();
-                                }),
-                        ),
-                        IconButton(
-                          tooltip: 'Skip',
-                          icon: const Icon(Icons.skip_next),
-                          onPressed: items.length < 2
-                              ? null
-                              : () => setState(() {
-                                  _index = (_index + 1) % items.length;
                                   _syncBoard();
                                 }),
                         ),
@@ -864,7 +858,18 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   ),
                                 )
                               : const Icon(Icons.check),
-                          label: const Text('Save & next'),
+                          label: const Text('Save'),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton.tonalIcon(
+                          onPressed: items.length < 2
+                              ? null
+                              : () => setState(() {
+                                  _index = (_index + 1) % items.length;
+                                  _syncBoard();
+                                }),
+                          icon: const Icon(Icons.skip_next),
+                          label: const Text('Next'),
                         ),
                       ],
                     ),
