@@ -25,6 +25,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   // exceptional background color (usually the GUI's last-move highlight)
   Set<String> _transit = {};
   Set<String> _hl = {};
+  // board view rotation in clockwise quarter-turns (display only)
+  int _rot = 0;
   // unsaved board edits: a corners save must not wipe them by resyncing
   // to the server's (re-predicted) FEN
   bool _boardDirty = false;
@@ -123,6 +125,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     _transit = {...?e?.transit};
     _hl = {...?e?.highlight};
     _boardDirty = false;
+    _rot = 0;
     _cornersMode = false;
     _viewCtrl.value = Matrix4.identity();
     _status = null;
@@ -275,22 +278,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     });
   }
 
-  /// Rotate the labeled position 90° clockwise — for photos shot
-  /// sideways it is easier to transcribe rotated and square it up after.
-  void _rotateBoard() {
-    String rot(String sq) {
-      final col = 'abcdefgh'.indexOf(sq[0]);
-      final row = 8 - int.parse(sq[1]);
-      return '${'abcdefgh'[7 - row]}${8 - col}';
-    }
-
-    setState(() {
-      _pieces = {for (final e in _pieces.entries) rot(e.key): e.value};
-      _transit = {for (final s in _transit) rot(s)};
-      _hl = {for (final s in _hl) rot(s)};
-      _boardDirty = true;
-    });
-  }
+  /// Rotate the board VIEW 90° clockwise — frame, axes and pieces turn
+  /// together to match a sideways photo; the stored position is
+  /// untouched, so the saved FEN stays in true orientation.
+  void _rotateBoard() => setState(() => _rot = (_rot + 1) % 4);
 
   void _enterCorners() {
     final e = _current;
@@ -874,14 +865,25 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   Widget _grid(ThemeData theme) {
     return Column(
       children: [
-        for (var r = 8; r >= 1; r--)
+        for (var vr = 0; vr < 8; vr++)
           Expanded(
             child: Row(
               children: [
-                for (var f = 0; f < 8; f++)
+                for (var vc = 0; vc < 8; vc++)
                   Expanded(
                     child: Builder(
                       builder: (context) {
+                        // the whole board rotates as a view: undo _rot
+                        // quarter-turns to find which real square this
+                        // screen cell shows (the stored FEN never moves)
+                        var row = vr, col = vc;
+                        for (var k = 0; k < _rot; k++) {
+                          final t = row;
+                          row = 7 - col;
+                          col = t;
+                        }
+                        final f = col;
+                        final r = 8 - row;
                         final sq = '${'abcdefgh'[f]}$r';
                         final light = (f + r) % 2 == 1;
                         final p = _pieces[sq];
@@ -1002,13 +1004,13 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                         color: Color(0xFF7B1FA2),
                                       ),
                                     ),
-                                  // coordinates, like the real board
-                                  if (f == 0)
+                                  // coordinates follow the rotated frame
+                                  if (vc == 0)
                                     Positioned(
                                       top: 1,
                                       left: 2,
                                       child: Text(
-                                        '$r',
+                                        _rot.isEven ? '$r' : 'abcdefgh'[f],
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w700,
@@ -1018,12 +1020,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                         ),
                                       ),
                                     ),
-                                  if (r == 1)
+                                  if (vr == 7)
                                     Positioned(
                                       bottom: 0,
                                       right: 2,
                                       child: Text(
-                                        'abcdefgh'[f],
+                                        _rot.isEven ? 'abcdefgh'[f] : '$r',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w700,
