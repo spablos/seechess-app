@@ -122,6 +122,21 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     _cornersMode = false;
     _viewCtrl.value = Matrix4.identity();
     _status = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prefetch());
+  }
+
+  /// Warm the image cache around the current index so Next/Previous
+  /// show instantly instead of waiting on the network.
+  void _prefetch() {
+    if (!mounted || _base == null) return;
+    final items = _items;
+    for (final j in [for (var d = 1; d <= 8; d++) _index + d, _index - 1]) {
+      if (j < 0 || j >= items.length) continue;
+      precacheImage(
+        NetworkImage('$_base/v1/dataset/${items[j].id}/display'),
+        context,
+      );
+    }
   }
 
   static Map<String, String> _fenToMap(String placement) {
