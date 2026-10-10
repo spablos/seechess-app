@@ -306,8 +306,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       child: InteractiveViewer(
                         maxScale: 12,
                         transformationController: _viewCtrl,
-                        panEnabled: !_cornersMode,
-                        scaleEnabled: !_cornersMode,
+                        // all gestures live in the GestureDetector below so
+                        // zoom/pan behave the same in and out of corners mode
+                        panEnabled: false,
+                        scaleEnabled: false,
                         child: Center(
                           child: _imgSize == null
                               ? Image.network(
@@ -321,137 +323,122 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                   child: LayoutBuilder(
                                     builder: (context, box) {
                                       return GestureDetector(
-                                        onScaleStart: !_cornersMode
-                                            ? null
-                                            : (d) {
-                                                _lastScale = 1.0;
-                                                _lastPtrCount = d.pointerCount;
-                                                _dragIdx = null;
-                                                if (d.pointerCount != 1) {
-                                                  return;
-                                                }
-                                                var best = -1;
-                                                // grab radius constant on
-                                                // screen, not on the image
-                                                var bestDist =
-                                                    56.0 /
-                                                    _viewCtrl.value
-                                                        .getMaxScaleOnAxis();
-                                                for (var i = 0; i < 4; i++) {
-                                                  final h = Offset(
-                                                    _handles[i][0] *
-                                                        box.biggest.width,
-                                                    _handles[i][1] *
-                                                        box.biggest.height,
-                                                  );
-                                                  final dist =
-                                                      (d.localFocalPoint - h)
-                                                          .distance;
-                                                  if (dist < bestDist) {
-                                                    bestDist = dist;
-                                                    best = i;
-                                                    _dragOff =
-                                                        h - d.localFocalPoint;
-                                                  }
-                                                }
-                                                _dragIdx = best >= 0
-                                                    ? best
-                                                    : null;
-                                              },
-                                        onScaleUpdate: !_cornersMode
-                                            ? null
-                                            : (d) {
-                                                final i = _dragIdx;
-                                                if (i != null &&
-                                                    d.pointerCount == 1) {
-                                                  // relative drag: the handle
-                                                  // keeps its grab offset so
-                                                  // it never jumps under the
-                                                  // finger and stays visible
-                                                  final pos =
-                                                      d.localFocalPoint +
-                                                      _dragOff;
-                                                  setState(() {
-                                                    _handles[i][0] =
-                                                        (pos.dx /
-                                                                box
-                                                                    .biggest
-                                                                    .width)
-                                                            .clamp(0.0, 1.0);
-                                                    _handles[i][1] =
-                                                        (pos.dy /
-                                                                box
-                                                                    .biggest
-                                                                    .height)
-                                                            .clamp(0.0, 1.0);
-                                                  });
-                                                  return;
-                                                }
-                                                // one finger only ever moves
-                                                // a handle; the image moves
-                                                // with two fingers (pan +
-                                                // pinch-zoom around them)
-                                                if (d.pointerCount < 2) {
-                                                  _lastPtrCount =
-                                                      d.pointerCount;
-                                                  return;
-                                                }
-                                                if (d.pointerCount !=
-                                                    _lastPtrCount) {
-                                                  // scale baseline resets
-                                                  // when a finger lands/lifts
-                                                  _lastPtrCount =
-                                                      d.pointerCount;
-                                                  _lastScale = d.scale;
-                                                }
-                                                final m = Matrix4.copy(
-                                                  _viewCtrl.value,
-                                                );
-                                                final cur = m
-                                                    .getMaxScaleOnAxis();
-                                                var s = d.scale / _lastScale;
-                                                _lastScale = d.scale;
-                                                final target = (cur * s).clamp(
-                                                  1.0,
-                                                  12.0,
-                                                );
-                                                s = target / cur;
-                                                // deadband: finger-spacing
-                                                // noise while panning must
-                                                // not jitter the zoom
-                                                if ((s - 1).abs() < 0.004) {
-                                                  s = 1;
-                                                }
-                                                final p = d.localFocalPoint;
-                                                m
-                                                  ..translateByDouble(
-                                                    p.dx,
-                                                    p.dy,
-                                                    0,
-                                                    1,
-                                                  )
-                                                  ..scaleByDouble(s, s, 1, 1)
-                                                  ..translateByDouble(
-                                                    -p.dx,
-                                                    -p.dy,
-                                                    0,
-                                                    1,
-                                                  )
-                                                  // focalPointDelta arrives
-                                                  // already in image-local
-                                                  // coords (the detector sits
-                                                  // inside the transform), so
-                                                  // it applies as-is: dividing
-                                                  // by the zoom again made the
-                                                  // pan crawl when zoomed in
-                                                  ..translateByDouble(
-                                                    d.focalPointDelta.dx,
-                                                    d.focalPointDelta.dy,
-                                                    0,
-                                                    1,
-                                                  );
-                                                _viewCtrl.value = m;
-                                              },
+                                        onScaleStart: (d) {
+                                          _lastScale = 1.0;
+                                          _lastPtrCount = d.pointerCount;
+                                          _dragIdx = null;
+                                          if (!_cornersMode ||
+                                              d.pointerCount != 1) {
+                                            return;
+                                          }
+                                          var best = -1;
+                                          // grab radius constant on
+                                          // screen, not on the image
+                                          var bestDist =
+                                              56.0 /
+                                              _viewCtrl.value
+                                                  .getMaxScaleOnAxis();
+                                          for (var i = 0; i < 4; i++) {
+                                            final h = Offset(
+                                              _handles[i][0] *
+                                                  box.biggest.width,
+                                              _handles[i][1] *
+                                                  box.biggest.height,
+                                            );
+                                            final dist = (d.localFocalPoint - h)
+                                                .distance;
+                                            if (dist < bestDist) {
+                                              bestDist = dist;
+                                              best = i;
+                                              _dragOff = h - d.localFocalPoint;
+                                            }
+                                          }
+                                          _dragIdx = best >= 0 ? best : null;
+                                        },
+                                        onScaleUpdate: (d) {
+                                          final i = _dragIdx;
+                                          if (_cornersMode &&
+                                              i != null &&
+                                              d.pointerCount == 1) {
+                                            // relative drag: the handle
+                                            // keeps its grab offset so
+                                            // it never jumps under the
+                                            // finger and stays visible
+                                            final pos =
+                                                d.localFocalPoint + _dragOff;
+                                            setState(() {
+                                              _handles[i][0] =
+                                                  (pos.dx / box.biggest.width)
+                                                      .clamp(0.0, 1.0);
+                                              _handles[i][1] =
+                                                  (pos.dy / box.biggest.height)
+                                                      .clamp(0.0, 1.0);
+                                            });
+                                            return;
+                                          }
+                                          // corners mode: one finger
+                                          // only ever moves a handle;
+                                          // the image needs two fingers.
+                                          // outside corners mode one
+                                          // finger pans freely
+                                          if (_cornersMode &&
+                                              d.pointerCount < 2) {
+                                            _lastPtrCount = d.pointerCount;
+                                            return;
+                                          }
+                                          if (d.pointerCount != _lastPtrCount) {
+                                            // scale baseline resets
+                                            // when a finger lands/lifts
+                                            _lastPtrCount = d.pointerCount;
+                                            _lastScale = d.scale;
+                                          }
+                                          final m = Matrix4.copy(
+                                            _viewCtrl.value,
+                                          );
+                                          final cur = m.getMaxScaleOnAxis();
+                                          var s = d.scale / _lastScale;
+                                          _lastScale = d.scale;
+                                          final target = (cur * s).clamp(
+                                            1.0,
+                                            12.0,
+                                          );
+                                          s = target / cur;
+                                          // deadband: finger-spacing
+                                          // noise while panning must
+                                          // not jitter the zoom
+                                          if ((s - 1).abs() < 0.004) {
+                                            s = 1;
+                                          }
+                                          final p = d.localFocalPoint;
+                                          m
+                                            ..translateByDouble(
+                                              p.dx,
+                                              p.dy,
+                                              0,
+                                              1,
+                                            )
+                                            ..scaleByDouble(s, s, 1, 1)
+                                            ..translateByDouble(
+                                              -p.dx,
+                                              -p.dy,
+                                              0,
+                                              1,
+                                            )
+                                            // focalPointDelta arrives
+                                            // already in image-local
+                                            // coords (the detector sits
+                                            // inside the transform), so
+                                            // it applies as-is: dividing
+                                            // by the zoom again made the
+                                            // pan crawl when zoomed in
+                                            ..translateByDouble(
+                                              d.focalPointDelta.dx,
+                                              d.focalPointDelta.dy,
+                                              0,
+                                              1,
+                                            );
+                                          _viewCtrl.value = m;
+                                        },
                                         onScaleEnd: (_) => _dragIdx = null,
                                         child: Stack(
                                           fit: StackFit.expand,

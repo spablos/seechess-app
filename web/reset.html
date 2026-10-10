@@ -24,7 +24,14 @@ height:100vh;margin:0;gap:12px}</style></head><body>
     const keys = await caches.keys();
     for (const k of keys) await caches.delete(k);
     s.textContent = 'clearing stored data';
+    // the studio (admin) token survives the reset: wiping it forced a
+    // re-login after every release, which defeats the cleaner's purpose
+    let keepToken = null;
+    try { keepToken = localStorage.getItem('flutter.studio_token'); } catch (e) {}
     try { localStorage.clear(); } catch (e) {}
+    try {
+      if (keepToken) localStorage.setItem('flutter.studio_token', keepToken);
+    } catch (e) {}
     try { sessionStorage.clear(); } catch (e) {}
     try {
       const dbs = await (indexedDB.databases ? indexedDB.databases() : []);
