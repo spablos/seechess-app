@@ -77,6 +77,15 @@ class StudioScreen extends StatelessWidget {
             external: true,
             onTap: () => _openConsole(context, '/training'),
           ),
+          tile(
+            icon: Icons.insights,
+            title: 'Usage stats',
+            subtitle:
+                'Daily actives, installs, retention, countries — '
+                'anonymous, and exportable to Excel',
+            external: true,
+            onTap: () => _openConsole(context, '/stats'),
+          ),
           const SizedBox(height: 10),
           TextButton.icon(
             onPressed: () async {

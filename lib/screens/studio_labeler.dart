@@ -38,7 +38,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   // same palette model as the app's position editor: one color at a
   // time, a piece-type tool or the eraser; double-tap flips colors
   bool _paletteWhite = true;
-  String _tool = 'P';
+  // the active tool; null = nothing selected, square taps do nothing
+  String? _tool = 'P';
   bool _cornersMode = false;
 
   /// Draggable corner handles, normalized 0..1, order a8 h8 h1 a1.
@@ -704,7 +705,9 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                               child: Builder(
                                 builder: (context) {
                                   final chip = InkWell(
-                                    onTap: () => setState(() => _tool = kind),
+                                    onTap: () => setState(
+                                      () => _tool = _tool == kind ? null : kind,
+                                    ),
                                     child: Container(
                                       width: 44,
                                       alignment: Alignment.center,
@@ -804,6 +807,29 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             color: theme.colorScheme.error,
                           ),
                           onPressed: _busy ? null : _discard,
+                        ),
+                        IconButton(
+                          tooltip: 'Starting position',
+                          icon: const Icon(Icons.restart_alt),
+                          onPressed: _cornersMode
+                              ? null
+                              : () => setState(() {
+                                  _pieces = _fenToMap(
+                                    'rnbqkbnr/pppppppp/8/8/8/8'
+                                    '/PPPPPPPP/RNBQKBNR',
+                                  );
+                                  _boardDirty = true;
+                                }),
+                        ),
+                        IconButton(
+                          tooltip: 'Clear board',
+                          icon: const Icon(Icons.cleaning_services_outlined),
+                          onPressed: _cornersMode
+                              ? null
+                              : () => setState(() {
+                                  _pieces = {};
+                                  _boardDirty = true;
+                                }),
                         ),
                         const SizedBox(width: 2),
                         _markChip(
@@ -912,7 +938,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   Widget _markChip(String kind, IconData icon, Color color) {
     final theme = Theme.of(context);
     return InkWell(
-      onTap: () => setState(() => _tool = kind),
+      onTap: () => setState(() => _tool = _tool == kind ? null : kind),
       child: Container(
         width: 38,
         height: 30,
@@ -1014,6 +1040,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                     'the image';
                                 return;
                               }
+                              if (_tool == null) return;
                               _boardDirty = true;
                               if (_tool == 'transit') {
                                 _transit.contains(sq)
