@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/admin.dart';
 import '../services/recognizer.dart';
 import 'studio_labeler.dart';
+import 'studio_stats.dart';
 
 /// The admin studio: Pablo's management tools inside the app, unlocked
 /// by the admin token. The labeler is native (phone-first); the reels
@@ -82,9 +83,10 @@ class StudioScreen extends StatelessWidget {
             title: 'Usage stats',
             subtitle:
                 'Daily actives, installs, retention, countries — '
-                'anonymous, and exportable to Excel',
-            external: true,
-            onTap: () => _openConsole(context, '/stats'),
+                'anonymous device footprints',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const StudioStatsScreen()),
+            ),
           ),
           const SizedBox(height: 10),
           TextButton.icon(
