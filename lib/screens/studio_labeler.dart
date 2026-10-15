@@ -1,6 +1,11 @@
+import 'dart:io' show File;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../services/dataset.dart';
+import '../services/offline_labeler.dart';
 import '../widgets/board.dart' show pieceImage;
 import '../widgets/setup_palette.dart' show YinYangPainter;
 
@@ -17,6 +22,11 @@ class StudioLabelerScreen extends StatefulWidget {
 class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   List<DatasetEntry> _all = const [];
   String? _base;
+  // OFFLINE PACK (flight mode) — see services/offline_labeler.dart;
+  // delete that file + the _offline seams to revert the feature
+  bool _offline = false;
+  int _queued = 0;
+  String? _packPath;
   String _batch = '';
   bool _unlabeledOnly = true;
   int _index = 0;
@@ -55,9 +65,15 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   Size? _imgSize;
   ImageStreamListener? _imgListener;
 
-  void _resolveImageSize(String url) {
+  /// One source of truth for an entry's display image: the offline
+  /// pack's file in flight mode, the server otherwise.
+  ImageProvider _display(DatasetEntry e) => _offline
+      ? FileImage(File('$_packPath/offline_labeler/images/${e.id}.jpg'))
+      : NetworkImage('$_base/v1/dataset/${e.id}/display') as ImageProvider;
+
+  void _resolveImageSize(ImageProvider provider) {
     _imgSize = null;
-    final stream = NetworkImage(url).resolve(ImageConfiguration.empty);
+    final stream = provider.resolve(ImageConfiguration.empty);
     _imgListener = ImageStreamListener((info, _) {
       if (mounted) {
         setState(
@@ -79,9 +95,30 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
 
   Future<void> _load() async {
     _base = await datasetBase();
-    final all = await fetchDataset();
+    if (!kIsWeb) {
+      _queued = await OfflineLabeler.journalLength();
+      _packPath = (await getApplicationDocumentsDirectory()).path;
+    }
+    List<DatasetEntry> all;
+    var offline = false;
+    try {
+      all = await fetchDataset();
+      if (all.isEmpty && !kIsWeb && await OfflineLabeler.hasPack()) {
+        all = await OfflineLabeler.loadPack();
+        offline = true;
+      }
+    } catch (_) {
+      // no network: fall back to the downloaded pack if there is one
+      if (!kIsWeb && await OfflineLabeler.hasPack()) {
+        all = await OfflineLabeler.loadPack();
+        offline = true;
+      } else {
+        all = const [];
+      }
+    }
     if (!mounted) return;
     setState(() {
+      _offline = offline;
       _all = all;
       final batches = _batches(all);
       if (_batch.isEmpty && batches.isNotEmpty) {
@@ -130,7 +167,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     _holdId = null;
     final e = _current;
     if (e != null && _base != null) {
-      _resolveImageSize('$_base/v1/dataset/${e.id}/display');
+      _resolveImageSize(_display(e));
     }
     _pieces = e == null
         ? {}
@@ -156,10 +193,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     final items = _items;
     for (final j in [for (var d = 1; d <= 8; d++) _index + d, _index - 1]) {
       if (j < 0 || j >= items.length) continue;
-      precacheImage(
-        NetworkImage('$_base/v1/dataset/${items[j].id}/display'),
-        context,
-      );
+      precacheImage(_display(items[j]), context);
     }
   }
 
@@ -228,9 +262,20 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     final e = _current;
     if (e == null || _busy) return;
     setState(() => _busy = true);
-    final ok =
-        await saveCorrection(e.id, _mapToFen(_pieces)) &&
-        await saveSquareMarks(e.id, _transit, _hl);
+    bool ok;
+    if (_offline) {
+      await OfflineLabeler.journal('save', e.id, {
+        'fen': _mapToFen(_pieces),
+        'transit': _transit.toList(),
+        'highlight': _hl.toList(),
+      });
+      _queued++;
+      ok = true;
+    } else {
+      ok =
+          await saveCorrection(e.id, _mapToFen(_pieces)) &&
+          await saveSquareMarks(e.id, _transit, _hl);
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -238,7 +283,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
         e.correctedFen = _mapToFen(_pieces);
         e.transit = {..._transit};
         e.highlight = {..._hl};
-        _status = 'Saved ✓';
+        if (_offline) OfflineLabeler.saveLocalState(_all);
+        _status = _offline ? 'Saved offline ✓ (queued for sync)' : 'Saved ✓';
         if (_unlabeledOnly) {
           // the saved image left the filtered list — hold it on screen;
           // Next/Previous release the hold
@@ -278,12 +324,20 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     );
     if (sure != true || !mounted) return;
     setState(() => _busy = true);
-    final ok = await deleteEntry(e.id);
+    bool ok;
+    if (_offline) {
+      await OfflineLabeler.journal('discard', e.id, {});
+      _queued++;
+      ok = true;
+    } else {
+      ok = await deleteEntry(e.id);
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
       if (ok) {
         _all.removeWhere((x) => x.id == e.id);
+        if (_offline) OfflineLabeler.saveLocalState(_all);
         if (_index >= _items.length) _index = 0;
         _status = 'Image discarded';
         _syncBoard();
@@ -296,12 +350,20 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   Future<void> _setInputType(String t) async {
     final e = _current;
     if (e == null) return;
-    final ok = await saveInputType(e.id, t);
+    bool ok;
+    if (_offline) {
+      await OfflineLabeler.journal('itype', e.id, {'input_type': t});
+      _queued++;
+      ok = true;
+    } else {
+      ok = await saveInputType(e.id, t);
+    }
     if (!mounted) return;
     setState(() {
       if (ok) {
         e.inputType = t;
         e.typeConfirmed = true;
+        if (_offline) OfflineLabeler.saveLocalState(_all);
         _status = t == 'screenshot' ? 'Marked 2D' : 'Marked 3D';
       } else {
         _status = 'Type save failed — check connection';
@@ -344,9 +406,22 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     final e = _current;
     if (e == null || _busy) return;
     setState(() => _busy = true);
-    final ok = await saveCorners(e.id, List.of(_handles));
+    bool ok;
     DatasetEntry? fresh;
-    if (ok) fresh = await fetchEntry(e.id);
+    if (_offline) {
+      await OfflineLabeler.journal('corners', e.id, {
+        'corners': List.of(_handles),
+      });
+      e.corners = [
+        for (final h in _handles) [h[0], h[1]],
+      ];
+      await OfflineLabeler.saveLocalState(_all);
+      _queued++;
+      ok = true;
+    } else {
+      ok = await saveCorners(e.id, List.of(_handles));
+      if (ok) fresh = await fetchEntry(e.id);
+    }
     if (!mounted) return;
     setState(() {
       _busy = false;
@@ -363,9 +438,66 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
           _syncBoard();
         }
       } else {
-        _status = ok ? 'Corners saved' : 'Corner save failed';
+        _status = ok
+            ? (_offline ? 'Corners saved offline ✓' : 'Corners saved')
+            : 'Corner save failed';
       }
     });
+  }
+
+  Future<void> _downloadPack() async {
+    // everything currently listed, so the whole queue flies with him
+    final items = _all;
+    if (items.isEmpty) return;
+    setState(() {
+      _busy = true;
+      _status = 'Downloading 0/${items.length}…';
+    });
+    try {
+      await OfflineLabeler.downloadPack(items, (done, total) {
+        if (mounted && done % 5 == 0) {
+          setState(() => _status = 'Downloading $done/$total…');
+        }
+      });
+      if (!mounted) return;
+      setState(() {
+        _status =
+            'Offline pack ready: ${items.length} images. '
+            'The labeler now works without internet.';
+      });
+    } catch (err) {
+      if (!mounted) return;
+      setState(() => _status = 'Download failed: $err');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _syncJournal() async {
+    setState(() {
+      _busy = true;
+      _status = 'Syncing…';
+    });
+    final (ok, left) = await OfflineLabeler.sync((done, total) {
+      if (mounted) setState(() => _status = 'Syncing $done/$total…');
+    });
+    if (!mounted) return;
+    if (left == 0) {
+      await OfflineLabeler.clearPack();
+      if (!mounted) return;
+      setState(() {
+        _queued = 0;
+        _busy = false;
+        _status = 'Synced $ok actions ✓';
+      });
+      await _load();
+    } else {
+      setState(() {
+        _queued = left;
+        _busy = false;
+        _status = 'Synced $ok, $left still queued (retry when online)';
+      });
+    }
   }
 
   @override
@@ -378,6 +510,28 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
       appBar: AppBar(
         title: const Text('Labeler'),
         actions: [
+          if (_offline)
+            const Padding(
+              padding: EdgeInsets.only(right: 4),
+              child: Icon(Icons.airplanemode_active, color: Colors.amber),
+            ),
+          if (!kIsWeb && _queued > 0)
+            IconButton(
+              tooltip: _offline
+                  ? '$_queued queued — will sync when online'
+                  : 'Sync $_queued offline actions to the server',
+              icon: Badge(
+                label: Text('$_queued'),
+                child: const Icon(Icons.cloud_upload_outlined),
+              ),
+              onPressed: _offline ? null : _syncJournal,
+            ),
+          if (!kIsWeb && !_offline)
+            IconButton(
+              tooltip: 'Download this batch for offline labeling',
+              icon: const Icon(Icons.flight, size: 20),
+              onPressed: _busy ? null : _downloadPack,
+            ),
           IconButton(
             tooltip: _unlabeledOnly
                 ? 'Showing unlabeled — tap for all'
@@ -483,8 +637,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         scaleEnabled: false,
                         child: Center(
                           child: _imgSize == null
-                              ? Image.network(
-                                  '$_base/v1/dataset/${e.id}/display',
+                              ? Image(
+                                  image: _display(e),
                                   fit: BoxFit.contain,
                                   gaplessPlayback: true,
                                 )
@@ -614,8 +768,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                         child: Stack(
                                           fit: StackFit.expand,
                                           children: [
-                                            Image.network(
-                                              '$_base/v1/dataset/${e.id}/display',
+                                            Image(
+                                              image: _display(e),
                                               fit: BoxFit.fill,
                                               gaplessPlayback: true,
                                             ),
