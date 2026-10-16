@@ -43,6 +43,9 @@ class OfflineLabeler {
   }
 
   /// Download every given entry's metadata + display image.
+  ///
+  /// The manifest is written FIRST so an interrupted download still
+  /// leaves a usable (partial) pack, and images fetch 6 at a time.
   static Future<int> downloadPack(
     List<DatasetEntry> entries,
     void Function(int done, int total) onProgress,
@@ -50,24 +53,35 @@ class OfflineLabeler {
     final root = await _root();
     final imgDir = Directory('${root.path}/images');
     if (!await imgDir.exists()) await imgDir.create();
+    await (await _manifest()).writeAsString(
+      jsonEncode([for (final e in entries) _entryJson(e)]),
+    );
     final base = await datasetBase();
     var done = 0;
-    for (final e in entries) {
+    Future<void> fetchOne(DatasetEntry e) async {
       final img = File('${imgDir.path}/${e.id}.jpg');
       if (!await img.exists()) {
-        final res = await http
-            .get(Uri.parse('$base/v1/dataset/${e.id}/display'))
-            .timeout(const Duration(seconds: 30));
-        if (res.statusCode == 200) {
-          await img.writeAsBytes(res.bodyBytes);
+        try {
+          final res = await http
+              .get(Uri.parse('$base/v1/dataset/${e.id}/display'))
+              .timeout(const Duration(seconds: 30));
+          if (res.statusCode == 200) {
+            await img.writeAsBytes(res.bodyBytes);
+          }
+        } catch (_) {
+          // skipped image: the pack stays usable, a retap retries it
         }
       }
       done++;
       onProgress(done, entries.length);
     }
-    await (await _manifest()).writeAsString(
-      jsonEncode([for (final e in entries) _entryJson(e)]),
-    );
+
+    const lanes = 6;
+    for (var i = 0; i < entries.length; i += lanes) {
+      await Future.wait([
+        for (final e in entries.skip(i).take(lanes)) fetchOne(e),
+      ]);
+    }
     return done;
   }
 

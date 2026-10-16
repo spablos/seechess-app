@@ -455,7 +455,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     });
     try {
       await OfflineLabeler.downloadPack(items, (done, total) {
-        if (mounted && done % 5 == 0) {
+        if (mounted) {
           setState(() => _status = 'Downloading $done/$total…');
         }
       });
