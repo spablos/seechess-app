@@ -39,7 +39,23 @@ class OfflineLabeler {
   static Future<int> journalLength() async {
     final f = await _journal();
     if (!await f.exists()) return 0;
-    return (await f.readAsLines()).where((l) => l.trim().isNotEmpty).length;
+    return _unique(
+      (await f.readAsLines()).where((l) => l.trim().isNotEmpty).toList(),
+    ).length;
+  }
+
+  /// Keep only the LAST action per (type, id): re-saving an image
+  /// replaces its queued action instead of piling up duplicates.
+  static List<String> _unique(List<String> lines) {
+    final seen = <String>{};
+    final out = <String>[];
+    for (final l in lines.reversed) {
+      try {
+        final a = jsonDecode(l) as Map<String, dynamic>;
+        if (seen.add('${a['type']}:${a['id']}')) out.add(l);
+      } catch (_) {}
+    }
+    return out.reversed.toList();
   }
 
   /// Download every given entry's metadata + display image.
@@ -118,16 +134,21 @@ class OfflineLabeler {
   static Future<File> imageFile(String id) async =>
       File('${(await _root()).path}/images/$id.jpg');
 
-  static Future<void> journal(
+  /// Append an action, replacing any queued action of the same type
+  /// for the same entry. Returns the queued-action count.
+  static Future<int> journal(
     String type,
     String id,
     Map<String, dynamic> payload,
   ) async {
     final f = await _journal();
-    await f.writeAsString(
-      '${jsonEncode({'type': type, 'id': id, ...payload})}\n',
-      mode: FileMode.append,
-    );
+    final lines = await f.exists()
+        ? (await f.readAsLines()).where((l) => l.trim().isNotEmpty).toList()
+        : <String>[];
+    lines.add(jsonEncode({'type': type, 'id': id, ...payload}));
+    final unique = _unique(lines);
+    await f.writeAsString('${unique.join('\n')}\n');
+    return unique.length;
   }
 
   /// Replay the journal in order. Successfully applied lines are
@@ -137,9 +158,9 @@ class OfflineLabeler {
   ) async {
     final f = await _journal();
     if (!await f.exists()) return (0, 0);
-    final lines = (await f.readAsLines())
-        .where((l) => l.trim().isNotEmpty)
-        .toList();
+    final lines = _unique(
+      (await f.readAsLines()).where((l) => l.trim().isNotEmpty).toList(),
+    );
     var ok = 0;
     final remaining = <String>[];
     for (var i = 0; i < lines.length; i++) {

@@ -264,12 +264,11 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     setState(() => _busy = true);
     bool ok;
     if (_offline) {
-      await OfflineLabeler.journal('save', e.id, {
+      _queued = await OfflineLabeler.journal('save', e.id, {
         'fen': _mapToFen(_pieces),
         'transit': _transit.toList(),
         'highlight': _hl.toList(),
       });
-      _queued++;
       ok = true;
     } else {
       ok =
@@ -326,8 +325,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     setState(() => _busy = true);
     bool ok;
     if (_offline) {
-      await OfflineLabeler.journal('discard', e.id, {});
-      _queued++;
+      _queued = await OfflineLabeler.journal('discard', e.id, {});
       ok = true;
     } else {
       ok = await deleteEntry(e.id);
@@ -352,8 +350,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     if (e == null) return;
     bool ok;
     if (_offline) {
-      await OfflineLabeler.journal('itype', e.id, {'input_type': t});
-      _queued++;
+      _queued = await OfflineLabeler.journal('itype', e.id, {'input_type': t});
       ok = true;
     } else {
       ok = await saveInputType(e.id, t);
@@ -409,14 +406,13 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     bool ok;
     DatasetEntry? fresh;
     if (_offline) {
-      await OfflineLabeler.journal('corners', e.id, {
+      _queued = await OfflineLabeler.journal('corners', e.id, {
         'corners': List.of(_handles),
       });
       e.corners = [
         for (final h in _handles) [h[0], h[1]],
       ];
       await OfflineLabeler.saveLocalState(_all);
-      _queued++;
       ok = true;
     } else {
       ok = await saveCorners(e.id, List.of(_handles));
