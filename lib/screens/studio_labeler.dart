@@ -51,6 +51,9 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   // the active tool; null = nothing selected, square taps do nothing
   String? _tool = 'P';
   bool _cornersMode = false;
+  // corner indices (a8 h8 h1 a1) marked NOT VISIBLE in the photo;
+  // they save as null, matching the web labeler
+  final Set<int> _hiddenCorners = {};
 
   /// Draggable corner handles, normalized 0..1, order a8 h8 h1 a1.
   List<List<double>> _handles = const [];
@@ -137,11 +140,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     final set = <String>{
       for (final e in all)
         // in unlabeled-only mode, fully-labeled batches are done —
-        // keep them out of the picker (the current one stays until
-        // the operator moves on, so the dropdown value stays valid)
-        if (e.batch.isNotEmpty &&
-            (!_unlabeledOnly || !e.labeled || e.batch == _batch))
-          e.batch,
+        // keep them out of the picker entirely
+        if (e.batch.isNotEmpty && (!_unlabeledOnly || !e.labeled)) e.batch,
     };
     final out = set.toList()..sort();
     return out;
@@ -163,8 +163,12 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     return items[_index.clamp(0, items.length - 1)];
   }
 
-  void _syncBoard() {
-    _holdId = null;
+  /// Recently viewed entry ids; Previous walks back through them even
+  /// when the pending filter has hidden those images.
+  final List<String> _past = [];
+
+  void _syncBoard({String? hold}) {
+    _holdId = hold;
     final e = _current;
     if (e != null && _base != null) {
       _resolveImageSize(_display(e));
@@ -174,7 +178,9 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
         : _fenToMap(
             e.correctedFen?.isNotEmpty == true
                 ? e.correctedFen!
-                : e.predictedFen,
+                : (e.draftFen?.isNotEmpty == true
+                      ? e.draftFen!
+                      : e.predictedFen),
           );
     _transit = {...?e?.transit};
     _hl = {...?e?.highlight};
@@ -262,18 +268,33 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
     final e = _current;
     if (e == null || _busy) return;
     setState(() => _busy = true);
+    final fen = _mapToFen(_pieces);
+    // a reel is one game evolving: the position just confirmed is the
+    // best starting draft for the reel's still-pending frames
+    final seed = e.batch.startsWith('reel-');
     bool ok;
     if (_offline) {
       _queued = await OfflineLabeler.journal('save', e.id, {
-        'fen': _mapToFen(_pieces),
+        'fen': fen,
         'transit': _transit.toList(),
         'highlight': _hl.toList(),
+        'seed_batch': seed,
       });
       ok = true;
     } else {
       ok =
-          await saveCorrection(e.id, _mapToFen(_pieces)) &&
+          await saveCorrection(e.id, fen, seedBatchDraft: seed) &&
           await saveSquareMarks(e.id, _transit, _hl);
+    }
+    if (seed && ok) {
+      for (final x in _all) {
+        if (x.batch == e.batch && x.id != e.id && !x.labeled) {
+          x.draftFen = fen;
+          // the whole reel is shot from one side: carry the board
+          // view rotation along with the position
+          _rotBy[x.id] = _rot;
+        }
+      }
     }
     if (!mounted) return;
     setState(() {
@@ -388,35 +409,58 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
       [0.9, 0.9],
       [0.1, 0.9],
     ];
-    _handles = stored != null
-        ? [
-            for (final c in stored) [c[0], c[1]],
-          ]
-        : [
-            for (var i = 0; i < 4; i++) [...box[(i + _rot) % 4]],
-          ];
+    _hiddenCorners.clear();
+    _handles = [
+      for (var i = 0; i < 4; i++)
+        stored?[i] != null ? [...stored![i]!] : [...box[(i + _rot) % 4]],
+    ];
+    if (stored != null) {
+      for (var i = 0; i < 4; i++) {
+        if (stored[i] == null) _hiddenCorners.add(i);
+      }
+    }
     _cornersMode = true;
-    _status = 'drag a8 h8 h1 a1 onto the board corners, then Save corners';
+    _status =
+        'drag a8 h8 h1 a1 onto the board corners '
+        '(chips below hide a corner the photo cut off), then Save corners';
   }
 
   Future<void> _saveCorners() async {
     final e = _current;
     if (e == null || _busy) return;
     setState(() => _busy = true);
+    // ONLY video frames (reel-* batches) share board geometry; other
+    // batches are unrelated photos, so corners stay per-image there
+    final mates = e.batch.startsWith('reel-')
+        ? [
+            for (final x in _all)
+              if (x.batch == e.batch) x,
+          ]
+        : [e];
+    final applyAll = mates.length > 1;
+    final payload = <List<double>?>[
+      for (var i = 0; i < 4; i++)
+        _hiddenCorners.contains(i) ? null : [..._handles[i]],
+    ];
     bool ok;
     DatasetEntry? fresh;
     if (_offline) {
       _queued = await OfflineLabeler.journal('corners', e.id, {
-        'corners': List.of(_handles),
+        'corners': payload,
+        'apply_to_batch': applyAll,
       });
-      e.corners = [
-        for (final h in _handles) [h[0], h[1]],
-      ];
-      await OfflineLabeler.saveLocalState(_all);
       ok = true;
     } else {
-      ok = await saveCorners(e.id, List.of(_handles));
+      ok = await saveCorners(e.id, payload, applyToBatch: applyAll);
       if (ok) fresh = await fetchEntry(e.id);
+    }
+    if (ok) {
+      for (final x in mates) {
+        x.corners = [
+          for (final c in payload) c == null ? null : [...c],
+        ];
+      }
+      if (_offline) await OfflineLabeler.saveLocalState(_all);
     }
     if (!mounted) return;
     setState(() {
@@ -435,7 +479,13 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
         }
       } else {
         _status = ok
-            ? (_offline ? 'Corners saved offline ✓' : 'Corners saved')
+            ? [
+                'Corners saved',
+                if (_offline) 'offline ✓',
+                if (applyAll)
+                  '— applied to all ${mates.length} '
+                      'images of this reel',
+              ].join(' ')
             : 'Corner save failed';
       }
     });
@@ -561,9 +611,53 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                           value: batches.contains(_batch) ? _batch : null,
                           isExpanded: true,
                           hint: const Text('batch'),
+                          // closed state: just the name; the counts
+                          // live in the open list where there's room
+                          selectedItemBuilder: (context) => [
+                            for (final b in batches)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(b),
+                              ),
+                          ],
                           items: [
                             for (final b in batches)
-                              DropdownMenuItem(value: b, child: Text(b)),
+                              DropdownMenuItem(
+                                value: b,
+                                child: Builder(
+                                  builder: (context) {
+                                    var total = 0, done = 0;
+                                    for (final e in _all) {
+                                      if (e.batch != b) continue;
+                                      total++;
+                                      if (e.labeled) done++;
+                                    }
+                                    final pending = total - done;
+                                    return Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            b,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Text(
+                                          '$done ✓ · $pending pending '
+                                          '· $total',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: pending == 0
+                                                ? Colors.lightGreen
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.outline,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
                           ],
                           onChanged: (v) => setState(() {
                             _batch = v ?? '';
@@ -603,6 +697,15 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
+                      if (e?.labeled == true)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 4),
+                          child: Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: Colors.lightGreen,
+                          ),
+                        ),
                       Text(
                         items.isEmpty ? '0/0' : '${_index + 1}/${items.length}',
                         style: theme.textTheme.labelLarge,
@@ -660,6 +763,9 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                               _viewCtrl.value
                                                   .getMaxScaleOnAxis();
                                           for (var i = 0; i < 4; i++) {
+                                            if (_hiddenCorners.contains(i)) {
+                                              continue;
+                                            }
                                             final h = Offset(
                                               _handles[i][0] *
                                                   box.biggest.width,
@@ -773,42 +879,44 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                             if (!_cornersMode &&
                                                 e.corners != null)
                                               for (var i = 0; i < 4; i++)
-                                                Positioned(
-                                                  left:
-                                                      e.corners![i][0] *
-                                                          box.biggest.width -
-                                                      9,
-                                                  top:
-                                                      e.corners![i][1] *
-                                                          box.biggest.height -
-                                                      9,
-                                                  child: IgnorePointer(
-                                                    child: _cornerDot(
-                                                      _cornerNames[i],
-                                                      18,
-                                                      Colors.lightGreen,
+                                                if (e.corners![i] != null)
+                                                  Positioned(
+                                                    left:
+                                                        e.corners![i]![0] *
+                                                            box.biggest.width -
+                                                        9,
+                                                    top:
+                                                        e.corners![i]![1] *
+                                                            box.biggest.height -
+                                                        9,
+                                                    child: IgnorePointer(
+                                                      child: _cornerDot(
+                                                        _cornerNames[i],
+                                                        18,
+                                                        Colors.lightGreen,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
                                             if (_cornersMode)
                                               for (var i = 0; i < 4; i++)
-                                                Positioned(
-                                                  left:
-                                                      _handles[i][0] *
-                                                          box.biggest.width -
-                                                      16,
-                                                  top:
-                                                      _handles[i][1] *
-                                                          box.biggest.height -
-                                                      16,
-                                                  child: IgnorePointer(
-                                                    child: _cornerDot(
-                                                      _cornerNames[i],
-                                                      32,
-                                                      Colors.redAccent,
+                                                if (!_hiddenCorners.contains(i))
+                                                  Positioned(
+                                                    left:
+                                                        _handles[i][0] *
+                                                            box.biggest.width -
+                                                        16,
+                                                    top:
+                                                        _handles[i][1] *
+                                                            box.biggest.height -
+                                                        16,
+                                                    child: IgnorePointer(
+                                                      child: _cornerDot(
+                                                        _cornerNames[i],
+                                                        32,
+                                                        Colors.redAccent,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
                                           ],
                                         ),
                                       );
@@ -934,15 +1042,22 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                     child: Row(
                       children: [
                         IconButton(
-                          tooltip: 'Previous',
+                          tooltip: _past.isNotEmpty
+                              ? 'Previous (back through what you viewed, '
+                                    'labeled included)'
+                              : 'Previous',
                           icon: const Icon(Icons.skip_previous),
-                          onPressed: items.isEmpty
+                          onPressed: _past.isEmpty && items.isEmpty
                               ? null
                               : () => setState(() {
-                                  _index =
-                                      (_index - 1 + items.length) %
-                                      items.length;
-                                  _syncBoard();
+                                  if (_past.isNotEmpty) {
+                                    _syncBoard(hold: _past.removeLast());
+                                  } else {
+                                    _index =
+                                        (_index - 1 + items.length) %
+                                        items.length;
+                                    _syncBoard();
+                                  }
                                 }),
                         ),
                         IconButton(
@@ -982,21 +1097,46 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                 }),
                         ),
                         const SizedBox(width: 2),
-                        _markChip(
-                          'unseen',
-                          Icons.visibility_off,
-                          theme.colorScheme.outline,
-                        ),
-                        _markChip(
-                          'transit',
-                          Icons.motion_photos_on,
-                          const Color(0xFF7B1FA2),
-                        ),
-                        _markChip(
-                          'hl',
-                          Icons.format_color_fill,
-                          const Color(0xFFFFA000),
-                        ),
+                        if (_cornersMode)
+                          for (var i = 0; i < 4; i++)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 2),
+                              child: FilterChip(
+                                visualDensity: VisualDensity.compact,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                label: Text(_cornerNames[i]),
+                                avatar: _hiddenCorners.contains(i)
+                                    ? const Icon(Icons.visibility_off, size: 14)
+                                    : null,
+                                selected: _hiddenCorners.contains(i),
+                                tooltip:
+                                    '${_cornerNames[i]} corner not '
+                                    'visible in the photo',
+                                onSelected: (v) => setState(() {
+                                  v
+                                      ? _hiddenCorners.add(i)
+                                      : _hiddenCorners.remove(i);
+                                }),
+                              ),
+                            )
+                        else ...[
+                          _markChip(
+                            'unseen',
+                            Icons.visibility_off,
+                            theme.colorScheme.outline,
+                          ),
+                          _markChip(
+                            'transit',
+                            Icons.motion_photos_on,
+                            const Color(0xFF7B1FA2),
+                          ),
+                          _markChip(
+                            'hl',
+                            Icons.format_color_fill,
+                            const Color(0xFFFFA000),
+                          ),
+                        ],
                         if (_status != null)
                           Expanded(
                             child: Text(
@@ -1058,9 +1198,16 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         ),
                         const SizedBox(width: 8),
                         FilledButton.tonalIcon(
-                          onPressed: items.isEmpty
+                          onPressed: items.isEmpty && _holdId == null
                               ? null
                               : () => setState(() {
+                                  final cur = _current;
+                                  if (cur != null) {
+                                    _past.add(cur.id);
+                                    if (_past.length > 400) {
+                                      _past.removeAt(0);
+                                    }
+                                  }
                                   if (_holdId == null) {
                                     _index = (_index + 1) % items.length;
                                   } else if (_index >= items.length) {
@@ -1070,6 +1217,16 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                     _index = 0;
                                   }
                                   _syncBoard();
+                                  if (_unlabeledOnly && _items.isEmpty) {
+                                    // this reel is done — jump to the
+                                    // next one that still has work
+                                    final bs = _batches(_all);
+                                    if (bs.isNotEmpty) {
+                                      _batch = bs.first;
+                                      _index = 0;
+                                      _syncBoard();
+                                    }
+                                  }
                                 }),
                           icon: const Icon(Icons.skip_next),
                           label: const Text('Next'),
@@ -1165,7 +1322,8 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                         final f = col;
                         final r = 8 - row;
                         final sq = '${'abcdefgh'[f]}$r';
-                        final light = (f + r) % 2 == 1;
+                        // a1 (f=0, r=1) is DARK; h1 and a8 are light
+                        final light = (f + r) % 2 == 0;
                         final p = _pieces[sq];
                         return DragTarget<String>(
                           onAcceptWithDetails: (d) => setState(() {

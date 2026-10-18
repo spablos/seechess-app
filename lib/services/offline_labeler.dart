@@ -108,6 +108,7 @@ class OfflineLabeler {
     'input_type_labeled_at': e.typeConfirmed ? 'offline' : null,
     'predicted_fen': e.predictedFen,
     'corrected_fen': e.correctedFen,
+    'draft_fen': e.draftFen,
     'corners': e.corners,
     'square_marks': {
       'transit': e.transit.toList(),
@@ -176,6 +177,7 @@ class OfflineLabeler {
             applied = await saveCorrection(
               a['id'] as String,
               a['fen'] as String,
+              seedBatchDraft: a['seed_batch'] == true,
             );
             if (applied) {
               await saveSquareMarks(
@@ -187,8 +189,10 @@ class OfflineLabeler {
           case 'corners':
             applied = await saveCorners(a['id'] as String, [
               for (final c in a['corners'] as List)
-                [(c[0] as num).toDouble(), (c[1] as num).toDouble()],
-            ]);
+                c == null
+                    ? null
+                    : [(c[0] as num).toDouble(), (c[1] as num).toDouble()],
+            ], applyToBatch: a['apply_to_batch'] == true);
           case 'itype':
             applied = await saveInputType(
               a['id'] as String,

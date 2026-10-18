@@ -24,8 +24,13 @@ class DatasetEntry {
   final String predictedFen;
   String? correctedFen;
 
+  /// Work-in-progress label; the entry stays pending until confirmed.
+  /// Reel saves seed this on the batch's remaining pending frames.
+  String? draftFen;
+
   /// Human-set board corners, normalized 0..1, order a8 h8 h1 a1.
-  List<List<double>>? corners;
+  /// A null entry means that corner is not visible in the photo.
+  List<List<double>?>? corners;
 
   /// Squares where a piece is caught mid-move (video frames).
   Set<String> transit = {};
@@ -43,18 +48,21 @@ class DatasetEntry {
           predictedFen: (j['predicted_fen'] ?? '') as String,
           correctedFen: j['corrected_fen'] as String?,
         )
+        ..draftFen = j['draft_fen'] as String?
         .._parseCorners(j['corners'])
         .._parseMarks(j['square_marks'])
         ..typeConfirmed = j['input_type_labeled_at'] != null;
 
   void _parseCorners(dynamic raw) {
     if (raw is! List || raw.length != 4) return;
-    final out = <List<double>>[];
+    final out = <List<double>?>[];
     for (final c in raw) {
       if (c is List && c.length == 2 && c[0] is num && c[1] is num) {
         out.add([(c[0] as num).toDouble(), (c[1] as num).toDouble()]);
+      } else if (c == null) {
+        out.add(null); // corner marked not visible
       } else {
-        return; // a null corner: treat as not usable for handles
+        return;
       }
     }
     corners = out;
@@ -81,25 +89,39 @@ Future<List<DatasetEntry>> fetchDataset() async {
   ];
 }
 
-Future<bool> saveCorrection(String id, String placement) async {
+Future<bool> saveCorrection(
+  String id,
+  String placement, {
+  bool seedBatchDraft = false,
+}) async {
   final base = await datasetBase();
   final res = await http
       .put(
         Uri.parse('$base/v1/dataset/$id'),
-        body: {'corrected_fen': placement},
+        body: {
+          'corrected_fen': placement,
+          if (seedBatchDraft) 'seed_batch_draft': '1',
+        },
       )
-      .timeout(const Duration(seconds: 15));
+      .timeout(const Duration(seconds: 30));
   return res.statusCode == 200;
 }
 
 /// Corners normalized 0..1 in order a8, h8, h1, a1.
-Future<bool> saveCorners(String id, List<List<double>> corners) async {
+Future<bool> saveCorners(
+  String id,
+  List<List<double>?> corners, {
+  bool applyToBatch = false,
+}) async {
   final base = await datasetBase();
   final res = await http
       .put(
         Uri.parse('$base/v1/dataset/$id/corners'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'corners': corners}),
+        body: jsonEncode({
+          'corners': corners,
+          if (applyToBatch) 'apply_to_batch': true,
+        }),
       )
       .timeout(const Duration(seconds: 15));
   return res.statusCode == 200;
