@@ -113,6 +113,7 @@ class OfflineLabeler {
     'square_marks': {
       'transit': e.transit.toList(),
       'highlight': e.highlight.toList(),
+      'overlay': e.overlay.toList(),
     },
   };
 
@@ -184,6 +185,7 @@ class OfflineLabeler {
                 a['id'] as String,
                 {...(a['transit'] as List).cast<String>()},
                 {...(a['highlight'] as List).cast<String>()},
+                {...?(a['overlay'] as List?)?.cast<String>()},
               );
             }
           case 'corners':

@@ -53,14 +53,14 @@
     "title": "Légal's Mate — the oldest queen sac",
     "category": "Traps & gambits",
     "side": "w",
-    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 d6 {The Philidor setup — solid but passive.} 4. Nc3 Bg4 {The pin looks strong. It's about to be famous for the wrong reason.} 5. h3 Bh5 {Keeping the pin is the mistake — the bishop had to take or retreat to e6.} 6. Nxe5 {!! The queen hangs — take it and see. 300 years old and still catching players.} Bxd1 {Greed. 6...Nxe5 7.Qxh5 Nxc4 limits the damage to a pawn.} 7. Bxf7+ {The point: the king is dragged onto the mating net.} Ke7 8. Nd5# {Mate with three minor pieces against a full army. Moral: a pin on your queen is only as strong as your back rank tactics.}"
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 d6 { The Philidor setup — solid but passive. } 4.\nNc3 Bg4 { The pin looks strong. It's about to be famous for the wrong reason. }\n5. h3 Bh5\n{ Keeping the pin is the mistake — the bishop had to take or retreat to e6. }\n6. Nxe5\n{ !! The queen hangs — take it and see. 300 years old and still catching players. }\n6... Bxd1 { Greed. 6...Nxe5 7.Qxh5 Nxc4 limits the damage to a pawn. } 7. Bxf7+\n{ The point: the king is dragged onto the mating net. } 7... Ke7 8. Nd5#\n{ Mate with three minor pieces against a full army. Moral: a pin on your queen is only as strong as your back rank tactics. }\n*"
   },
   {
     "id": "stafford-gambit",
     "title": "Stafford Gambit — the internet's favorite trap",
     "category": "Traps & gambits",
     "side": "b",
-    "pgn": "1. e4 e5 2. Nf3 Nf6 {The Petrov...} 3. Nxe5 Nc6 {...no — the Stafford Gambit. A pawn for rapid development and a minefield of traps.} 4. Nxc6 dxc6 {Black's structure looks broken; in exchange every piece flies out.} 5. d3 {Natural, already inaccurate — the main trap line.} Bc5 {Eyeing f2. The threats write themselves.} 6. Bg5 {?? The losing move, played thousands of times online: the pin looks free.} Nxe4 {! The knight can't be taken: 7.dxe4 Bxf2+ 8.Ke2 Bg4+ skewers the queen through the king.} 7. Bxd8 {Taking the queen anyway...} Bxf2+ 8. Ke2 Bg4# {A pure minor-piece mate while the captured queen watches from d8. The Stafford in one picture: development beats material.}"
+    "pgn": "1. e4 e5 2. Nf3 Nf6 { The Petrov... } 3. Nxe5 Nc6\n{ ...no — the Stafford Gambit. A pawn for rapid development and a minefield of traps. }\n4. Nxc6 dxc6\n{ Black's structure looks broken; in exchange every piece flies out. } 5. d3\n{ Natural, already inaccurate — the main trap line. } 5... Bc5\n{ Eyeing f2. The threats write themselves. } 6. Bg5\n{ ?? The losing move, played thousands of times online: the pin looks free. }\n6... Nxe4\n{ ! The knight can't be taken: 7.dxe4 Bxf2+ 8.Ke2 Bg4+ skewers the queen through the king. }\n7. Bxd8 { Taking the queen anyway... } 7... Bxf2+ 8. Ke2 Bg4#\n{ A pure minor-piece mate while the captured queen watches from d8. The Stafford in one picture: development beats material. }\n*"
   },
   {
     "id": "englund-gambit",
@@ -68,5 +68,943 @@
     "category": "Traps & gambits",
     "side": "b",
     "pgn": "1. d4 e5 {The Englund: objectively dubious, practically venomous — 1.d4 players never expect an open game.} 2. dxe5 Nc6 3. Nf3 Qe7 {Attack e5 a second time and set the machinery.} 4. Bf4 {Defending the pawn walks into the trap. 4.Nc3 or returning the pawn is safe.} Qb4+ {Fork: check plus the b2 pawn.} 5. Bd2 Qxb2 6. Bc3 {Trapping the queen — apparently.} Bb4 {! The counter-pin: the c3 bishop is frozen.} 7. Qd2 {?? Loses on the spot; 7.Bxb4 Qxa1 was forced, still messy.} Bxc3 8. Qxc3 Qc1# {The queen slides to c1: mate on move eight, delivered by the 'trapped' queen. Know it from both sides.}"
+  },
+  {
+    "id": "e2b1228ff190",
+    "title": "Four Knights: Smothered Finish",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nf6 3. Nc3 Bb4 4. Nd5 Ba5 5. Nxe5 Nxe4 6. Bc4 O-O 7. Qf3 Re8 8.\nQxf7+ Kh8 9. Qg8+ Kxg8 10. Ne7+ Kf8 11. N7g6+ hxg6 12. Nxg6# *"
+  },
+  {
+    "id": "7ee920bc579c",
+    "title": "King's Gambit: Salvio Chaos",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. f4 exf4 3. Nf3 g5 4. Bc4 g4 5. Ne5 Qh4+ 6. Kf1 Nf6 7. Bxf7+ Kd8 8.\nd4 Nxe4 9. Qe2 Ng3+ 10. hxg3 Qxh1+ 11. Kf2 fxg3+ 12. Kxg3 Qxc1 13. Nc6+ Nxc6\n14. Qe8# *"
+  },
+  {
+    "id": "98a99686be1e",
+    "title": "The Sneaky Knight Raid",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nh3 Nc6 2. Ng5 e5 3. d4 exd4 4. e4 h6 5. Nxf7 Kxf7 6. Bc4+ Ke8 7. Qh5+ g6 8.\nQxg6+ Ke7 9. Qf7+ Kd6 10. Bf4+ Ne5 11. Qd5+ Ke7 12. Qxe5# *"
+  },
+  {
+    "id": "0bc45c3a0685",
+    "title": "Beating the Scholar's Mate",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 Nc6 2. Bc4 e5 3. Qh5 g6 { [%csl Rh5] } 4. Qf3 { [%csl Rg8] } 4... Nf6\n{ [%csl Rf3] } 5. Qb3 { [%csl Rc4,Rc6] } 5... Nd4 6. Bxf7+ { [%csl Re8] } 6...\nKe7 7. Qc4 b5 8. Qc5+ { [%csl Re7] } 8... Kxf7 9. Qc3 Bb4 { [%csl Rf8] } 10.\nQxb4 Nxc2+ *"
+  },
+  {
+    "id": "ce2393783aaa",
+    "title": "Caro-Kann: The Nd6# Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nd7 5. Qe2 Ngf6 6. Nd6# *"
+  },
+  {
+    "id": "32b3ede73c7f",
+    "title": "Ponziani: Jaenisch, Full Line",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 { [%csl Rc2] } 3. c3 Nf6 4. d4 Nxe4 { [%csl Rd4] } 5. d5\n{ [%csl Rc6] } 5... Ne7 6. Nxe5 d6 7. Bb5+ { [%csl Rc7] } 7... c6 8. dxc6 dxe5\n9. cxb7+ Bd7 10. Qxd7+ Qxd7 11. bxa8=Q+ Nc8 12. Qxc8+ Ke7 { [%csl Rc8] } 13.\nQxd7+ *"
+  },
+  {
+    "id": "ff2e14b5c45f",
+    "title": "Pirc Defense: Rook-Snatch Trick",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nc3 g6 2. e4 Bg7 3. d4 d6 4. f4 c6 5. a4 Qb6 6. Nf3 Bg4 7. a5 Bxf3\n{ The losing mistake — this is the move the whole trap waits for. } 8. axb6\nBxd1 9. Rxa7 *"
+  },
+  {
+    "id": "187ab96c36fd",
+    "title": "French Rubinstein: Punished",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Bd7 5. Nf3 Bc6 6. Bd3 Nf6 7. Nxf6+ Qxf6\n8. Bg5 Bxf3 9. Qd2 Qxd4 10. Bb5+ Bc6 11. Qxd4 Bxb5\n{ The losing mistake — this is the move the whole trap waits for. } 12. Qd8#\n{ Checkmate — the finish the video cuts to. } *"
+  },
+  {
+    "id": "743730e23185",
+    "title": "Beating the Wayward Queen",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 Nc6 2. Qh5 e5 3. Bc4 g6 4. Qf3 Nf6 5. g4\n{ The losing mistake — this is the move the whole trap waits for. [%csl Ra7] }\n5... Nd4 6. Qd1 d5 7. exd5 Bxg4 8. f3 { [%csl Rf6] } 8... Ne4 9. fxg4 Qh4+ 10.\nKf1 Qf2# *"
+  },
+  {
+    "id": "1c7e914b170e",
+    "title": "Chiodini Gambit: Nxf2 Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Bc5 3. Nxe5 Nc6 4. Nxc6 dxc6 5. Bc4 Nf6 6. d3 Ng4 7. O-O Qh4 8.\nh3 Nxf2 9. Rxf2 Qxf2+ 10. Kh1 Bg4 11. hxg4 Qh4# *"
+  },
+  {
+    "id": "25f38e960dea",
+    "title": "Nimzo-Larsen: Kingside Ambush",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. b3 e5 2. Bb2 Nc6 3. Nf3 e4 4. Nd4 Nf6 5. e3 Bc5 6. Nf5 O-O 7. Bc4 b6 8. Bd5\nNxd5 9. Qg4 g6 10. Nh6# *"
+  },
+  {
+    "id": "2792e2f7ca27",
+    "title": "Caro-Kann: 5-Move Nd6 Mate",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c6 2. Nc3 d5 3. Qe2 dxe4 4. Nxe4 Nd7 5. Nd6# *"
+  },
+  {
+    "id": "f5bbfdcaca3f",
+    "title": "Two Knights: Fritz Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nd4 6. d6 Qxd6 7. Nxf7 Qc6 8.\nNxh8 Qxg2 9. Rf1 Qe4+ 10. Be2 Nf3# *"
+  },
+  {
+    "id": "b484d34bce7a",
+    "title": "Ponziani: Bishop Sac Crush",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nf6 3. c3 Nc6 4. d4 exd4 5. e5 Nd5 6. Bc4 Nb6 7. Bb3 dxc3 8.\nNxc3 Bb4 9. O-O O-O 10. Ng5 h6 11. Qh5 hxg5 12. Bxg5 Qe8 13. Bf6 gxf6 14. exf6\nQe6 15. Qg5+ Kh8 16. Qg7# *"
+  },
+  {
+    "id": "ba3b27ece65f",
+    "title": "Göring Gambit: Qe6# Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. c3 dxc3 5. Nxc3 d6 6. Bc4 Bg4 7. Qb3 Bxf3 8.\nBxf7+ Kd7 9. Qe6# *"
+  },
+  {
+    "id": "a12c5025b311",
+    "title": "Crushing the Latvian Gambit",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 f5 3. Bc4 fxe4 4. Nxe5 Qg5 5. Nf7 Qxg2 6. Rf1 d5 7. Bxd5 Bg4 8.\nf3 Be7 9. fxg4 Bh4+ 10. Rf2 Qxf2# *"
+  },
+  {
+    "id": "cd05bb059660",
+    "title": "Traxler Counterattack",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 Bc5 5. Nxf7 { [%csl Rc5] } 5... Bxf2+ 6.\nKxf2 Nxe4+ 7. Ke3 Qh4 8. Nxh8 Qf4+ 9. Ke2 Qf2+ 10. Kd3 Nb4+ 11. Kxe4 Qf4# *"
+  },
+  {
+    "id": "e7bdfbe517c6",
+    "title": "Nakhmanson Gambit Miniature",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. d4 exd4 4. Bc4 Nge7 5. Bf1 Ng8 6. Bc4 Nf6 7. O-O Nxe4 8.\nNc3 dxc3 9. Bxf7+ Kxf7 10. Qd5+ Ke7 11. Qxe4+ Kf7 12. Ng5+ Kg8 13. Qd5# *"
+  },
+  {
+    "id": "870472026b33",
+    "title": "Scotch Gambit: Ng4 Refuted",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{FASTEST ITALIAN GAME ATTACK TRAP ⚔️🤴\nSacrificing the Bishop, to force the inescapable 10-move execution. Total board domination. ♟️📉} 1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. e5 Ng4 6. Bxf7+ Kxf7 7. Ng5+ Kg8 8. Qf3 Ngxe5 {The losing mistake — this is the move the whole trap waits for.} 9. Qd5+ Nf7 10. Qxf7# {Checkmate — the finish the video cuts to.}"
+  },
+  {
+    "id": "e1e773aae82f",
+    "title": "Dutch Defense: Bxh5 Mate Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. d4 f5 2. e4 fxe4 3. Qh5+ g6 4. Be2 gxh5 { [%csl Re2] } 5. Bxh5# *"
+  },
+  {
+    "id": "4d5bdaffe461",
+    "title": "Smith–Morra: Mating Attack",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c5 2. d4 cxd4 3. c3 dxc3 4. Nxc3 Nc6 5. Nf3 d6 6. Bc4 Nf6 7. e5 dxe5 8.\nQxd8+ Nxd8 9. Nb5 Kd7 10. Nxe5+ Ke8 11. Nc7# *"
+  },
+  {
+    "id": "afeb33ecd5c3",
+    "title": "Scandinavian: Queen Round-Up",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{Queen trap in Scandinavian defense} 1. e4 d5 2. exd5 Qxd5 3. Nf3 Qa5 4. Nc3 Bg4 5. h3 Bxf3 6. Qxf3 Nc6 7. Bb5 Qb6 {The losing mistake — this is the move the whole trap waits for.} 8. Nd5 Qa5 9. b4 Qxb5 10. Nxc7+"
+  },
+  {
+    "id": "ede42ef5e5b2",
+    "title": "Tal's Thunderbolt",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 d6 2. e4 e5 3. Bc4 f5 4. d4 Nf6 5. Nc3 exd4 6. Qxd4 Bd7 7. Ng5 Nc6 8.\nBf7+ Ke7 9. Qxf6+ Kxf6 10. Nd5+ Ke5 11. Nf3+ Kxe4 12. Nc3# *"
+  },
+  {
+    "id": "4920898291e8",
+    "title": "Nimzo-Larsen: Qxb2 Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. b3 d5 2. Nf3 c5 3. e4 dxe4 4. Ne5 Qd4 5. Bb2 Qxb2 6. Nc3 Qa3 7. Bb5+ Bd7 8.\nNc4 Qb4 9. a3 *"
+  },
+  {
+    "id": "199c5e366528",
+    "title": "McDonnell Attack: Greek Gift",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. d4 exd4 3. f4 Nc6 4. Nf3 Bc5 5. Bd3 Nf6 6. O-O O-O 7. e5\n{ [%csl Rd3] } 7... Nd5 8. Bxh7+ Kxh7 9. Ng5+ Kg8 10. Qh5 { [%csl Rd8] } 10...\nRe8 11. Qxf7+ Kh8 12. Qh5+ Kg8 13. Qh7+ { [%csl Rh7] } 13... Kf8 14. Qh8+ Ke7\n15. Qxg7# *"
+  },
+  {
+    "id": "ebdb94946f9c",
+    "title": "Anti-Sicilian: Qf7 Mate",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c5 2. b4 cxb4 3. a3 bxa3 4. d4 e6 5. c3 d5 6. e5 Nc6 7. Nf3 Nge7 8. Bd3\nNg6 9. Ng5 h6 10. Nxf7 Kxf7 11. Qf3+ Kg8 12. Bxg6 Qd7 13. Rxa3 Bxa3 14. Bxa3\nQd8 15. Qf7# *"
+  },
+  {
+    "id": "41a7fd0d50cd",
+    "title": "The Greek Gift Sacrifice",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. d4 exd4 3. f4 Nc6 4. Nf3 Bc5 5. Bd3 Nf6 6. O-O O-O 7. e5 Ne8 8.\nBxh7+ Kxh7 9. Ng5+ Kg8 10. Qh5 f6 11. Qh7# *"
+  },
+  {
+    "id": "c6824dabad81",
+    "title": "Fier vs Vidal (2018)",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 d5 2. c4 dxc4 3. Na3 a6 4. Nxc4 b5 5. Ne3 Bb7 6. g3 Nf6 7. Bg2 e6 8. O-O\nBe7 9. b3 O-O 10. Bb2 c5 11. Qc2 Nbd7 12. Rac1 h6 13. Rfd1 Rc8 14. Qb1 Qb6 15.\nQa1 Rfd8 16. h3 Bf8 17. d3 Bc6 18. Ng4 { [%csl Rh3] } 18... Nxg4 19. hxg4 Qb7\n20. e4 a5 21. g5 { [%csl Rf3] } 21... hxg5 22. Nxg5 a4 23. Bh3 Re8 24. Kg2 axb3\n{ [%csl Ra2] } 25. Rh1 c4 { [%csl Rg3] } 26. Bxe6 Rxe6 27. Rh8+ Kxh8 28. Rh1+\nKg8 29. Rh8+ Kxh8 30. Qh1+ Rh6 31. Qxh6+ Kg8 32. Qh7# *"
+  },
+  {
+    "id": "6fb51fb3fff7",
+    "title": "Englund Gambit: Bxf2 Sting",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. d4 e5 2. dxe5 Bc5 3. Nf3 d6 4. exd6 Ne7 5. dxe7 Bxf2+ 6. Kxf2 Qxd1 *"
+  },
+  {
+    "id": "d6a6a0b4276a",
+    "title": "Tennison vs Caro-Kann",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "{ Welcome to Chessophile—your destination for daily chess puzzles, brilliant tactics, opening ideas, endgame techniques, and beautiful checkmates.\n\nWhether you're a beginner or an experienced player, every puzzle helps improve your calculation, pattern recognition, and strategic thinking. Challenge yo }\n1. e4 c6 2. d3 d5 3. Nf3 dxe4 4. Ng5 exd3 5. Bxd3 Nf6\n{ The losing mistake — this is the move the whole trap waits for. } 6. Nxf7\nKxf7 7. Bg6+ Kxg6 8. Qxd8 *"
+  },
+  {
+    "id": "9f434aef1c86",
+    "title": "Scotch Gambit: Pin and Win II",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 e5 2. e4 Nc6 3. d4 exd4 4. Bc4 Nf6 5. e5 Qe7 6. Qe2 Ng8 7. Bg5 f6 8. Bh4\ng5 9. Nxg5 fxg5 10. Qh5+ Kd8 11. Bxg5 Nf6 12. Bxf6 Qxf6 13. exf6 *"
+  },
+  {
+    "id": "3b34f078fd06",
+    "title": "Urusov Gambit: Rook Grab",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Bc4 Nf6 3. d4 Nxe4 4. dxe5 d6 5. Qd5 Be6 6. Qxb7 Bxc4 7. Qxa8 dxe5\n*"
+  },
+  {
+    "id": "74b1f61776f4",
+    "title": "Bishop's Opening: Qd5 Mate",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Bc4 Nc6 3. c3 Nf6 4. Qb3 Nxe4 5. Bxf7+ Ke7 6. d3 Nc5 7. Bg5+ Kd6 8.\nQd5# *"
+  },
+  {
+    "id": "2ce5c2f67ef6",
+    "title": "The Fishing Pole Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bb5 Nf6 4. O-O Ng4 5. h3 h5 6. hxg4 hxg4 7. Ne1 Qh4 8.\nf3 g3 9. Bxc6 Qh1# *"
+  },
+  {
+    "id": "8a748d7365a4",
+    "title": "Danish Gambit: Rg1 Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. d4 exd4 3. c3 dxc3 4. Bc4 { [%csl Rc3] } 4... cxb2 5. Bxb2\n{ [%csl Rd8] } 5... Qg5 6. Nf3 Qxg2 { [%csl Rh1] } 7. Rg1 Bb4+ { [%csl Re1] }\n8. Ke2 Qh3 9. Bxf7+ { [%csl Re8] } 9... Kd8 { [%csl Rg7] } 10. Bxg7\n{ [%csl Re7,Rg8] } 10... Ne7 11. Ng5 Qh4 12. Ne6# *"
+  },
+  {
+    "id": "8f32d2682ad3",
+    "title": "Fried Liver Attack: Main Line",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nxd5 6. Nxf7 Kxf7 7. Qf3+ Ke6\n8. Nc3 Nd4 9. Bxd5+ Qxd5 10. Qxd5+ Kf6 11. Ne4+ Kf5 12. Qf7+ Kxe4 13. d3# *"
+  },
+  {
+    "id": "94aedc735f9e",
+    "title": "Italian Game: h4 Hook",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d3 Bc5 5. Nc3 O-O 6. Bg5 h6 7. h4 hxg5 8.\nhxg5 Nh7 { [%csl Rg5] } 9. g6 Nf6 10. Ng5 d5 11. Bxd5 Nxd5 12. Rh8+ Kxh8 13.\nQh5+ Kg8 14. Qh7# *"
+  },
+  {
+    "id": "791a1caf28f4",
+    "title": "Italian Game: Center Steamroller",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 h6 4. c3 Nf6 5. d4 exd4 6. e5 Nh7 7. O-O dxc3 8.\nNxc3 Be7 9. Qd3 O-O 10. Qg6 d5 11. Nxd5 fxg6 12. Nxe7+ Kh8 13. Nxg6# *"
+  },
+  {
+    "id": "b6bbf11024d9",
+    "title": "Latvian Gambit: The Nf7 Grab",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Bc4 f5 3. Nf3 fxe4 4. Nxe5 Nf6 5. Nf7 Qe7 6. Nxh8 d5 7. Bb3 Bg4 8.\nf3 exf3+ 9. Kf2 Ne4+ 10. Kf1 Qh4 11. g3 Qh3+ 12. Ke1 f2# *"
+  },
+  {
+    "id": "aec83fa9fe07",
+    "title": "Scotch Gambit: King March",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{ Scotch game } 1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Ng5 h6 5. Nxf7 Kxf7 6. Bc4+\nKe8 { The losing mistake — this is the move the whole trap waits for. } 7. Qh5+\nKe7 8. Qf7+ Kd6 { [%csl Rc1] } 9. Bf4+ Kc5 10. Qd5+ Kb6 11. Qb5# *"
+  },
+  {
+    "id": "70369949870d",
+    "title": "Busch–Gass Gambit: Dark Squares",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Bc5 3. Nxe5 Qh4 4. Qf3 f5 5. Qxf5 Nh6 6. Qf3 Rf8 7. g3 Qg5 8.\nQc3 Bxf2+ 9. Kd1 d6 10. Nd3 Bg4+ 11. Be2 Bxe2+ 12. Kxe2 Qg4+ 13. Kf1 Bxg3+ 14.\nKg1 Be5# *"
+  },
+  {
+    "id": "2c112fcc418b",
+    "title": "Chicago Gambit: Rook Raid",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. Nxe5 Bc5 4. Nc3 Nxe5 5. d4 Bxd4 6. Qxd4 Nc6 7. Qxg7 Qe7\n8. Qxh8 Kf8 9. Bh6+ Ke8 10. Qxg8+ Qf8 11. Qxf8# *"
+  },
+  {
+    "id": "c6f1d41d42be",
+    "title": "Ruy Lopez: The Nd5 Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. Bb5 Nge7 4. Nc3 a6 5. Ba4 b5 6. Bb3 h6 7. d4 d6 8. a4 b4\n9. Nd5 Bg4 10. Nxe5 Bxd1 11. Nf6+ gxf6 12. Bxf7# *"
+  },
+  {
+    "id": "82807491b34b",
+    "title": "Opera Game Patterns",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 d6 3. d4 Bg4 4. dxe5 Bxf3 5. Qxf3 dxe5 6. Bc4 Nf6 7. Qb3 Qe7 8.\nNc3 c6 9. Bg5 b5 10. Nxb5 cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rxd7 Rxd7 14.\nRd1 Qe6 15. Bxd7+ Nxd7 16. Qb8+ Nxb8 17. Rd8# *"
+  },
+  {
+    "id": "556f9cf48a19",
+    "title": "Petrov: Queen Hunt, bxc3 Line",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. Nf3 Nf6 2. e4 e5 3. d4 exd4 4. e5 Ne4 5. Qxd4 d5 6. Nc3 Bc5 7. Qxd5 Bxf2+ 8.\nKd1 Nxc3+ 9. bxc3 Qxd5+ *"
+  },
+  {
+    "id": "f66e08b51cc2",
+    "title": "Scandinavian Defense Essentials",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. d4 c6 5. Nf3 Bg4 6. Bf4 e6 7. h3 Bxf3 8.\nQxf3 Bb4 9. Be2 Nd7 10. a3 O-O-O 11. axb4 Qxa1+ 12. Kd2 Qxh1 13. Qxc6+ bxc6 14.\nBa6# *"
+  },
+  {
+    "id": "7c18018f59bf",
+    "title": "Caro-Kann Exchange: f7 Strike",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 c6 2. e4 d5 3. exd5 cxd5 4. Ne5 Nc6 5. Bb5 Bd7 6. Nxf7 Kxf7 7. Qh5+ g6\n8. Qxd5+ Ke8 9. O-O Nf6 10. Qg5 a6 11. Bd3 Nb4 12. Bxg6+ { [%csl Rh7] } 12...\nhxg6 13. Qxg6# *"
+  },
+  {
+    "id": "b4c5b3e161de",
+    "title": "Légal's Mate: Castled Version",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{ 9-MOVE BISHOP'S OPENING DESTRUCTION ⚔️🤴 \n\n​​Using the Bishop pair, to trap the enemy King. Total board domination ending in a brutal 9-move checkmate finish. ♟️📉 \n\n​ }\n1. e4 e5 2. Bc4 Nf6 3. Nf3 Nxe4 4. Nc3 Nxc3 5. dxc3 d6 6. O-O Bg4 7. Nxe5 Bxd1\n8. Bxf7+ Ke7 9. Bg5# *"
+  },
+  {
+    "id": "351a88af13e8",
+    "title": "Belgrade Gambit: Qxg6 Mate",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. Nc3 e5 3. e4 Nf6 4. Nd5 Nxe4 5. d4 exd4 6. Qe2 f5 7. Ng5 h6 8.\nQh5+ g6 9. Qxg6# *"
+  },
+  {
+    "id": "2bc1382244d2",
+    "title": "Evans Gambit: Qh5 Strike",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. b4 Bxb4 5. c3 Ba5 6. d4 exd4 7. O-O Nge7 8.\nNg5 O-O { The losing mistake — this is the move the whole trap waits for. } 9.\nQh5 h6 10. Nxf7 Rxf7 11. Bxf7+ Kh8\n{ The losing mistake — this is the move the whole trap waits for. } 12. Bxh6\ngxh6 13. Qxh6# *"
+  },
+  {
+    "id": "ec13047c9bd1",
+    "title": "Busch–Gass Gambit: Rook Sac",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Bc5 3. Nxe5 Qh4 4. Qf3 f5 5. Qxf5 Nh6 6. Qf3 Rf8 7. Qe2 Rxf2 8.\nQc4 Rxf1+ 9. Kxf1 { [%csl Rh4] } 9... Qf2# *"
+  },
+  {
+    "id": "2620035cd39a",
+    "title": "Réti Opening: Bishop Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. c4 c6 2. Nf3 d5 3. g3 Bg4 4. Ne5 Bf5 5. Qb3 Qb6 6. cxd5 Qxb3 7. axb3 Be4 8.\ndxc6 Bxh1 9. Rxa7 Rxa7 10. c7 Nc6 11. c8=Q+ Nd8 12. Qd7# *"
+  },
+  {
+    "id": "d42b732b213e",
+    "title": "Owen Defense: Demolition",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{Owen defense} 1. e4 b6 2. d4 Bb7 3. Bd3 f5 {The losing mistake — this is the move the whole trap waits for.} 4. exf5 Bxg2 5. Qh5+ g6 6. fxg6 Nf6 {The losing mistake — this is the move the whole trap waits for.} 7. gxh7+ Nxh5 8. Bg6#"
+  },
+  {
+    "id": "5b64f79f533a",
+    "title": "The 'Oh No, My Queen!' Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 Nf6 2. Nc3 e5 3. d3 Bc5 4. Bg5 Nc6 5. h3 h6 6. Bh4 Nxe4 7. Bxd8 Bxf2+ 8.\nKe2 Nd4# *"
+  },
+  {
+    "id": "6b81be8838ae",
+    "title": "Giuoco Pianissimo: Nd5 Plan",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. Bc4 Bc5 4. Nc3 Nf6 5. d3 d6 6. Bg5 h6 7. Bxf6 Qxf6 8.\nNd5 Qd8 9. c3 Be6 10. d4 exd4 11. cxd4 { [%csl Rb4] } 11... Bb4+ 12. Nxb4 Nxb4\n13. Qa4+ Nc6 14. d5 *"
+  },
+  {
+    "id": "94609bd22421",
+    "title": "Van Geet Opening: Tempo Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nc3 d5 2. e4 dxe4 { [%csl Rc4,Rf1] } 3. Bc4 { [%csl Rf6,Rg8] } 3... Nf6 4.\nd3 exd3 5. Nf3 { [%csl Rd3] } 5... dxc2 { [%csl Rc4] } 6. Bxf7+ Kxf7 7. Qxd8 *"
+  },
+  {
+    "id": "bec8097d157e",
+    "title": "Englund Gambit: Classic Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. d4 e5 2. dxe5 d5 3. c4 d4 4. e3 Bb4+ 5. Bd2 dxe3 6. Bxb4 exf2+ 7. Ke2 fxg1=Q\n8. Rxg1 Bg4+ 9. Ke1 Qxd1+ 10. Kf2 Qd4+ 11. Kg3 *"
+  },
+  {
+    "id": "ccb4ec64c76f",
+    "title": "Borg Defense: Punished",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 g5 2. d4 g4 3. Qxg4 d5 4. Qe2 dxe4 5. Qxe4 Nf6 6. Qh4 Rg8 7. Nf3 Rg4\n{ [%csl Rh4] } 8. Qh3 Re4+ *"
+  },
+  {
+    "id": "eccf50a74fd5",
+    "title": "Two Knights: Nh4 Gamble",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 e5 2. e4 Nf6 3. Bc4 Nc6 4. O-O h6 5. Nh4 Nxe4 6. Qh5 g6 7. Bxf7+ Kxf7 8.\nQxg6+ Ke7 9. Nf5# *"
+  },
+  {
+    "id": "9210f4a8e8fd",
+    "title": "Scotch Gambit: Double Knight Sac",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. d4 { [%csl Re5] } 3... exd4 4. Bc4 Bc5 5. Ng5 Nh6 6.\nNxf7 Nxf7 7. Bxf7+ Kxf7 8. Qh5+ g6 9. Qxc5 *"
+  },
+  {
+    "id": "7c4cbe59ff41",
+    "title": "Scandinavian: Nxc7 Royal Fork",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. d4 Nf6 5. Bd2 Nc6 6. Bb5 e6 7. Nd5 Qxb5 8.\nNxc7+ Kd8 9. Nxb5 *"
+  },
+  {
+    "id": "f0cb58aac1a2",
+    "title": "Calabrese Countergambit: Crushed",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Bc4 f5 3. Nf3 fxe4 4. Nxe5 d6 5. Qh5+ g6 6. Nxg6 hxg6 7. Qxg6+ Ke7\n8. Qf7# *"
+  },
+  {
+    "id": "42bf81614fe3",
+    "title": "Sicilian Sveshnikov: Rook Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c5 2. Nf3 Nc6 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 e5 6. Ndb5 d6 7. Nd5 Nxd5 8.\nexd5 Ne7 9. c4 Bf5\n{ The losing mistake — this is the move the whole trap waits for. } 10. Qa4 Bd7\n{ The losing mistake — this is the move the whole trap waits for. } 11. Nxd6# *"
+  },
+  {
+    "id": "2f2df983e3c2",
+    "title": "Petrov: Modern Attack Queen Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nf6 3. d4 exd4 4. e5 Ne4 5. Qxd4 d5 6. Nc3 Bc5 7. Qxd5 Bxf2+ 8.\nKd1 Nxc3+ 9. Kd2 Nxd5 *"
+  },
+  {
+    "id": "8f7b73182b14",
+    "title": "Blackmar–Diemer: Bxf7# Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 d5 2. d4 dxe4 3. f3 exf3 4. Nxf3 Bg4 5. Bc4 Nf6 6. Ne5 Bh5 7. Qxh5 Nxh5\n8. Bxf7# *"
+  },
+  {
+    "id": "4500404a9040",
+    "title": "Latvian Gambit: Black's Revenge",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 f5 3. Bc4 fxe4 4. Nxe5 Nf6 5. Nf7 Qe7 6. Nxh8 d5 7. Bb3 Bg4 8.\nf3 exf3+ 9. Kf2 Ne4+ 10. Kg1 f2+ 11. Kf1 Bxd1 12. d3 Nd2+ 13. Bxd2 Qe2# *"
+  },
+  {
+    "id": "c33e44df24dd",
+    "title": "Scotch Gambit: Re1 Pressure",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. d4 exd4 4. Bc4 h6 5. c3 dxc3 6. O-O { [%csl Rd7,Rf1] }\n6... d6 7. Re1 Bg4 8. e5 Nxe5 9. Nxe5 Bxd1 10. Bb5+ c6 11. Nxc6+ { [%csl Re8] }\n11... Kd7 12. Nxd8+ Kc7 13. Nxf7 Rh7 14. Rxd1 *"
+  },
+  {
+    "id": "d235f1f4266e",
+    "title": "Italian Game: Qb3 Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 d6 5. O-O Bg4 6. d4 exd4 7. Qb3 Qd7 8.\ncxd4 Bxf3 9. dxc5 Nd4 10. Bxf7+ Kd8 11. Qxb7 Ne2+ 12. Kh1 Bxg2+ 13. Kxg2 Qg4+\n14. Kh1 Qf3# *"
+  },
+  {
+    "id": "2f079420c20e",
+    "title": "Van Geet Opening: Mating Net",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nc3 g6 2. d3 e6 3. Qd2 Ne7 4. Ne4 Bg7 5. Qh6 Bxh6 6. Nf6+ Kf8 7. Bxh6# *"
+  },
+  {
+    "id": "9d981744f200",
+    "title": "Vienna Gambit: Nd4 Counter",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. Nc3 e5 2. e4 Nf6 3. f4 d5 4. fxe5 Nxe4 5. Qf3 Nc6 6. Nxe4 Nd4 7. Qd3 dxe4 8.\nQxe4 Bf5 9. Qxb7 Rb8 10. Qa6 Nxc2+ 11. Kf2 Qd5 12. Ke2 Qe4+ 13. Kd1 Qe1# *"
+  },
+  {
+    "id": "02feaea1dd2b",
+    "title": "Nakhmanson Gambit: King Hunt",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{ [%csl Rg1] } 1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Bc4 Nf6 5. O-O Nxe4 6. Nc3\ndxc3 7. Bxf7+ Kxf7 8. Qd5+ Ke7 9. Qxe4+ Kf7 10. Ng5+ Kg8 11. Qd5# *"
+  },
+  {
+    "id": "23a5db73287c",
+    "title": "An Immortal Queen Sacrifice",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 Nf6 2. e5 Nd5 3. d4 d6 4. Nf3 Bg4 5. Be2 c6 6. c4 Nb6 7. Nbd2 N8d7 8. Ng5\nBxe2 { [%csl Re5] } 9. e6 { [%csl Rf7] } 9... f6 10. Qxe2 fxg5 11. Ne4 Nf6 12.\nNxg5 Qc7 13. Nf7 Rg8 14. g4 h6 { [%csl Rg4] } 15. h4 d5 16. c5 Nc8 17. g5 Ne4\n18. gxh6 gxh6 { [%csl Re3,Rf7] } 19. Qh5 Nf6 20. Nd6+ Kd8 21. Qe8+ Nxe8 22.\nNf7# *"
+  },
+  {
+    "id": "0915f053a5e5",
+    "title": "Fried Liver: Ke8 Line",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nxd5 6. Nxf7 { [%csl Rd1] }\n6... Kxf7 7. Qf3+ Ke8 8. Bxd5 Ne7 9. Bf7+ Kd7 10. Qd3+ Kc6 11. Qxd8 *"
+  },
+  {
+    "id": "fc252dbb10c7",
+    "title": "Boden–Kieseritzky Gambit",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Bc4 Nf6 3. Nf3 Nxe4 4. Nxe5 d5 5. Bb3 Qg5 6. O-O Qxe5 7. d3 Bd6 8.\ng3 Ng5 9. Re1 Nf3+ 10. Kf1 Bh3# *"
+  },
+  {
+    "id": "afb1e1ac35f0",
+    "title": "Icelandic Gambit",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 d5 2. exd5 Nf6 3. c4 e6 4. dxe6 Bxe6 5. d4 Bb4+ 6. Nc3 Ne4 7. Qd3 Bf5 8.\nQe3 O-O 9. Be2 Re8 10. Qf3 Qxd4 11. Qxf5 { [%csl Re5] } 11... Nxc3 12. bxc3\nBxc3+ 13. Kf1 Qd1+ 14. Bxd1 Re1# *"
+  },
+  {
+    "id": "c102ee906c60",
+    "title": "Evans Gambit: Center Avalanche",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. b4 Bxb4 5. c3 Ba5 6. d4 exd4 7. Nxd4 Qf6 8.\nO-O Nge7 9. f4 d6 10. e5 dxe5 11. fxe5 Qxe5 12. Bxf7+ Kd8 13. Ne6# *"
+  },
+  {
+    "id": "fa2e85eede9e",
+    "title": "Petrov Defense: Kingside Rush",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nf6 3. Bc4 Bb4 4. Nc3 c6 5. Nxe5 O-O { [%csl Rd2] } 6. d3 d5 7.\nexd5 cxd5 8. Bb3 Qe7 9. f4 { [%csl Rd5] } 9... d4 10. a3 { [%csl Rd4] } 10...\ndxc3 11. axb4 Bg4 *"
+  },
+  {
+    "id": "cfb4a3cb39f0",
+    "title": "QGA: Central Break",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. d4 d5 2. c4 dxc4 3. e4 e5 4. Nf3 exd4 5. Bxc4 Nc6 6. O-O g6 7. e5 Bg7 8. Qb3\nQd7 9. Ng5 Nd8 10. Nxf7 Nxf7 11. e6 *"
+  },
+  {
+    "id": "1ef633c6efd9",
+    "title": "Icelandic Gambit: Nd3+ Smother",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 d5 2. exd5 Nf6 3. c4 e6 4. dxe6 Bc5 5. exf7+ Kxf7 6. Qf3 Nc6 7. Ne2 Ne5\n{ [%csl Rf3] } 8. Qc3 Nd3+ { [%csl Re1] } 9. Kd1 Ne4 { [%csl Re4] } 10. Qb3\nNexf2+ 11. Kc2 Ne1+ { [%csl Rc2] } 12. Kc3 Ne4# *"
+  },
+  {
+    "id": "935ec2ad4bec",
+    "title": "Stafford Gambit: h5 Attack",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. Nf3 Nf6 2. e4 e5 3. Nxe5 Nc6 4. Nxc6 dxc6 5. d3 Bc5 6. Be2 h5 7. O-O Ng4 8.\nh3 Qd6 9. hxg4 hxg4 10. g3 Qxg3# *"
+  },
+  {
+    "id": "23e354ee733c",
+    "title": "Grob Opening: The f7 Sting",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. g4 e5 2. Bg2 Qg5 3. Bd5 Nf6 4. Nf3 Qxg4 5. Bxf7+ Kxf7\n{ The losing mistake — this is the move the whole trap waits for. } 6. Nxe5+ *"
+  },
+  {
+    "id": "f9c3e5454811",
+    "title": "Budapest Defense: Queen Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. d4 Nf6 2. c4 e5 3. dxe5 Ne4 4. Nf3 b6 5. Qd5 Bb7 6. Qxb7 Nc6 7. Nc3 Nc5 *"
+  },
+  {
+    "id": "2d5244dfbb79",
+    "title": "French Defense: Kingside Slam",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e6 2. d4 d5 3. Nc3 Nf6 4. Bg5 Be7 5. Bxf6 Bxf6 6. e5 Be7 7. Bd3 Bd7 8.\nNf3 O-O 9. h4 f6 10. Ng5 fxg5 11. Bxh7+ Kxh7 12. hxg5+ Kg8 13. Rh8+ Kxh8 14.\nQh5+ Kg8 15. g6 Rf5 16. Qh7+ Kf8 17. Qh8# *"
+  },
+  {
+    "id": "2aabcdcde10e",
+    "title": "Italian Game: Center Fork Trick",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 Nf6 5. d4 exd4 6. cxd4 Bb4+ 7. Nc3 Nxe4 8.\nO-O Nxc3 9. bxc3 Bxc3 10. Qb3 Bxa1 11. Bxf7+ Ke7 12. Re1+ Kf8 13. Bh5 d5 14.\nQxd5 Be6 15. Qxe6 Qe7 16. Qf5+ Qf6 17. Ba3+ Nb4 18. Bxb4+ c5 19. Bxc5+ Kg8 20.\nQd5+ Qe6 21. Qxe6# *"
+  },
+  {
+    "id": "e8e45602e2c9",
+    "title": "King's Gambit: Bh4+ Trick",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. f4 e5 2. e4 exf4 3. Nf3 Be7 4. Bc4 { [%csl Rd7,Rf7] } 4... Bh4+ 5. Nxh4\nQxh4+ 6. Kf1 Nf6 7. Qf3 Nc6 8. d3 Nd4 { [%csl Rg3] } 9. Qd1 Ng4 10. Qd2 Ne3+\n11. Kg1 Nf3+ 12. gxf3 Qg5+ 13. Kf2 Qg2+ 14. Ke1 Qxh1+ 15. Kf2 Qf1# *"
+  },
+  {
+    "id": "93468a358241",
+    "title": "Sicilian: Mengarini Gambit Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c5 2. a3 Nc6 3. b4 cxb4 4. axb4 Nxb4 5. c3 Nc6 6. d4 d5 7. exd5 Qxd5 8.\nNa3 e5 9. Nb5 { [%csl Rb5] } 9... Qd8 10. d5 Nb8 11. d6 Na6 12. Rxa6 bxa6 13.\nNc7+ Kd7 14. Qa4+ Kxd6 15. Ne8+ Ke6 16. Bc4+ Kf5 17. Qc2+ e4 18. g4+ Ke5 19.\nf4+ exf3 20. Nxf3# *"
+  },
+  {
+    "id": "d493e1e4858e",
+    "title": "Italian Fork Trick: Full Line",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 Nf6 5. d4 exd4 6. cxd4 Bb4+ 7. Nc3 Nxe4 8.\nO-O Nxc3 9. bxc3 Bxc3 10. Ba3 Bxa1 11. Re1+ Ne7 12. Rxe7+ Kf8 13. Rxf7+ Kg8 14.\nRxd7# *"
+  },
+  {
+    "id": "84ac62efebfd",
+    "title": "French Defense: Queen Raid on b7",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e6 2. c4 d5 3. cxd5 exd5 4. Qa4+ Bd7 5. Qb3 dxe4 6. Bc4 Qe7 7. Qxb7 Bc6\n8. Qc8+ Qd8 9. Bxf7+ Ke7 10. Qe6# *"
+  },
+  {
+    "id": "cc59d346190a",
+    "title": "Max Lange Attack",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. Bc4 Bc5 4. O-O Nf6 5. d4 exd4 6. e5 Ng8 7. Ng5 Nh6 8.\nRe1 O-O 9. Qd3 g6 10. Qh3 Kg7 11. Qxh6+ Kxh6 12. Nxf7+ Kg7 13. Bh6+ Kg8 14.\nNxd8+ Kh8 15. Bxf8 *"
+  },
+  {
+    "id": "0842cfa76e9d",
+    "title": "Halloween Gambit: Pawn Steamroller",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. Nxe5 Nxe5 5. d4 Nc6 6. d5 Ne5 7. f4 Ng6 8. e5\nNg8 9. d6 cxd6 10. exd6 Qf6 11. Nb5 Kd8 12. Be3 a6 13. Bb6+ Ke8 14. Nc7+ Kd8\n15. Nxa8+ Ke8 16. Nc7+ Kd8 17. Nd5+ Ke8 18. Nxf6+ Nxf6 19. Qe2+ Be7 20. f5 Nf4\n21. Qxe7# *"
+  },
+  {
+    "id": "ab8fb7e99f2a",
+    "title": "Scandinavian Gambit Accepted",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 d5 2. exd5 c6 3. Nf3 Nf6 4. dxc6 Nxc6 5. Be2 b6 6. d4 Bb7 7. Nc3 e6 8.\nBe3 Rc8 9. O-O Bd6 10. Ne5 Bb8 11. a3 O-O 12. f4 Nxe5 13. fxe5 Ne4 14. Nxe4\nBxe4 15. c3 f6 16. Bd3 Ba8 17. exf6 Rxf6 18. Qc2 Qf8 19. Bxh7+ Kh8 20. Rxf6\nQxf6 21. Qg6 Qh4 22. g3 Qh3 *"
+  },
+  {
+    "id": "653e352e6756",
+    "title": "Caro-Kann: Nxf7 Bomb",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Ng5 h6 6. Nxf7 Kxf7 7. Nf3 Bg4 8.\nNe5+ Kg8 9. Bc4+ Kh7 10. Qd3+ g6 11. Qxg6# *"
+  },
+  {
+    "id": "fdb0d28cc714",
+    "title": "Stafford Gambit: Classic Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. Nf3 Nf6 2. e4 e5 3. Nxe5 Nc6 4. Nxc6 dxc6 5. d3 Bc5 6. Bg5 Nxe4 7. Bxd8\nBxf2+ 8. Ke2 Bg4# *"
+  },
+  {
+    "id": "fa2e39014e74",
+    "title": "Scotch Gambit: Bxf7 Bomb",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. d4 exd4 4. Bc4 Bc5 5. c3 dxc3 6. Bxf7+ Kxf7 7. Qd5+ Ke8\n8. Qh5+ g6 9. Qxc5 d6 10. Qxc3 Nf6 11. O-O Bg4 12. Bg5 Rf8 13. Nbd2 Qe7 14. e5\ndxe5 15. Nxe5 Nxe5 16. Rfe1 *"
+  },
+  {
+    "id": "b7296df36fe2",
+    "title": "The Greedy Queen Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "{ Trapping the queen in the opening } 1. Nf3 Nf6 2. e4 Nd5\n{ The losing mistake — this is the move the whole trap waits for. } 3. e5 d6 4.\nd4 Bg4 5. Be2 dxe5 6. Nxe5 Bxe2 7. Qxe2 Nb6 8. O-O Qxd4\n{ The losing mistake — this is the move the whole trap waits for. } 9. Rd1 Qh4\n10. Bg5 Qxg5 11. Rd8+ Kxd8 12. Nxf7+ Ke8 13. Nxg5 *"
+  },
+  {
+    "id": "2dd5e9db2ca3",
+    "title": "French Winawer: Dark-Square Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e6 2. d4 d5 3. Nc3 Bb4 4. Bd3 Bxc3+ 5. bxc3 h6 6. Ba3 Nd7 7. Qe2 dxe4 8.\nBxe4 Ngf6 9. Bd3 b6 10. Qxe6+ fxe6 11. Bg6# *"
+  },
+  {
+    "id": "fc0c0bc63fe0",
+    "title": "Tennison Gambit: ICBM",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 d5 2. e4 dxe4 3. Ng5 Nf6 4. d3 exd3 5. Bxd3 h6 6. Nxf7 Kxf7 7. Bg6+ Kxg6\n8. Qxd8 *"
+  },
+  {
+    "id": "75824b389e57",
+    "title": "Vienna Gambit: Early Queen Punished",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nc3 Nf6 3. f4 exf4 4. e5 Qe7 5. Qe2 Ng8 6. Nf3 d6 7. Nd5 Qd7 8.\nNxc7+ Qxc7 9. exd6+ *"
+  },
+  {
+    "id": "4d83db7e7c5f",
+    "title": "Philidor Defense: Ne6 Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 d6 3. d4 exd4 4. Bc4 Be7 5. Nxd4 Nd7 6. Bxf7+ Kxf7 7. Ne6 Kxe6\n8. Qd5+ Kf6 9. Qf5# *"
+  },
+  {
+    "id": "cc8568136d19",
+    "title": "Réti vs Tartakower (1910)",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c6 2. d4 d5 3. Nc3 dxe4 4. Nxe4 Nf6 5. Qd3 e5 6. dxe5 Qa5+ 7. Bd2 Qxe5 8.\nO-O-O Nxe4 9. Qd8+ Kxd8 10. Bg5+ Kc7 11. Bd8# *"
+  },
+  {
+    "id": "32ea07147308",
+    "title": "Nakhmanson Gambit: Main Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Bc4 Nf6 5. O-O Nxe4 6. Nc3 dxc3 7. Bxf7+ Kxf7\n8. Qd5+ Ke8 9. Re1 *"
+  },
+  {
+    "id": "8e736d252cd4",
+    "title": "Blackburne–Shilling Gambit",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 4. Nxe5 Qg5 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2\nNf3# *"
+  },
+  {
+    "id": "e3c713ddee99",
+    "title": "Blackburne–Shilling: Refuted",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Bc4 Nc6 3. Nf3 Nd4 4. Bxf7+ Kxf7 5. Nxe5+ Ke6 6. f4 Bd6 7. Qg4+ Ke7\n8. Qxg7+ Ke6 9. Qf7# *"
+  },
+  {
+    "id": "70b2418602a6",
+    "title": "Scotch Gambit: King Hunt",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. d4 exd4 4. Ng5 h6 5. Nxf7 Kxf7 6. Bc4+ Ke8 7. Qh5+ Ke7\n8. Qf7+ Kd6 9. Bf4+ Kc5 10. Qd5+ Kb4 11. Qb5# *"
+  },
+  {
+    "id": "e65f705ff3d7",
+    "title": "Italian Game: Qh5 Mating Net",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{Checkmate in the Italian Opening!🎯} 1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. O-O h6 6. Nh4 Nxe4 7. Qh5 g6 {The losing mistake — this is the move the whole trap waits for.} 8. Bxf7+ Kxf7 {The losing mistake — this is the move the whole trap waits for.} 9. Qxg6+ Ke7 10. Nf5#"
+  },
+  {
+    "id": "1cf32053779e",
+    "title": "King's Gambit: Légal-Style Mate",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. f4 exf4 3. Nf3 d5 4. Nc3 dxe4 5. Nxe4 Bg4 6. Qe2 Bxf3 7. Nf6# *"
+  },
+  {
+    "id": "16c900bcce1c",
+    "title": "The f7 Fork Trick",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. Bc4 Bc5 4. Bxf7+ Kxf7 5. Nxe5+ Nxe5 6. Qh5+ g6 7. Qxe5 *"
+  },
+  {
+    "id": "70e720f025c6",
+    "title": "Halloween Gambit: Main Line",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Nc3 Nf6 4. Nxe5 Nxe5 5. d4 Nc6 6. d5 Ne5 7. f4 Ng6 8. e5\nQe7 9. Qe2 Ng8 10. d6 cxd6 11. Nd5 Qd8 12. Nc7+ Qxc7 { [%csl Rf8] } 13. exd6+\nKd8 14. dxc7+ Kxc7 *"
+  },
+  {
+    "id": "591c8fb94787",
+    "title": "Italian Game: f7 Raid",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 d6 5. Ng5 Qf6 6. Bxf7+ Kf8 7. Qd2 h6 8.\nBxg8 Kxg8 9. Nf3 Bg4 10. Ng1 Rf8 11. f3 Qh4+ 12. Kf1 Bxg1 13. Kxg1 Bxf3 14.\ngxf3 Nd4 15. Qf2 { [%csl Rd4] } 15... Nxf3+ 16. Kg2 Qg4+ 17. Qg3 Nh4+ 18. Kg1\nQd1+ 19. Qe1 Qxe1# *"
+  },
+  {
+    "id": "9561755bc01c",
+    "title": "Ponziani: Jaenisch Counterattack",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. c3 Nf6 4. d4 Nxe4 5. d5 Ne7 { [%csl Rf3] } 6. Nxe5 d6 7.\nBb5+ c6 8. dxc6 { [%csl Rb7] } 8... Qb6 9. cxb7+ Kd8 10. Nxf7+ Kc7 11. bxa8=N+\nKb7 12. Nxb6 *"
+  },
+  {
+    "id": "8fb713a06ecf",
+    "title": "Morphy vs Bird (1858)",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. Nf3 d6 3. d4 f5 4. Nc3 fxe4 5. Nxe4 d5 6. Ng3 e4 7. Ne5 Nf6 8. Bg5\nBd6 9. Nh5 O-O 10. Qd2 Qe8 11. g4 Nxg4 12. Nxg4 Qxh5 13. Ne5 Nc6 14. Be2 Qh3\n15. Nxc6 bxc6 16. Be3 Rb8 17. O-O-O Rxf2 18. Bxf2 Qa3 19. c3 Qxa2 20. b4 Qa1+\n21. Kc2 Qa4+ { [%csl Rd6] } 22. Kb2 Bxb4 23. cxb4 Rxb4+ 24. Qxb4 Qxb4+ 25. Kc2\ne3 26. Bxe3 Bf5+ 27. Rd3 Qc4+ 28. Kd2 Qa2+ 29. Kd1 Qb1+ 30. Bc1 Bxd3 31. Bxd3\nQxd3+ 32. Ke1 Qe4+ 33. Kd2 Qxh1 *"
+  },
+  {
+    "id": "49316fb4eee3",
+    "title": "Blackmar–Diemer: Ryder Gambit",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nc3 Nf6 2. f3 d5 3. e4 dxe4 4. d4 exf3 5. Qxf3 Qxd4 6. Be3 Qe5 7. O-O-O c6\n8. Bd3 Be6 9. h3 Nbd7 10. Nge2 O-O-O 11. Bf4 Qh5 12. Qxc6+ bxc6 13. Ba6# *"
+  },
+  {
+    "id": "a3aa512239cd",
+    "title": "Smith–Morra: Queen Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c5 2. d4 cxd4 3. c3 dxc3 4. Nxc3 Nc6 5. Nf3 d6 6. Bc4 Nf6 7. e5 Nxe5 8.\nNxe5 dxe5 9. Bxf7+ Kxf7 10. Qxd8 *"
+  },
+  {
+    "id": "bc741c0b5a63",
+    "title": "Urusov Gambit: Qd5 Fork",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{ 13-MOVE PETROV DEFENSE ATTACK TRAP ⚔️🤴\n\nSacrificing the Queen, to force the open-file corridor execution. Total board domination ending in a rapid 13-move tactical finish. ♟️📉 }\n1. e4 e5 2. Bc4 Nf6 3. d4 Nxe4 4. dxe5 Bc5 5. Qd5 Bxf2+\n{ The losing mistake — this is the move the whole trap waits for. } 6. Kf1 O-O\n7. Qxe4 Bb6 8. Bd3 g6 9. Nf3 Nc6 10. Bg5 Qe8 11. Bf6 d6\n{ The losing mistake — this is the move the whole trap waits for. } 12. Qh4 h5\n13. Qxh5 gxh5 14. Ng5 dxe5 15. Bh7#\n{ Checkmate — the finish the video cuts to. } *"
+  },
+  {
+    "id": "a99c6635ee30",
+    "title": "Italian Game: 14-Move Demolition",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. O-O Nf6 5. d4 exd4 6. e5 Ng4 7. Bxf7+ Kxf7 8.\nNg5+ Kg8 9. Qxg4 Nxe5 10. Qe4 d6 11. Qd5+ Kf8 12. Qf7+ *"
+  },
+  {
+    "id": "85f4da3e1682",
+    "title": "The Sniper Bishop Trap",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. Nh3 Nf6 2. Ng1 e5 3. e4 d5 4. exd5 e4 5. c4 Bc5 6. a3 Bxf2+ 7. Kxf2 Ng4+ 8.\nKe1 O-O 9. h3 Qh4+ 10. Ke2 Qf2# *"
+  },
+  {
+    "id": "f7cef3fefca9",
+    "title": "Légal's Mate",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 d6 4. Nc3 Bg4 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5# *"
+  },
+  {
+    "id": "5e87e546c622",
+    "title": "French Defense: Nxe6 Bomb",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e6 2. d4 d5 3. Bd3 Nf6 4. e5 Nfd7 5. Nf3 c5 6. Ng5 h6 7. Nxe6 fxe6 8.\nQh5+ Ke7 9. Qh4+ g5 10. Bxg5+ hxg5 11. Qxg5+ Ke8 12. Bg6# *"
+  },
+  {
+    "id": "9d586c1cc30b",
+    "title": "Punishing the Early Queen",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Bc4 Qf6 3. Nf3 Bc5 4. d4 exd4 5. Bg5 Qg6 6. Nbd2 h6 7. Bh4 d6 8.\nO-O Nf6 9. e5 Bh3 10. Bg3 Be6 11. Bxe6 fxe6 12. exf6 gxf6 13. Nh4 Qg7 14. Qh5+\nKd7 15. Qf3 c6 16. Ne4 Na6 17. Nxf6+ Kc7 18. Ne4 Raf8 19. Qb3 Re8 20. Nxc5 Nxc5\n21. Qa3 a6 22. Qxc5 e5 23. Qa5+ Kb8 24. Nf5 Qf6 25. Nh4 Rhg8 26. c3 Qg5 27.\ncxd4 d5 28. dxe5 Rxe5 29. Bxe5+ Qxe5 30. Rae1 Qg5 31. g3 Qxh4 32. Qb6 Qf6 33.\na4 { [%csl Rc4] } 33... h5 34. h4 Qxh4 35. Re6 Qc4 36. Rfe1 h4 37. Re8+ Rxe8\n38. Rxe8# *"
+  },
+  {
+    "id": "8f87f31917e2",
+    "title": "Scotch Gambit: Pin and Win",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "{ [%csl Rd1] } 1. e4 e5 2. Nf3 Nc6 3. d4 exd4 4. Bc4 Nf6 5. e5 Qe7 6. Qe2 Ng8\n7. Bg5 f6 8. Bh4 g5 { [%csl Rd1] } 9. Nxg5 fxg5\n{ The losing mistake — this is the move the whole trap waits for. } 10. Qh5+\nKd8 11. Bxg5 Nf6\n{ The losing mistake — this is the move the whole trap waits for. } 12. Bxf6\n{ [%csl Rc1] } 12... Qxf6 13. exf6 *"
+  },
+  {
+    "id": "45652d16c7fa",
+    "title": "Damiano Defense: The Refutation",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 f6 3. Nxe5 fxe5 4. Qh5+ Ke7 5. Qxe5+ Kf7 6. Bc4+ Kg6 7. Qf5+\nKh6 8. d4+ g5 9. h4 Kg7 10. Qf7+ Kh6 11. hxg5# *"
+  },
+  {
+    "id": "82e3b8f8d9c9",
+    "title": "Nakhmanson Gambit: Double Sacrifice",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 Nc6 2. Nf3 e5 3. d4 exd4 4. Bc4 Nf6 5. O-O Nxe4 6. Nc3 dxc3 7. Bxf7+ Kxf7\n8. Qd5+ Ke8 9. Re1 Be7 10. Rxe4 h6 11. Bxh6 gxh6 12. Qh5+ Kf8 13. Rf4+ Bf6 14.\nQg6 *"
+  },
+  {
+    "id": "ae96be17e80d",
+    "title": "Center Game: h-Pawn Storm",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. d4 exd4 3. Qxd4 Nc6 4. Qe3 Bb4+ 5. c3 Ba5 6. Bc4 Nge7 7. Qg3 O-O\n{ [%csl Rh2] } 8. h4 Ng6 9. h5 Nge5 10. Bg5 Qe8 11. Bf6 g6 12. hxg6 Nxg6 13.\nQxg6+ hxg6 14. Rh8# *"
+  },
+  {
+    "id": "02a06d61969b",
+    "title": "Smith–Morra: Bxf7 Shocker",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 c5 2. d4 cxd4 3. c3 dxc3 4. Nxc3 e5 5. Nf3 d6 6. Bc4 h6 7. Bxf7+ Kxf7 8.\nNxe5+ Ke7 9. Nd5+ Ke6 10. Qg4+ Kxe5 11. Bf4+ Kxe4 12. Nc3+ Kd4 13. O-O-O+ Kc5\n14. Be3+ Kc6 15. Qa4+ Kc7 16. Nd5# *"
+  },
+  {
+    "id": "8bbd32b5c568",
+    "title": "Philidor Defense: Nxf7 Ambush",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 d6 3. d4 exd4 4. Ng5 Be7 5. Nxf7 Kxf7 6. Bc4+ Kf8 7. Qh5 g6 8.\nQd5 Qe8 9. Qxd4 Nf6 10. Bh6# *"
+  },
+  {
+    "id": "67ef2e6b52ac",
+    "title": "The Opera Game (Morphy, 1858)",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 d6 3. d4 Bg4 4. dxe5 Bxf3 5. Qxf3 dxe5 6. Bc4 Nf6 7. Qb3 Qe7 8.\nNc3 c6 9. Bg5 b5 10. Nxb5 cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rd6 Rg8 14.\nRxd7 Rh8 15. Bh6 Rxd7 16. Bg5 Rg8 17. Rd1 Rh8 18. Bh6 Qe6 19. Bg5 Rg8 20. Bc6\nRh8 21. Bxd7+ Nxd7 22. Bd8 Qxb3 23. Bg5 Qe6 24. Bd8 Nb8 25. Bg5 Rg8 26. Rd7 Rh8\n27. Rd8# *"
+  },
+  {
+    "id": "4ebcdb14055d",
+    "title": "Smothered Mate Masterclass",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bc4 f5 4. d4 exd4 5. e5 d6 6. exd6 Qxd6 7. O-O Nf6 8.\nRe1+ Be7 9. Ng5 Ng4 10. f4 d3 11. Bxd3 Qc5+ 12. Kh1 Nf2+ 13. Kg1 Nh3+ 14. Kh1\nQg1+ 15. Rxg1 Nf2# *"
+  },
+  {
+    "id": "1f0e3a54817c",
+    "title": "Grob Opening: Queen Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. g4 e5 2. Bg2 d5 3. g5 Qxg5 4. Bxd5 Nf6 5. Nf3 Qg2 6. Bxf7+ Kxf7 7. Rg1 Qh3\n8. Ng5+ *"
+  },
+  {
+    "id": "762c136a3ec5",
+    "title": "Center Game: Target f7",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. d4 Nc6 3. Nf3 d6 4. dxe5 Bd7 { [%csl Rf1] } 5. Bc4 Nxe5 6. Nxe5\ndxe5 7. Qf3 Nf6 8. Bg5 Bg4 9. Qb3 Qd1# *"
+  },
+  {
+    "id": "d01b86d53b3a",
+    "title": "King's Gambit: Schallopp Crush",
+    "category": "From videos",
+    "side": "b",
+    "pgn": "1. e4 e5 2. f4 exf4 3. Nf3 Nf6 4. e5 Nh5 5. Bc4 d6 6. Nc3 dxe5 7. Nxe5\n{ [%csl Rd8] } 7... Qh4+ 8. Kf1 Ng3+ 9. Kg1 Bc5+ 10. d4 { [%csl Re4] } 10...\nBxd4+ 11. Qxd4 Ne2+ 12. Nxe2 Qe1# *"
+  },
+  {
+    "id": "cde0daf58620",
+    "title": "Ruy Lopez: Open Variation Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. d4 Nxe4 6. d5 Ne7 7. Nxe5 b5 8. Bb3\nBb7 9. d6 Nxd6 10. Qxd6 cxd6 11. Bxf7# *"
+  },
+  {
+    "id": "e68d9a645839",
+    "title": "Scotch Gambit: Ng5 Fork Trick",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. Nf3 Nc6 2. e4 e5 3. d4 exd4 4. Bc4 Nf6 5. e5 Ng4 6. Bxf7+ Kxf7 7. Ng5+\n{ [%csl Rd1,Rf7] } 7... Kg8 8. Qf3 Ngxe5 9. Qd5+ Nf7 10. Qxf7# *"
+  },
+  {
+    "id": "d2c3e01be900",
+    "title": "Scandinavian: Poisoned Rook Trap",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 d5 2. exd5 Qxd5 3. Nc3 Qa5 4. d4 Nc6 5. d5 Nb4 6. a3 Bf5 7. Bb5+ c6 8.\naxb4 Qxa1 9. dxc6 Rd8 10. cxb7+ Bd7 11. Qxd7+ Rxd7 12. b8=Q# *"
+  },
+  {
+    "id": "355da7ef1a52",
+    "title": "Bishop's Opening: Kingside Crush",
+    "category": "From videos",
+    "side": "w",
+    "pgn": "1. e4 e5 2. Bc4 Nf6 3. d3 Be7 4. f4 exf4 5. e5 Ng8 6. Bxf4 d6 7. Nc3 dxe5 8.\nQh5 g6 9. Qxe5 Nf6 10. Nd5 Nbd7 11. Nxc7+ Kf8 12. Bh6+ Kg8 13. Bxf7+ Kxf7 14.\nQe6# *"
   }
 ]

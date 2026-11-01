@@ -35,6 +35,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   // exceptional background color (usually the GUI's last-move highlight)
   Set<String> _transit = {};
   Set<String> _hl = {};
+  Set<String> _overlay = {};
+  // seed the reel's pending frames with each confirmed position; off
+  // when the model's own detections are good enough to keep
+  bool _seedReel = true;
   // board view rotation in clockwise quarter-turns (display only),
   // remembered per image for the session
   int _rot = 0;
@@ -167,6 +171,16 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   /// when the pending filter has hidden those images.
   final List<String> _past = [];
 
+  /// With the board read horizontally (odd quarter-turns), rotate each
+  /// army toward its opponent like players seated at the sides.
+  int _facingTurns(String code) {
+    if (_rot % 2 == 0) return 0;
+    final white = code.startsWith('w');
+    // rot 1 puts white on the left (top of a glyph turns right,
+    // toward black); rot 3 mirrors that
+    return _rot == 1 ? (white ? 1 : 3) : (white ? 3 : 1);
+  }
+
   void _syncBoard({String? hold}) {
     _holdId = hold;
     final e = _current;
@@ -184,6 +198,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
           );
     _transit = {...?e?.transit};
     _hl = {...?e?.highlight};
+    _overlay = {...?e?.overlay};
     _boardDirty = false;
     _rot = e == null ? 0 : (_rotBy[e.id] ?? 0);
     _cornersMode = false;
@@ -267,24 +282,31 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   Future<void> _save() async {
     final e = _current;
     if (e == null || _busy) return;
+    // saving the label while corners mode is open must not drop the
+    // corner placement: commit the corners first
+    if (_cornersMode) {
+      await _saveCorners();
+      if (!mounted || _busy) return;
+    }
     setState(() => _busy = true);
     final fen = _mapToFen(_pieces);
     // a reel is one game evolving: the position just confirmed is the
     // best starting draft for the reel's still-pending frames
-    final seed = e.batch.startsWith('reel-');
+    final seed = _seedReel && e.batch.startsWith('reel-');
     bool ok;
     if (_offline) {
       _queued = await OfflineLabeler.journal('save', e.id, {
         'fen': fen,
         'transit': _transit.toList(),
         'highlight': _hl.toList(),
+        'overlay': _overlay.toList(),
         'seed_batch': seed,
       });
       ok = true;
     } else {
       ok =
           await saveCorrection(e.id, fen, seedBatchDraft: seed) &&
-          await saveSquareMarks(e.id, _transit, _hl);
+          await saveSquareMarks(e.id, _transit, _hl, _overlay);
     }
     if (seed && ok) {
       for (final x in _all) {
@@ -303,6 +325,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
         e.correctedFen = _mapToFen(_pieces);
         e.transit = {..._transit};
         e.highlight = {..._hl};
+        e.overlay = {..._overlay};
         if (_offline) OfflineLabeler.saveLocalState(_all);
         _status = _offline ? 'Saved offline ✓ (queued for sync)' : 'Saved ✓';
         if (_unlabeledOnly) {
@@ -674,25 +697,32 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       SizedBox(
                         width: 44,
                         height: 32,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: e == null
-                              ? null
-                              : () => _setInputType(
-                                  e.typeConfirmed && e.inputType == 'screenshot'
-                                      ? 'photo'
-                                      : 'screenshot',
-                                ),
-                          child: Text(
-                            e == null || !e.typeConfirmed
-                                ? '?'
-                                : e.inputType == 'screenshot'
-                                ? '2D'
-                                : '3D',
+                        child: Tooltip(
+                          message:
+                              'Image type — tap to cycle: ? (not yet '
+                              'confirmed) → 2D (screen rendering) → '
+                              '3D (real board photo)',
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            onPressed: e == null
+                                ? null
+                                : () => _setInputType(
+                                    e.typeConfirmed &&
+                                            e.inputType == 'screenshot'
+                                        ? 'photo'
+                                        : 'screenshot',
+                                  ),
+                            child: Text(
+                              e == null || !e.typeConfirmed
+                                  ? '?'
+                                  : e.inputType == 'screenshot'
+                                  ? '2D'
+                                  : '3D',
+                            ),
                           ),
                         ),
                       ),
@@ -1010,23 +1040,29 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                             ),
                           Padding(
                             padding: const EdgeInsets.all(3),
-                            child: InkWell(
-                              onTap: () => setState(
-                                () => _paletteWhite = !_paletteWhite,
-                              ),
-                              child: Container(
-                                width: 44,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    width: 2,
-                                    color: theme.colorScheme.outlineVariant,
-                                  ),
+                            child: Tooltip(
+                              message:
+                                  'Flip palette color (white ↔ black '
+                                  'pieces); double-tap anywhere on the '
+                                  'palette does the same',
+                              child: InkWell(
+                                onTap: () => setState(
+                                  () => _paletteWhite = !_paletteWhite,
                                 ),
-                                child: const CustomPaint(
-                                  size: Size(28, 28),
-                                  painter: YinYangPainter(),
+                                child: Container(
+                                  width: 44,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      width: 2,
+                                      color: theme.colorScheme.outlineVariant,
+                                    ),
+                                  ),
+                                  child: const CustomPaint(
+                                    size: Size(28, 28),
+                                    painter: YinYangPainter(),
+                                  ),
                                 ),
                               ),
                             ),
@@ -1035,6 +1071,60 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                       ),
                     ),
                   ),
+                  // signaling row: per-square marks get their own line
+                  // so neither it nor the action row overflows
+                  if (!_cornersMode)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
+                      child: Row(
+                        children: [
+                          _markChip(
+                            'unseen',
+                            Icons.visibility_off,
+                            theme.colorScheme.outline,
+                          ),
+                          _markChip(
+                            'transit',
+                            Icons.motion_photos_on,
+                            const Color(0xFF7B1FA2),
+                          ),
+                          _markChip(
+                            'hl',
+                            Icons.format_color_fill,
+                            const Color(0xFFFFA000),
+                          ),
+                          _markChip(
+                            'overlay',
+                            Icons.gesture,
+                            const Color(0xFF1E88E5),
+                          ),
+                          if (e.batch.startsWith('reel-') &&
+                              _all.any(
+                                (x) =>
+                                    x.batch == e.batch &&
+                                    x.id != e.id &&
+                                    !x.labeled,
+                              ))
+                            Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: FilterChip(
+                                visualDensity: VisualDensity.compact,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                label: const Text('seed reel'),
+                                tooltip:
+                                    'On save, copy this position as the '
+                                    "draft for the reel's pending frames "
+                                    '— turn OFF when the model already '
+                                    'reads them well',
+                                selected: _seedReel,
+                                onSelected: (v) =>
+                                    setState(() => _seedReel = v),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   // two action rows: browse/edit tools on top, the
                   // committing actions below
                   Padding(
@@ -1119,24 +1209,7 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                       : _hiddenCorners.remove(i);
                                 }),
                               ),
-                            )
-                        else ...[
-                          _markChip(
-                            'unseen',
-                            Icons.visibility_off,
-                            theme.colorScheme.outline,
-                          ),
-                          _markChip(
-                            'transit',
-                            Icons.motion_photos_on,
-                            const Color(0xFF7B1FA2),
-                          ),
-                          _markChip(
-                            'hl',
-                            Icons.format_color_fill,
-                            const Color(0xFFFFA000),
-                          ),
-                        ],
+                            ),
                         if (_status != null)
                           Expanded(
                             child: Text(
@@ -1153,83 +1226,106 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                     child: Row(
                       children: [
-                        OutlinedButton.icon(
-                          icon: Icon(
-                            Icons.crop_free,
-                            size: 18,
-                            color: _cornersMode
-                                ? theme.colorScheme.error
-                                : null,
+                        Tooltip(
+                          message: _cornersMode
+                              ? 'Save the corner positions (a reel '
+                                    'batch gets them on every frame)'
+                              : 'Mark the four board corners on the '
+                                    'photo (a8 h8 h1 a1)',
+                          child: OutlinedButton.icon(
+                            icon: Icon(
+                              Icons.crop_free,
+                              size: 18,
+                              color: _cornersMode
+                                  ? theme.colorScheme.error
+                                  : null,
+                            ),
+                            label: Text(
+                              _cornersMode ? 'Save corners' : 'Corners',
+                            ),
+                            onPressed: _busy
+                                ? null
+                                : () {
+                                    if (_cornersMode) {
+                                      _saveCorners();
+                                    } else {
+                                      setState(_enterCorners);
+                                    }
+                                  },
                           ),
-                          label: Text(
-                            _cornersMode ? 'Save corners' : 'Corners',
-                          ),
-                          onPressed: _busy
-                              ? null
-                              : () {
-                                  if (_cornersMode) {
-                                    _saveCorners();
-                                  } else {
-                                    setState(_enterCorners);
-                                  }
-                                },
                         ),
                         if (_cornersMode)
-                          TextButton(
-                            onPressed: () => setState(() {
-                              _cornersMode = false;
-                              _viewCtrl.value = Matrix4.identity();
-                            }),
-                            child: const Text('Cancel'),
+                          Tooltip(
+                            message:
+                                'Leave corners mode without saving '
+                                'corner changes',
+                            child: TextButton(
+                              onPressed: () => setState(() {
+                                _cornersMode = false;
+                                _viewCtrl.value = Matrix4.identity();
+                              }),
+                              child: const Text('Cancel'),
+                            ),
                           ),
                         const Spacer(),
-                        FilledButton.icon(
-                          onPressed: _busy ? null : _save,
-                          icon: _busy
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.check),
-                          label: const Text('Save'),
+                        Tooltip(
+                          message:
+                              'Save this position + marks; the image '
+                              'stays on screen (a reel save also seeds '
+                              "the reel's pending frames)",
+                          child: FilledButton.icon(
+                            onPressed: _busy ? null : _save,
+                            icon: _busy
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.check),
+                            label: const Text('Save'),
+                          ),
                         ),
                         const SizedBox(width: 8),
-                        FilledButton.tonalIcon(
-                          onPressed: items.isEmpty && _holdId == null
-                              ? null
-                              : () => setState(() {
-                                  final cur = _current;
-                                  if (cur != null) {
-                                    _past.add(cur.id);
-                                    if (_past.length > 400) {
-                                      _past.removeAt(0);
+                        Tooltip(
+                          message:
+                              'Go to the next pending image (finishing '
+                              'a reel jumps to the next reel with work)',
+                          child: FilledButton.tonalIcon(
+                            onPressed: items.isEmpty && _holdId == null
+                                ? null
+                                : () => setState(() {
+                                    final cur = _current;
+                                    if (cur != null) {
+                                      _past.add(cur.id);
+                                      if (_past.length > 400) {
+                                        _past.removeAt(0);
+                                      }
                                     }
-                                  }
-                                  if (_holdId == null) {
-                                    _index = (_index + 1) % items.length;
-                                  } else if (_index >= items.length) {
-                                    // the held image left the list; the
-                                    // same index already points at the
-                                    // next one
-                                    _index = 0;
-                                  }
-                                  _syncBoard();
-                                  if (_unlabeledOnly && _items.isEmpty) {
-                                    // this reel is done — jump to the
-                                    // next one that still has work
-                                    final bs = _batches(_all);
-                                    if (bs.isNotEmpty) {
-                                      _batch = bs.first;
+                                    if (_holdId == null) {
+                                      _index = (_index + 1) % items.length;
+                                    } else if (_index >= items.length) {
+                                      // the held image left the list; the
+                                      // same index already points at the
+                                      // next one
                                       _index = 0;
-                                      _syncBoard();
                                     }
-                                  }
-                                }),
-                          icon: const Icon(Icons.skip_next),
-                          label: const Text('Next'),
+                                    _syncBoard();
+                                    if (_unlabeledOnly && _items.isEmpty) {
+                                      // this reel is done — jump to the
+                                      // next one that still has work
+                                      final bs = _batches(_all);
+                                      if (bs.isNotEmpty) {
+                                        _batch = bs.first;
+                                        _index = 0;
+                                        _syncBoard();
+                                      }
+                                    }
+                                  }),
+                            icon: const Icon(Icons.skip_next),
+                            label: const Text('Next'),
+                          ),
                         ),
                       ],
                     ),
@@ -1244,23 +1340,40 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
   /// the piece palette.
   Widget _markChip(String kind, IconData icon, Color color) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: () => setState(() => _tool = _tool == kind ? null : kind),
-      child: Container(
-        width: 38,
-        height: 30,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            width: 2,
-            color: _tool == kind
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outlineVariant,
+    const tips = {
+      'unseen':
+          'Square not visible: tap squares where you cannot even tell '
+          'whether a piece is there',
+      'transit':
+          'Mid-move: tap squares where the photo caught a piece between '
+          'squares',
+      'hl':
+          'Highlight: tap squares whose background color differs (the '
+          "GUI's last-move highlight)",
+      'overlay':
+          'Interference: tap squares obscured by a drawn annotation — '
+          'an arrow, an exclamation mark and the like',
+    };
+    return Tooltip(
+      message: tips[kind] ?? kind,
+      child: InkWell(
+        onTap: () => setState(() => _tool = _tool == kind ? null : kind),
+        child: Container(
+          width: 38,
+          height: 30,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              width: 2,
+              color: _tool == kind
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant,
+            ),
           ),
+          child: Icon(icon, size: 20, color: color),
         ),
-        child: Icon(icon, size: 20, color: color),
       ),
     );
   }
@@ -1356,6 +1469,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                     : _transit.add(sq);
                               } else if (_tool == 'hl') {
                                 _hl.contains(sq) ? _hl.remove(sq) : _hl.add(sq);
+                              } else if (_tool == 'overlay') {
+                                _overlay.contains(sq)
+                                    ? _overlay.remove(sq)
+                                    : _overlay.add(sq);
                               } else if (_tool == 'unseen') {
                                 if (_pieces[sq] == '?') {
                                   _pieces.remove(sq);
@@ -1429,7 +1546,10 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                             _boardDirty = true;
                                           }),
                                       child: FittedBox(
-                                        child: pieceImage(p, 40),
+                                        child: RotatedBox(
+                                          quarterTurns: _facingTurns(p),
+                                          child: pieceImage(p, 40),
+                                        ),
                                       ),
                                     ),
                                   // mid-move piece badge
@@ -1441,6 +1561,17 @@ class _StudioLabelerScreenState extends State<StudioLabelerScreen> {
                                         Icons.motion_photos_on,
                                         size: 12,
                                         color: Color(0xFF7B1FA2),
+                                      ),
+                                    ),
+                                  // drawn-annotation (arrow / !) badge
+                                  if (_overlay.contains(sq))
+                                    const Positioned(
+                                      bottom: 1,
+                                      right: 1,
+                                      child: Icon(
+                                        Icons.gesture,
+                                        size: 12,
+                                        color: Color(0xFF1E88E5),
                                       ),
                                     ),
                                   // coordinates follow the rotated frame

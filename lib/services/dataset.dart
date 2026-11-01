@@ -38,6 +38,9 @@ class DatasetEntry {
   /// Squares with an exceptional background color (last-move highlight).
   Set<String> highlight = {};
 
+  /// Squares obscured by drawn annotations (arrows, exclamation marks).
+  Set<String> overlay = {};
+
   bool get labeled => correctedFen != null && correctedFen!.isNotEmpty;
 
   factory DatasetEntry.fromJson(Map<String, dynamic> j) =>
@@ -72,6 +75,7 @@ class DatasetEntry {
     if (raw is! Map) return;
     transit = {...?(raw['transit'] as List?)?.cast<String>()};
     highlight = {...?(raw['highlight'] as List?)?.cast<String>()};
+    overlay = {...?(raw['overlay'] as List?)?.cast<String>()};
   }
 }
 
@@ -131,6 +135,7 @@ Future<bool> saveSquareMarks(
   String id,
   Set<String> transit,
   Set<String> highlight,
+  Set<String> overlay,
 ) async {
   final base = await datasetBase();
   final res = await http
@@ -140,6 +145,7 @@ Future<bool> saveSquareMarks(
         body: jsonEncode({
           'transit': transit.toList(),
           'highlight': highlight.toList(),
+          'overlay': overlay.toList(),
         }),
       )
       .timeout(const Duration(seconds: 15));

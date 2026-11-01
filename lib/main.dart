@@ -187,6 +187,22 @@ class _SeechessAppState extends State<SeechessApp> {
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
+        // readable tooltips everywhere: a proper card, not a hairline
+        tooltipTheme: TooltipThemeData(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: const Color(0xF2263238),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF739552), width: 1),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 15,
+            height: 1.35,
+            color: Colors.white,
+          ),
+          waitDuration: const Duration(milliseconds: 350),
+        ),
       ),
       home: const HomeScreen(),
     );
